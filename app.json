@@ -1,0 +1,17 @@
+{
+  "name": "DDE",
+  "displayName": "DDE",
+  "expo": {
+    "name": "DDE",
+    "slug": "DDE",
+    "version": "1.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
