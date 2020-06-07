@@ -1,10 +1,11 @@
 import React from 'react'
-import {View,Image,Text, Platform,TouchableWithoutFeedback,ImageBackground,KeyboardAvoidingView,Keyboard,StyleSheet,TextInput,TouchableOpacity,LayoutAnimation} from 'react-native'
+import {View,Image,Text,AsyncStorage, Platform,TouchableWithoutFeedback,ImageBackground,KeyboardAvoidingView,Keyboard,StyleSheet,TextInput,TouchableOpacity,LayoutAnimation} from 'react-native'
 import * as firebase from 'firebase'
-import {Ionicons} from "@expo/vector-icons"
+import {Ionicons,Octicons} from "@expo/vector-icons"
 import { AntDesign } from '@expo/vector-icons'; 
 import * as ImagePicker from "expo-image-picker"
 import UserPermissions from "../../utilities/UserPermissions"
+import uuid from 'uuid/v4'; // Import UUID to generate UUID
 export default class RegisterScreen extends React.Component{
 
     state = {
@@ -15,8 +16,8 @@ export default class RegisterScreen extends React.Component{
         emailError:"",
         passwordError:"",
         nameError:"",
-
     }
+
 
     handlePickAvatar = async () =>{
         UserPermissions.getCameraPermission()
@@ -31,21 +32,55 @@ export default class RegisterScreen extends React.Component{
         }
     }
 
+    uriToBlob = (uri) => {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = function() {
+            // return the blob
+            resolve(xhr.response);
+            };
+            
+            xhr.onerror = function() {
+            // something went wrong
+            reject(new Error('uriToBlob failed'));
+            };
+            // this helps us get a blob
+            xhr.responseType = 'blob';
+            xhr.open('GET', uri, true);
+            
+            xhr.send(null);
+        });
+    }
+
+    uploadToFirebase = (blob) => {
+    return new Promise((resolve, reject)=>{
+        var storageRef = firebase.storage().ref();
+        let uid =  (firebase.auth().currentUser || {}).uid
+        console.log("uid",uid)
+        storageRef.child(`/profilePics/${uid}.jpg`).put(blob, {
+        contentType: 'image/jpeg'
+        }).catch((error)=>{
+        reject(error);
+        });
+    });
+    }
+
     handleSignUp = () => {
         const {email,password} = this.state
         this.handleEmail(this.state.email)
         this.handlePassword(this.state.password)
         this.handleName(this.state.name)
-        console.log("email error")
         console.log(this.state.emailError)
         if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != ""){
             return
         }
-        console.log("everything is ok")
         firebase.auth().createUserWithEmailAndPassword(email,password)
         .then(userCredentials =>{
             var user = firebase.auth().currentUser;
             user.updateEmail(this.state.email)
+            this.uriToBlob(this.state.avatar).then((blob) =>{
+                this.uploadToFirebase(blob)
+            })
             user.sendEmailVerification()
             this.props.navigation.navigate("Login",{errorMessage : "A verification email has been sent"})
             return userCredentials.user.updateProfile({
@@ -53,6 +88,8 @@ export default class RegisterScreen extends React.Component{
             })
         })
         .catch(error => this.setState({emailError: "*Email already in use*"}))
+
+        console.log("new user uid", firebase.auth().currentUser.uid)
     }
 
     handleEmail = (email) =>{
@@ -117,7 +154,7 @@ export default class RegisterScreen extends React.Component{
                             <View style={{alignItems:"center",justifyContent:"flex-end",marginBottom:80}}>
                             <TouchableOpacity style={styles.avatarPlaceholder} onPress={this.handlePickAvatar}>
                                 {this.state.avatar ? <Image source={{uri : this.state.avatar}} style={styles.avatar}/> :
-                                <Ionicons name="ios-add" size= {50} color="#FFF" />}
+                                <Octicons name="person" size= {50} color="#FFF" />}
                             </TouchableOpacity>
                             </View>
                             <View style={styles.form}>

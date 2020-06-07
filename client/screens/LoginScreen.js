@@ -19,7 +19,7 @@ export default class LoginScreen extends React.Component{
     handleLogin = () => {
         const {email,password} = this.state
         firebase.auth().signInWithEmailAndPassword(email,password).then(usercredentials =>{
-            if(usercredentials.emailVerified){
+            if(firebase.auth().currentUser.emailVerified){
                 this.props.navigation.navigate('Home')
             }else{
                 firebase.auth().currentUser.sendEmailVerification()
@@ -37,7 +37,6 @@ export default class LoginScreen extends React.Component{
                 currentNavParams : this.props.navigation.state.params
             })
         }
-        console.log(this.state.errorMessage)
         LayoutAnimation.easeInEaseOut()
         return(
             <View style={styles.container}>

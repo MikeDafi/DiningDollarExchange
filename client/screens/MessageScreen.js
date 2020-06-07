@@ -4,12 +4,13 @@ import {Ionicons,MaterialIcons} from "@expo/vector-icons"
 import { List, Divider } from 'react-native-paper';
 import firebase from "../../config"
 import Loading from './LoadingScreen';
-
+import Modal from 'react-native-modal';
 export default class MessageScreen extends React.Component{
 
   state = {
     threads : [],
-    loading : true
+    loading : true,
+    page : 0,
   }
 
   // useEffect(() => {
@@ -60,6 +61,11 @@ export default class MessageScreen extends React.Component{
           loading: false
         });  
     });
+    firebase.database().ref('/users/' + firebase.auth().currentUser.uid).child("page")
+    .once('value', function (pageSnapshot) {
+        thisClass.setState({page:pageSnapshot.val()})
+
+    });
   }
 
     render(){
@@ -87,6 +93,12 @@ export default class MessageScreen extends React.Component{
               </TouchableOpacity>
             )}
           />
+                <Modal
+                    testID={'modal'}
+                    isVisible={false}
+                    animationIn="slideInLeft"
+                    animationOut="slideOutRight">
+                </Modal>
         </View>
           // <View style={styles.container}>
           //     <View style={styles.header}>
