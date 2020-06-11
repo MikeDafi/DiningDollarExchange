@@ -3,6 +3,7 @@ import {View,Image,Text,AsyncStorage, Platform,TouchableWithoutFeedback,ImageBac
 import * as firebase from 'firebase'
 import {Ionicons,Octicons} from "@expo/vector-icons"
 import { AntDesign } from '@expo/vector-icons'; 
+import { Notifications } from 'expo';
 import * as ImagePicker from "expo-image-picker"
 import UserPermissions from "../../utilities/UserPermissions"
 import uuid from 'uuid/v4'; // Import UUID to generate UUID
@@ -65,22 +66,31 @@ export default class RegisterScreen extends React.Component{
     });
     }
 
-    handleSignUp = () => {
+    handleSignUp = async () => {
         const {email,password} = this.state
         this.handleEmail(this.state.email)
         this.handlePassword(this.state.password)
         this.handleName(this.state.name)
         console.log(this.state.emailError)
-        if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != ""){
-            return
-        }
+        console.log("in signupp")
+        // if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != ""){
+        //     return
+        // }
+        console.log("in sign up")
+        var user = firebase.auth().currentUser;
         firebase.auth().createUserWithEmailAndPassword(email,password)
         .then(userCredentials =>{
+            console.log("in create user")
             var user = firebase.auth().currentUser;
             user.updateEmail(this.state.email)
-            this.uriToBlob(this.state.avatar).then((blob) =>{
-                this.uploadToFirebase(blob)
-            })
+            // this.uriToBlob(this.state.avatar).then((blob) =>{
+            //     this.uploadToFirebase(blob)
+            // })
+
+            // firebase.database().ref('userNotifications1').push({
+            //     expoToken : true
+            //     active : false
+            // })
             user.sendEmailVerification()
             this.props.navigation.navigate("Login",{errorMessage : "A verification email has been sent"})
             return userCredentials.user.updateProfile({

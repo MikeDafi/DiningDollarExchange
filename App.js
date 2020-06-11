@@ -14,6 +14,7 @@ import ProfileScreen from "./client/screens/ProfileScreen"
 import BuyModalScreen from "./client/screens/BuyModalScreen"
 import RoomScreen from "./client/screens/RoomScreen";
 import VerifyScreen from "./client/screens/VerifyScreen";
+import UploadImages from './client/screens/UploadImages'
 import firebase from "./config"
 
 const AppContainer = createStackNavigator(
@@ -33,9 +34,9 @@ const AppContainer = createStackNavigator(
                             <Ionicons 
                                 name="ios-chatboxes" 
                                 size={45} 
-                                color="E9446A"
+                                color="#E9446A"
                                 style={{
-                                    shadowColor:"E9446A",
+                                    shadowColor:"#E9446A",
                                     shadowOffset:{width:0,height:0},
                                     shadowRadius:10,
                                     shadowOpacity:0.3
@@ -74,6 +75,9 @@ const AppContainer = createStackNavigator(
         },
         Room:{
             screen: RoomScreen,
+        },
+        UploadImages:{
+            screen: UploadImages,
         }
     },
     {

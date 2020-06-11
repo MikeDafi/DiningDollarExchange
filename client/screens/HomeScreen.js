@@ -1,14 +1,16 @@
 import React from 'react'
-import {View,Text, StyleSheet,Button,TouchableOpacity,LayoutAnimation,AppRegistry,Image,Dimensions} from 'react-native'
+import {View,Text, StyleSheet,Button,TouchableOpacity,LayoutAnimation,AppRegistry,Vibration,Image,Dimensions} from 'react-native'
 import * as firebase from 'firebase'
 import BuyerHomeScreen from './BuyerHomeScreen'
 import SellerHomeScreen from './SellerHomeScreen'
 import Swiper from 'react-native-swiper/src'
+import { Notifications } from 'expo';
 import PopupOrder from './PopupOrder'
 import {Ionicons,MaterialCommunityIcons} from "@expo/vector-icons"
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
-
+import * as Permissions from 'expo-permissions';
+import Constants from 'expo-constants';
 
 export default class HomeScreen extends React.Component{
     state ={
@@ -16,7 +18,8 @@ export default class HomeScreen extends React.Component{
         displayName:"",
         homepage: 0,
         rendered : false,
-        popupVisible : false
+        popupVisible : false,
+        token:''
     }
     componentDidMount(){
         const{email,displayName} = firebase.auth().currentUser
@@ -30,7 +33,46 @@ export default class HomeScreen extends React.Component{
             console.log("in component mount ", thisClass.state.homepage)
         });
 
+            this.registerForPushNotificationsAsync();
+    this._notificationSubscription = Notifications.addListener(this._handleNotification);
+
     }
+
+
+    _handleNotification = notification => {
+        Vibration.vibrate();
+        console.log(notification);
+    };
+
+    registerForPushNotificationsAsync = async () => {
+        if (Constants.isDevice) {
+            const { status: existingStatus } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+                const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+                finalStatus = status;
+            }
+            if (finalStatus !== 'granted') {
+                alert('Failed to get push token for push notification!');
+                return;
+            }
+            token = await Notifications.getExpoPushTokenAsync();
+            console.log(token);
+            this.setState({ token: token });
+        } else {
+            alert('Must use physical device for Push Notifications');
+        }
+
+        if (Platform.OS === 'android') {
+            Notifications.createChannelAndroidAsync('default', {
+                name: 'default',
+                sound: true,
+                priority: 'max',
+                vibrate: [0, 250, 250, 250],
+            });
+        }
+    };
+
 
     signOutUser = () => {
         firebase.auth().signOut()
@@ -106,6 +148,7 @@ export default class HomeScreen extends React.Component{
                                             onPress={()=>{
                                                 // this.props.navigation.navigate("BuyModal")
                                                 this.setState({popupVisible:true})
+                                                this.signOutUser()
                                             }} 
                                             style={{borderWidth:10,
                                             width:60,
@@ -150,7 +193,7 @@ export default class HomeScreen extends React.Component{
                     <SellerHomeScreen  navigation={this.props.navigation}/>
                 </Swiper>
 
-                {this.state.popupVisible && <PopupOrder togglePopupVisibility={this.togglePopupVisibility}/>}
+                {this.state.popupVisible && <PopupOrder navigation={this.props.navigation} togglePopupVisibility={this.togglePopupVisibility}/>}
 
             </View>
         )

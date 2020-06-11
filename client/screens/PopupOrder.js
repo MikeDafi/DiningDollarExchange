@@ -2,93 +2,111 @@ import Modal from 'react-native-modal';
 import React,{ useCallback, useState } from 'react'
 import { AntDesign } from '@expo/vector-icons'; 
 import AwesomeButton from "react-native-really-awesome-button";
-import {CameraRoll,View,Text, StyleSheet,Button,TouchableOpacity,LayoutAnimation,AppRegistry,Image,Dimensions} from 'react-native'
+import {CameraRoll,View,Text, StyleSheet,TouchableOpacity,LayoutAnimation,AppRegistry,Image,Dimensions} from 'react-native'
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 import { ImageBrowser } from 'expo-multiple-media-imagepicker';
 import UserPermissions from "../../utilities/UserPermissions"
+import { Button } from 'react-native-elements';
+import * as firebase from 'firebase'
+ 
+// import * as admin from 'firebase-admin';
+//   var firebaseConfig = {
+//     credential: admin.credential.applicationDefault(),
+//     apiKey: "AIzaSyDPi80ilddhtCh9wfPIxT5YLt8hLa1zZoM",
+//     authDomain: "diningdollarreactnative.firebaseapp.com",
+//     databaseURL: "https://diningdollarreactnative.firebaseio.com",
+//     projectId: "diningdollarreactnative",
+//     storageBucket: "diningdollarreactnative.appspot.com",
+//     messagingSenderId: "529283379449",
+//     appId: "1:529283379449:web:aaea13bb1526e3b182b228"
+//   };
+//  admin.initializeApp(firebaseConfig);
 
-function useCameraRoll({
-  first = 40,
-  assetType = 'Photos',
-  groupTypes = 'All',
-}) {
-  const [photos, setPhotos] = useState([]);
-  const [after, setAfter] = useState(null);
-  const [hasNextPage, setHasNextPage] = useState(true);
-  const getPhotos = useCallback(async () => {
-    if (!hasNextPage) return;
-    const { edges, page_info: pageInfo } = await CameraRoll.getPhotos({
-      first,
-      assetType,
-      groupTypes,
-      ...(after && { after }),
-    });
-    if (after === pageInfo.end_cursor) return;
-    const images = edges.map(i => i.node).map(i => i.image);
-    setPhotos([...photos, ...images]);
-    setAfter(pageInfo.end_cursor);
-    setHasNextPage(pageInfo.has_next_page);
-  }, [after, hasNextPage, photos]);
-  return [photos, getPhotos];
-}
 
 export default class PopupOrder extends React.Component{
 
     state={
-        uploadedImages: []
+        uploadedImages: [],
+        rangeSelected: ''
     }
 
 
-//     takePics = () => {
-// ImagePicker.openPicker({
-//   multiple: true
-// }).then(images => {
-//   console.log(images);
-// });
-
-//     }
-
-
-    SomeComponent = () => {
-	    const [photos, getPhotos] = useCameraRoll({ first: 80 })
+    componentDidMount(){
+        UserPermissions.getCameraPermission()
     }
 
-    // takePics = () => {
-    //     console.log("in takepics")
-    //     UserPermissions.getCameraPermission()
-    //     ImagePicker.launchImageLibraryAsync({
-    //         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    //         allowsMultipleSelection :true,
-    //         aspect:[4,3]
-    //     })
-    //     .then(response => {
-    //         let tempArray = []
-    //         console.log("responseimage-------" + response)
-    //         this.setState({ ImageSource: response })
-    //         console.log("responseimagearray" + this.state.ImageSource)
-    //         response.forEach((item) => {
-    //         let image = {
-    //             uri: item.path,
-    //             // width: item.width,
-    //             // height: item.height,
-    //         }
-    //         console.log("imagpath==========" + image)
-    //         tempArray.push(image)
-    //         this.setState({ uploadedImages: tempArray })
+    sendSingleNotification = async (token) => {
+        console.log("token",token)
+        const message = {
+            to: token,
+            sound: 'default',
+            title: 'Be a Seller!',
+            body: 'Earn ' + rangeSelected,
+            data: { data: 'goes here' },
+            _displayInForeground: true,
+        };
+        const response = await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Accept-encoding': 'gzip, deflate',
+                'Content-Type': 'application/json',
+        },
+            body: JSON.stringify(message),
+        });
+    };
 
-    //         console.log("imagpath==========" + image)
-    //         })
+    sendAllNotifications = async() => {
+        var user = firebase.auth().currentUser
+        const thisReference = this
+        const start = user.email.indexOf("@")
+        const end = user.email.indexOf(".edu")
+        const domain = user.email.substring(start,end)
+        const thisUserEmail = user.email.substring(0,end) //so we don't send notification to self
+        firebase.database().ref('userNotifications/' + domain +'/')
+        .once('value', function (domainAccounts) {
+            domainAccounts.forEach(async user =>{
+                var userInfo = user.val()
+                console.log(user.key)
+                if(user.key != thisUserEmail){
+                    console.log(userInfo)
+                    console.log("expoToken",userInfo.expoToken)
+                    thisReference.sendSingleNotification(userInfo.expoToken)
+                }
+            })
+        });
+    }
 
-    //     })
-    // }
 
+    photoCallback = (params) =>{
+        if(params == null ){
+            console.log("nothing")
+            return
+        } 
+        console.log("in photocallbac")
+
+        this.sendAllNotifications(); 
+
+        // params.then((data) =>{
+        //     console.log(data)
+        // })
+        this.props.navigation.navigate("Home")
+    }
+
+    rangeClicked = (range) =>{
+        this.setState({
+            rangeSelected : this.state.rangeSelected == range ? "" : range
+        })
+    }
 
 
     render(){
-
-            const emptyStayComponent = <Text style={styles.emptyStay}>Empty =(</Text>;
-    const noCameraPermissionComponent = <Text style={styles.emptyStay}>No access to camera</Text>;
+        const thisOrder = this
+        const widthSwitchBar = (windowWidth - 50)/4
+        const moneyRanges = ["0 - 5","5 - 10","10-15","15+"]
+        const emptyStayComponent = <Text style={styles.emptyStay}>Empty =(</Text>;
+        const noCameraPermissionComponent = <Text style={styles.emptyStay}>No access to camera</Text>;
         return(
             <View>
                 <Modal
@@ -104,7 +122,7 @@ export default class PopupOrder extends React.Component{
                         <TouchableOpacity onPress={() => {this.props.togglePopupVisibility()}} >
                             <AntDesign name="close" size={40} color="black" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={this.SomeComponent} style={{alignItems: 'center',}}>
+                        <View style={{alignItems: 'center',}}>
                             <AwesomeButton 
                                 width={windowWidth - 50}
                                 height={50} 
@@ -113,28 +131,80 @@ export default class PopupOrder extends React.Component{
                                 backgroundShadow="#737373"
                                 backgroundDarker="#464646"
                                             >
-                                <View style={{flex:1,flexDirection:"row",justifyContent:'space-evenly'}}>
-                                <AntDesign name="upload" size={24} color="black" />
-                                        <Text style={{fontSize:20}}>Upload Photos</Text>
-                                </View>
+                                <TouchableOpacity onPress={() => {this.props.togglePopupVisibility();this.props.navigation.navigate("UploadImages",{photoCallb: this.photoCallback,togglePopupVisibility:this.props.togglePopupVisibility})}} style={{flex:1,flexDirection:"row",justifyContent:'space-evenly'}}>
+                                    <AntDesign name="upload" size={24} color="black" />
+                                    <Text style={{fontSize:20}}>Upload Photos</Text>
+                                </TouchableOpacity>
                             </AwesomeButton>
-                        </TouchableOpacity>
+                        </View>
+                        <Text>How Much?</Text>
+                        <View style={{justifyContent:"center",alignItems: 'center',flex:1,flexDirection:"row"}}>
+
+                            <TouchableOpacity   activeOpacity={0}
+                                                onPress={()=>{
+                                                    this.rangeClicked("0 to 5")
+                                                }} 
+                                                style={{borderWidth:3,
+                                                width:widthSwitchBar,
+                                                justifyContent:"center",
+                                                alignItems:"center",
+                                                height:50,
+                                                borderColor: "#ffff0a",
+                                                borderTopLeftRadius:20,
+                                                borderBottomLeftRadius:20,
+                                                backgroundColor:this.state.rangeSelected == "0 to 5" ? "#ffff0a" : "white"}}>
+                                <Text>0 to 5</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity   activeOpacity={0}
+                                                onPress={()=>{
+                                                    this.rangeClicked("5 to 10")
+                                                }} 
+                                                style={{borderWidth:3,
+                                                width:widthSwitchBar,
+                                                justifyContent:"center",
+                                                alignItems:"center",
+                                                height:50,
+                                                borderColor: "#ffff0a",
+                                                backgroundColor:this.state.rangeSelected == "5 to 10" ? "#ffff0a" : "white"}}>
+                                <Text>5 to 10</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity   activeOpacity={0}
+                                                onPress={()=>{
+                                                    this.rangeClicked("10 to 15")
+                                                }} 
+                                                style={{borderWidth:3,
+                                                width:widthSwitchBar,
+                                                justifyContent:"center",
+                                                alignItems:"center",
+                                                height:50,
+                                                borderColor: "#ffff0a",
+                                                backgroundColor:this.state.rangeSelected == "10 to 15" ? "#ffff0a" : "white"}}>
+                                <Text>10 to 15</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity   activeOpacity={0}
+                                                onPress={()=>{
+                                                    this.rangeClicked("15+")
+                                                }} 
+                                                style={{borderWidth:3,
+                                                width:widthSwitchBar,
+                                                justifyContent:"center",
+                                                alignItems:"center",
+                                                height:50,
+                                                borderColor: "#ffff0a",
+                                                borderTopRightRadius:20,
+                                                borderBottomRightRadius:20,
+                                                backgroundColor:this.state.rangeSelected == "15+" ? "#ffff0a" : "white"}}>
+                                <Text>15+</Text>
+                            </TouchableOpacity>
+                        </View>
                         <View style={{flex:1,flexDirection:"row",justifyContent:"flex-end",alignItems:"center",marginRight:10,marginBottom:10}}>
-                            <TouchableOpacity onPress={() => this.SomeComponent()} style={{borderRadius:10,backgroundColor: "#0E89FF",padding:10}}>
+                            <TouchableOpacity disabled={this.state.rangeSelected == '' ? true : false} onPress={() => {this.props.togglePopupVisibility();this.props.navigation.navigate("UploadImages",{photoCallb: this.photoCallback,togglePopupVisibility:this.props.togglePopupVisibility})}} style={{borderRadius:10,backgroundColor: "#0E89FF",padding:10}}>
                                 <Text>Find A Seller!</Text>
                             </TouchableOpacity>
                         </View>
-                        <ImageBrowser
-                            max={101} // Maximum number of pickable image. default is None
-                            headerCloseText={'キャンセル'} // Close button text on header. default is 'Close'.
-                            headerDoneText={'　　完了'} // Done button text on header. default is 'Done'.
-                            headerButtonColor={'#E31676'} // Button color on header.
-                            headerSelectText={'枚の画像を選択中'} // Word when picking.  default is 'n selected'.
-                            mediaSubtype={'screenshot'} // Only iOS, Filter by MediaSubtype. default is display all.
-                            badgeColor={'#E31676'} // Badge color when picking.
-                            emptyText={'選択できる画像がありません'} // Empty Text
-                            callback={this.imageBrowserCallback} // Callback functinon on press Done or Cancel Button. A
-                        />
                     </View>
                 </Modal>
             </View> 

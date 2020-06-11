@@ -1,25 +1,45 @@
 import React from 'react'
-import {ImageBackground,Keyboard,Platform,TouchableWithoutFeedback,KeyboardAvoidingView,Image,View,Text, StyleSheet,TextInput,TouchableOpacity,LayoutAnimation} from 'react-native'
+import {ImageBackground,Keyboard,Platform,TouchableWithoutFeedback,KeyboardAvoidingView,Image,View,Vibration,Text, StyleSheet,TextInput,TouchableOpacity,LayoutAnimation} from 'react-native'
 import * as firebase from 'firebase'
+import { Notifications } from 'expo';
+import * as Permissions from 'expo-permissions';
+import Constants from 'expo-constants';
 export default class LoginScreen extends React.Component{
 
     state = {
         email : "",
         password:"",
-        errorMessage:  "",
-        currentNavParams : {}
+        errorMessage:  (this.props.navigation.state.params || {}).errorMessage,
+        currentNavParams : {},
+        token :  ''
     }
 
     componentDidMount(){
-        this.setState({
-            errorMessage : (this.props.navigation.state.params || {}).errorMessage
-        })
+        this.getDeviceToken()
     }
+
+    getDeviceToken = async () => {
+        if (Constants.isDevice) {
+            token = await Notifications.getExpoPushTokenAsync();
+            this.setState({ token: token });
+        }
+    }
+
 
     handleLogin = () => {
         const {email,password} = this.state
         firebase.auth().signInWithEmailAndPassword(email,password).then(usercredentials =>{
             if(firebase.auth().currentUser.emailVerified){
+                const user = firebase.auth().currentUser;
+                                const start = user.email.indexOf("@")
+                const end = user.email.indexOf(".edu")
+                const domain = user.email.substring(start,end)
+                console.log("domain ", domain)
+                console.log("expoToken", this.state.token)
+                firebase.database().ref('userNotifications/' + domain +'/' + this.state.email.substring(0,end)).set({
+                    expoToken : this.state.token,
+                    active : true
+                })
                 this.props.navigation.navigate('Home')
             }else{
                 firebase.auth().currentUser.sendEmailVerification()

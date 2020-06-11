@@ -16,6 +16,23 @@ firebase.firestore();
 
 export default firebase;
 
+// import * as admin from 'firebase-admin';
+//   var firebaseConfig = {
+//     apiKey: "AIzaSyDPi80ilddhtCh9wfPIxT5YLt8hLa1zZoM",
+//     authDomain: "diningdollarreactnative.firebaseapp.com",
+//     databaseURL: "https://diningdollarreactnative.firebaseio.com",
+//     projectId: "diningdollarreactnative",
+//     storageBucket: "diningdollarreactnative.appspot.com",
+//     messagingSenderId: "529283379449",
+//     appId: "1:529283379449:web:aaea13bb1526e3b182b228"
+//   };
+//  admin.initializeApp(firebaseConfig);
+
+// const auth = admin.auth();
+
+// export admin;
+
+
 // import firebase from 'firebase'; // 4.8.1
 
 // class Fire {
