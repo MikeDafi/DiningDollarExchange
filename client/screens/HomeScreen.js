@@ -34,14 +34,28 @@ export default class HomeScreen extends React.Component{
         });
 
             this.registerForPushNotificationsAsync();
-    this._notificationSubscription = Notifications.addListener(this._handleNotification);
+            this._notificationSubscription = Notifications.addListener(this._handleNotification);
 
     }
 
 
     _handleNotification = notification => {
-        Vibration.vibrate();
-        console.log(notification);
+        console.log("in notification", notification.data.data.orderNumber)
+        const myUser = firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4)
+        const start = myUser.indexOf("@")
+        firebase.database().ref("orders/currentOrders/" + notification.data.data.orderNumber)
+        .once("value",function(snapshot){
+            const order = snapshot.val()
+            if(order.status == "searching"){
+                firebase.database().ref("users/" + myUser.substring(start,myUser.length) +'/'+ myUser + '/chats/' + order.buyer + myUser + '/').push({
+                    title : order.buyer
+                })
+                firebase.database().ref("users/" + myUser.substring(start,myUser.length) +'/'+ order.buyer + '/chats/' + order.buyer + myUser + '/').set({
+                    title : firebase.auth().currentUser.displayName
+                 })
+            }
+
+        })
     };
 
     registerForPushNotificationsAsync = async () => {

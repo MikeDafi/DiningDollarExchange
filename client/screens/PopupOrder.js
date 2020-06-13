@@ -36,14 +36,15 @@ export default class PopupOrder extends React.Component{
         UserPermissions.getCameraPermission()
     }
 
-    sendSingleNotification = async (token) => {
-        console.log("token",token)
+    sendSingleNotification = async (token,orderNumber) => {
+        var user = firebase.auth().currentUser
+        const displayName = user.displayName
         const message = {
             to: token,
             sound: 'default',
             title: 'Be a Seller!',
-            body: 'Earn ' + rangeSelected,
-            data: { data: 'goes here' },
+            body: 'Earn ' + this.state.rangeSelected,
+            data: { data: {orderNumber :orderNumber,displayName :displayName}},
             _displayInForeground: true,
         };
         const response = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -57,22 +58,24 @@ export default class PopupOrder extends React.Component{
         });
     };
 
-    sendAllNotifications = async() => {
+    sendAllNotifications = async(orderNumber) => {
+        console.log("in all notifications")
         var user = firebase.auth().currentUser
+        console.log("orderNumber",orderNumber)
         const thisReference = this
         const start = user.email.indexOf("@")
         const end = user.email.indexOf(".edu")
         const domain = user.email.substring(start,end)
         const thisUserEmail = user.email.substring(0,end) //so we don't send notification to self
-        firebase.database().ref('userNotifications/' + domain +'/')
+        firebase.database().ref('users/' + domain +'/')
         .once('value', function (domainAccounts) {
+            console.log("domainAccounts",domainAccounts)
             domainAccounts.forEach(async user =>{
                 var userInfo = user.val()
-                console.log(user.key)
-                if(user.key != thisUserEmail){
-                    console.log(userInfo)
-                    console.log("expoToken",userInfo.expoToken)
-                    thisReference.sendSingleNotification(userInfo.expoToken)
+                console.log("user.key",user.key)
+                if(user.key == thisUserEmail){
+                    console.log("found notification")
+                    thisReference.sendSingleNotification(userInfo.expoToken,orderNumber)
                 }
             })
         });
@@ -84,9 +87,30 @@ export default class PopupOrder extends React.Component{
             console.log("nothing")
             return
         } 
-        console.log("in photocallbac")
+        const user = firebase.auth().currentUser
+        const orders = firebase.database().ref("orders")
+        const thisClass = this
+        var orderNumberForNotification = 0
+        orders.once("value",function (orderSnapshot){
+            var orderNumberNow = orderSnapshot.val().orderNumber || 0
+            var currentOrdersNow;
+            if(orderSnapshot.val().currentOrders == undefined){
+                currentOrdersNow = []
+            }else{
+                currentOrdersNow = orderSnapshot.val().currentOrders
+            }
+            const newOrder = {
+                buyer : user.email.substring(0, user.email.length - 4),
+                status: "searching"
+            }
+            currentOrdersNow.push(newOrder)
+            orderNumberForNotification = orderNumberNow
+            orderNumberNow += 1
+            orders.update({currentOrders:currentOrdersNow,orderNumber:orderNumberNow})
+            
+            thisClass.sendAllNotifications(orderNumberForNotification); 
+        })
 
-        this.sendAllNotifications(); 
 
         // params.then((data) =>{
         //     console.log(data)

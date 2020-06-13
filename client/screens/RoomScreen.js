@@ -8,9 +8,16 @@ export default class RoomScreen extends React.Component{
   state = {
     messages : [],
     title : '',
-    thread: (this.props.navigation.state.params || {}).thread
+    thread: (this.props.navigation.state.params || {}).thread,
+    domain: ''
   }
 
+  componentDidMount(){
+    const user = firebase.auth().currentUser
+    const start = user.email.indexOf("@")
+    const end = user.email.indexOf(".edu")
+    this.setState({domain :user.email.substring(start,end)})
+  }
 
   renderBubble = (props) => {
     return (
@@ -54,7 +61,7 @@ export default class RoomScreen extends React.Component{
 
   ref = () =>{
 
-    return firebase.database().ref('/chats/' + this.state.thread);
+    return firebase.database().ref('/chats/' + this.state.domain + '/' + this.state.thread);
   }
 
   timestamp = () => {

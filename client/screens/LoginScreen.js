@@ -36,9 +36,13 @@ export default class LoginScreen extends React.Component{
                 const domain = user.email.substring(start,end)
                 console.log("domain ", domain)
                 console.log("expoToken", this.state.token)
-                firebase.database().ref('userNotifications/' + domain +'/' + this.state.email.substring(0,end)).set({
+                firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).set({
                     expoToken : this.state.token,
-                    active : true
+                    active : true,
+                    page: 0,
+                    isBuyer:true,
+                    isSeller:true
+
                 })
                 this.props.navigation.navigate('Home')
             }else{

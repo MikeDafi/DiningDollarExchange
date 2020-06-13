@@ -93,7 +93,7 @@ export default class RegisterScreen extends React.Component{
             // })
             user.sendEmailVerification()
             this.props.navigation.navigate("Login",{errorMessage : "A verification email has been sent"})
-            return userCredentials.user.updateProfile({
+            user.updateProfile({
                 displayName:this.state.name
             })
         })

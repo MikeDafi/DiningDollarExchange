@@ -11,6 +11,7 @@ export default class MessageScreen extends React.Component{
     threads : [],
     loading : true,
     page : 0,
+    domain: ''
   }
 
   // useEffect(() => {
@@ -41,16 +42,22 @@ export default class MessageScreen extends React.Component{
 
   componentDidMount(){
     const thisClass = this
+    const user = firebase.auth().currentUser
+    const start = user.email.indexOf("@")
+    const end = user.email.indexOf(".edu")
+    const domain = user.email.substring(start,end)
     console.log("currentUID")
     console.log( firebase.auth().currentUser.uid)
-    firebase.database().ref('/users/' + firebase.auth().currentUser.uid + '/chats/')
+    console.log("reference",'/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
+    firebase.database().ref('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
     .once('value', function (chatsSnapshot) {
+        console.log("chatsSnapshot",chatsSnapshot)
         var threadss = []
         var thread = {}
         chatsSnapshot.forEach(chat => {
-            var element = chat.val()
-            thread.chatId = element.chatId
-            thread.title = element.title
+            thread.chatId = chat.key
+            thread.title = chat.val().title
+            thread._id = 1
             threadss.push(thread)
             thread = {}
         });
@@ -72,6 +79,7 @@ export default class MessageScreen extends React.Component{
       if(this.state.loading){
         return <Loading navigation={this.props.navigation}/>;
       }
+      console.log("threadsssssssssss",this.state.threads)
       return(
         <View style={styles.container}>
           <FlatList
@@ -83,6 +91,7 @@ export default class MessageScreen extends React.Component{
               onPress={() => this.props.navigation.navigate('Room', { thread: item.chatId })}
               >
                 <List.Item
+                  key={item.title}
                   title={item.title}
                   description='Item description'
                   titleNumberOfLines={1}
@@ -93,12 +102,6 @@ export default class MessageScreen extends React.Component{
               </TouchableOpacity>
             )}
           />
-                <Modal
-                    testID={'modal'}
-                    isVisible={false}
-                    animationIn="slideInLeft"
-                    animationOut="slideOutRight">
-                </Modal>
         </View>
           // <View style={styles.container}>
           //     <View style={styles.header}>
