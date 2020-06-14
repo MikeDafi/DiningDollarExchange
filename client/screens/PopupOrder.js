@@ -73,7 +73,7 @@ export default class PopupOrder extends React.Component{
             domainAccounts.forEach(async user =>{
                 var userInfo = user.val()
                 console.log("user.key",user.key)
-                if(user.key == thisUserEmail){
+                if(user.key != thisUserEmail){
                     console.log("found notification")
                     thisReference.sendSingleNotification(userInfo.expoToken,orderNumber)
                 }

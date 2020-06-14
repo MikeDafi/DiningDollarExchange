@@ -14,20 +14,30 @@ export default class LoginScreen extends React.Component{
         token :  ''
     }
 
-    componentDidMount(){
-        this.getDeviceToken()
-    }
-
     getDeviceToken = async () => {
         if (Constants.isDevice) {
+            const { status: existingStatus } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+                const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+                finalStatus = status;
+            }
+            if (finalStatus !== 'granted') {
+                alert('Failed to get push token for push notification!');
+                return;
+            }
             token = await Notifications.getExpoPushTokenAsync();
-            this.setState({ token: token });
+            console.log(token);
+            this.setState({ token });
+                return
         }
     }
 
 
-    handleLogin = () => {
+    handleLogin = async () => {
         const {email,password} = this.state
+        await this.getDeviceToken()
+        console.log("woohoo")
         firebase.auth().signInWithEmailAndPassword(email,password).then(usercredentials =>{
             if(firebase.auth().currentUser.emailVerified){
                 const user = firebase.auth().currentUser;

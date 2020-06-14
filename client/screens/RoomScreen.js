@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {IconButton} from 'react-native-paper'
-import { GiftedChat,Bubble } from 'react-native-gifted-chat';
-import {StyleSheet,Platform, View,ActivityIndicator,SafeAreaView} from 'react-native'
+import { GiftedChat,Bubble,Composer } from 'react-native-gifted-chat';
+import {StyleSheet,Platform, View,ActivityIndicator,SafeAreaView,TouchableOpacity,Text} from 'react-native'
 import firebase from "../../config"
+import { Entypo } from '@expo/vector-icons'; 
 export default class RoomScreen extends React.Component{
 
   state = {
@@ -55,6 +56,23 @@ export default class RoomScreen extends React.Component{
     );
   }
 
+  
+
+ renderComposer = props => {
+  console.log("props ",props)
+  return (
+    <View style={{flexDirection: 'row'}}>
+      <TouchableOpacity onPress={()=>this.handleAddPicture()}>
+        <Entypo name="camera" size={24} color="black" />
+      </TouchableOpacity>
+      <Composer {...props} />
+      <TouchableOpacity onPress={() => this.send({props})}>
+        <Text>Send</Text>
+      </TouchableOpacity>
+    </View>
+  );
+  } 
+
   userId = () => {
     return firebase.auth().currentUser.uid
   }
@@ -71,7 +89,7 @@ export default class RoomScreen extends React.Component{
   
 
   parse = snapshot => {
-    const { timestamp: numberStamp, text, user } = snapshot.val();
+    const { timestamp: numberStamp, text, user,image } = snapshot.val();
     const { key: _id } = snapshot;
     const timestamp = new Date(numberStamp);
     const message = {
@@ -79,6 +97,7 @@ export default class RoomScreen extends React.Component{
       timestamp,
       text,
       user,
+      image,
     };
     console.log("message")
     console.log(message)
@@ -90,6 +109,7 @@ export default class RoomScreen extends React.Component{
 
   // send the message to the Backend
   send = messages => {
+    console.log("message HEREEEEE", messages)
     for (let i = 0; i < messages.length; i++) {
       const { text, user } = messages[i];
       const message = {
@@ -125,6 +145,7 @@ export default class RoomScreen extends React.Component{
     const mainContent = (
       <GiftedChat
         messages={this.state.messages}
+        //renderComposer={this.renderComposer}
         onSend={this.send}
         user={{ _id: firebase.auth().currentUser.uid, name: 'User Test' }}
         renderBubble={this.renderBubble}

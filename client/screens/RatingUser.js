@@ -2,16 +2,6 @@ import StarRating from 'react-native-star-rating';
 import React from "react"
 export default class RatingUser extends React.Component {
  
-  state = {
-      starCount: 0
-  }
- 
-  onStarRatingPress(rating) {
-    this.setState({
-      starCount: rating
-    });
-  }
- 
   render() {
     return (
       <StarRating
@@ -20,11 +10,12 @@ export default class RatingUser extends React.Component {
         fullStar={'star'}
         iconSet={'Entypo'}
         maxStars={5}
-        rating={this.state.starCount}
-        selectedStar={(rating) => this.onStarRatingPress(rating)}
+        rating={this.props.starCount}
+        selectedStar={(rating) => this.props.selected(rating)}
         fullStarColor={'#FFE300'}
         emptyStarColor={'#676767'}
-        starSize={20}
+        starSize={37}
+        starStyle={{marginHorizontal:-3}}
       />
     );
   }

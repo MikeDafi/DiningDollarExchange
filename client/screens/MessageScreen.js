@@ -74,6 +74,7 @@ export default class MessageScreen extends React.Component{
 
     });
   }
+  
 
     render(){
       if(this.state.loading){
@@ -101,6 +102,15 @@ export default class MessageScreen extends React.Component{
                 />
               </TouchableOpacity>
             )}
+          renderBubble={props => {
+          const color = props.currentMessage.read ? '#0084ff' : '#389bff';
+          return (
+            <Bubble
+              {...props}
+              wrapperStyle={{ right: { backgroundColor: 'blue' } }}
+            />
+          );
+        }}
           />
         </View>
           // <View style={styles.container}>

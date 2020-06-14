@@ -6,7 +6,7 @@ import SellerHomeScreen from './SellerHomeScreen'
 import Swiper from 'react-native-swiper/src'
 import { Notifications } from 'expo';
 import PopupOrder from './PopupOrder'
-import {Ionicons,MaterialCommunityIcons} from "@expo/vector-icons"
+import { FontAwesome5,Ionicons } from '@expo/vector-icons'; 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 import * as Permissions from 'expo-permissions';
@@ -19,7 +19,6 @@ export default class HomeScreen extends React.Component{
         homepage: 0,
         rendered : false,
         popupVisible : false,
-        token:''
     }
     componentDidMount(){
         const{email,displayName} = firebase.auth().currentUser
@@ -59,24 +58,6 @@ export default class HomeScreen extends React.Component{
     };
 
     registerForPushNotificationsAsync = async () => {
-        if (Constants.isDevice) {
-            const { status: existingStatus } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
-            let finalStatus = existingStatus;
-            if (existingStatus !== 'granted') {
-                const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
-                finalStatus = status;
-            }
-            if (finalStatus !== 'granted') {
-                alert('Failed to get push token for push notification!');
-                return;
-            }
-            token = await Notifications.getExpoPushTokenAsync();
-            console.log(token);
-            this.setState({ token: token });
-        } else {
-            alert('Must use physical device for Push Notifications');
-        }
-
         if (Platform.OS === 'android') {
             Notifications.createChannelAndroidAsync('default', {
                 name: 'default',
@@ -144,47 +125,32 @@ export default class HomeScreen extends React.Component{
                             this.setState({homepage : 0})}}>
                             {this.prevButton()}
                         </TouchableOpacity>
-                        <TouchableOpacity   activeOpacity={1}
+                        <TouchableOpacity onPress={() => {
+                            this._swiper.scrollBy((this.state.homepage + 1) % 2)
+                            this.setState({homepage : 1})}}>
+                            {this.nextButton()}
+                        </TouchableOpacity>
+                        <TouchableOpacity style={{
+                                            position:"absolute",
+                                            left: (windowWidth/2) - 62,
+                                            marginTop:40,
+                                            width:120,
+                                            height:120,
+                                            borderRadius:120,
+                                            backgroundColor:"white",
+                                            justifyContent:"center",
+                                            alignItems:"center",
+                                            borderColor:"#fccb00",
+                                            borderWidth:10
+                                            }}
                                             onPress={()=>{
                                                 // this.props.navigation.navigate("BuyModal")
                                                 console.log(this.state.popupVisible)
                                                 this.setState({popupVisible:true})
                                             }} 
-                                            style={{borderWidth:10,
-                                            width:60,
-                                            height:120,
-                                            borderColor:this.state.homepage == 0 ? "#FFE300":"white",
-                                            borderTopLeftRadius:120,
-                                            borderBottomLeftRadius:120,
-                                            borderRightRadius:300,
-                                            backgroundColor:"white"}}/>
-                        <TouchableOpacity   
-                                            onPress={()=>{
-                                                // this.props.navigation.navigate("BuyModal")
-                                                this.setState({popupVisible:true})
-                                                this.signOutUser()
-                                            }} 
-                                            style={{borderWidth:10,
-                                            width:60,
-                                            height:120,
-                                            borderColor:this.state.homepage == 1 ? "#FFE300":"white",
-                                            borderTopRightRadius:120,
-                                            borderBottomRightRadius:120,
-                                            borderLeft:0,
-                                            backgroundColor:"white"}}/>
-                        <TouchableOpacity   
-                                            onPress={()=>{
-                                                // this.props.navigation.navigate("BuyModal")
-                                                this.setState({popupVisible:true})
-                                            }}
-                                            style={{position:"absolute",top:20,left: (windowWidth/2) - 40 }}
-                                             >
-                            <MaterialCommunityIcons name="silverware-clean" size={80} color="black" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => {
-                            this._swiper.scrollBy((this.state.homepage + 1) % 2)
-                            this.setState({homepage : 1})}}>
-                            {this.nextButton()}
+                                            >
+                        <FontAwesome5 name="user-friends" size={45} color="black" />
+                            <Text> BUY NOW</Text>
                         </TouchableOpacity>
 
                 </View>
@@ -196,7 +162,7 @@ export default class HomeScreen extends React.Component{
                 {/* </TouchableOpacity> */}
                 <Swiper ref={(swiper) => {this._swiper = swiper;}} 
                         loop={false}
-                        onIndexChanged={this.homehomepageIndexChanged}>
+                        onIndexChanged={this.homepageIndexChanged}>
                     {/* <View style={styles.container}>
                         <Text>Home Screen</Text>
                         <TouchableOpacity onPress={this.signOutUser}>
@@ -249,7 +215,8 @@ const styles = StyleSheet.create({
     header:{
         flexDirection:"row",
         alignItems:"center",
-        marginTop:20,
+        justifyContent:"space-between",
+        marginTop:50,
     },
     avatarPlaceholder:{
         width:50,
