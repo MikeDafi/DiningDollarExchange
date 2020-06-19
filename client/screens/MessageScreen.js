@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import {View,Text,StyleSheet,TouchableOpacity,FlatList } from "react-native"
-import {Ionicons,MaterialIcons} from "@expo/vector-icons"
+import {View,Text,StyleSheet,TouchableOpacity,FlatList,LayoutAnimation,Dimensions } from "react-native"
+import {Ionicons,FontAwesome5} from "@expo/vector-icons"
 import { List, Divider } from 'react-native-paper';
 import firebase from "../../config"
 import Loading from './LoadingScreen';
 import Modal from 'react-native-modal';
+import PopupOrder from './PopupOrder'
+import Swiper from 'react-native-swiper/src'
+const windowWidth = Dimensions.get('window').width;
+const windowHeight = Dimensions.get('window').height;
 export default class MessageScreen extends React.Component{
 
   state = {
     threads : [],
     loading : true,
     page : 0,
-    domain: ''
+    domain: '',
+    homepage: 0,
   }
 
   // useEffect(() => {
@@ -39,6 +44,30 @@ export default class MessageScreen extends React.Component{
   //    */
   //   return () => unsubscribe();
   // }, []);  
+
+    homepageIndexChanged = (index) => {
+      this.setState({homepage:index})
+    }
+
+    nextButton = () => {
+        return(
+        <View style={[styles.nextButton,{backgroundColor: this.state.homepage == 1 ? "#FFE300" : "black",marginLeft:-5,width:(windowWidth/2) - 50}]}>
+            <Text style={{color:"white"}}>
+                SELLER
+            </Text>
+        </View>
+        )
+    }
+
+    prevButton = () => {
+        return(
+        <View style={[styles.prevButton,{backgroundColor:this.state.homepage == 0 ? "#FFE300":"black",marginRight:-5,width:(windowWidth/2) - 60}]}>
+            <Text style={{color:"white"}}>
+                BUYER
+            </Text>
+        </View>
+        )
+    }
 
   componentDidMount(){
     const thisClass = this
@@ -68,71 +97,140 @@ export default class MessageScreen extends React.Component{
           loading: false
         });  
     });
-    firebase.database().ref('/users/' + firebase.auth().currentUser.uid).child("page")
-    .once('value', function (pageSnapshot) {
-        thisClass.setState({page:pageSnapshot.val()})
 
+    firebase.database().ref('/users/' + firebase.auth().currentUser.uid).child("page")
+    .once('value', function (homepageSnapshot) {
+        console.log(homepageSnapshot.val())
+        thisClass.setState({homepage:homepageSnapshot.val(),rendered:true})
+        console.log("in component mount ", thisClass.state.homepage)
     });
-  }
+    }
   
 
     render(){
       if(this.state.loading){
         return <Loading navigation={this.props.navigation}/>;
       }
-      console.log("threadsssssssssss",this.state.threads)
+
+      LayoutAnimation.easeInEaseOut()
+      if(this.state.rendered && this.state.homepage != 0){
+          this._swiper.scrollBy(1)
+          this.setState({rendered : false})
+      }
       return(
-        <View style={styles.container}>
-          <FlatList
-            data={this.state.threads}
-            keyExtractor={(item) => item._id}
-            ItemSeparatorComponent={() => <Divider />}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-              onPress={() => this.props.navigation.navigate('Room', { thread: item.chatId })}
-              >
-                <List.Item
-                  key={item.title}
-                  title={item.title}
-                  description='Item description'
-                  titleNumberOfLines={1}
-                  titleStyle={styles.listTitle}
-                  descriptionStyle={styles.listDescription}
-                  descriptionNumberOfLines={1}
-                />
+      <View style={styles.container}>
+          <View style={styles.header}>
+              <TouchableOpacity onPress={ () => {
+                  this._swiper.scrollBy(this.state.homepage * -1)
+                  this.setState({homepage : 0})}}>
+                  {this.prevButton()}
               </TouchableOpacity>
-            )}
-          renderBubble={props => {
-          const color = props.currentMessage.read ? '#0084ff' : '#389bff';
-          return (
-            <Bubble
-              {...props}
-              wrapperStyle={{ right: { backgroundColor: 'blue' } }}
-            />
-          );
-        }}
-          />
-        </View>
-          // <View style={styles.container}>
-          //     <View style={styles.header}>
-          //         <TouchableOpacity onPress={()=>{this.props.navigation.navigate("BuyModal")}}>
-          //             <Ionicons name="ios-home" size={24}/>
-          //         </TouchableOpacity>
-          //         <Text>Messages</Text>
-          //         <TouchableOpacity onPress={this.here}>
-          //             <MaterialIcons name="error" size={24} color="black" />
-          //         </TouchableOpacity>
-          //     </View>
-          //     <Text>Message Screen</Text>
-          // </View>
-      );
+              <TouchableOpacity onPress={() => {
+                  this._swiper.scrollBy((this.state.homepage + 1) % 2)
+                  this.setState({homepage : 1})}}>
+                  {this.nextButton()}
+              </TouchableOpacity>
+              <TouchableOpacity style={{
+                                  position:"absolute",
+                                  left: (windowWidth/2) - 62,
+                                  marginTop:40,
+                                  width:120,
+                                  height:120,
+                                  borderRadius:120,
+                                  backgroundColor:"white",
+                                  justifyContent:"center",
+                                  alignItems:"center",
+                                  borderColor:"#FFE300",
+                                  borderWidth:10
+                                  }}
+                                  onPress={()=>{
+                                      // this.props.navigation.navigate("BuyModal")
+                                      console.log(this.state.popupVisible)
+                                      this.setState({popupVisible:true})
+                                  }} 
+                                  >
+              <FontAwesome5 name="user-friends" size={45} color="black" />
+                  <Text> BUY NOW</Text>
+              </TouchableOpacity>
+
+          </View>
+          <Swiper ref={(swiper) => {this._swiper = swiper;}} 
+                  loop={false}
+                  onIndexChanged={this.homepageIndexChanged}>
+                <View>
+                  <FlatList
+                    data={this.state.threads}
+                    keyExtractor={(item) => item._id}
+                    ItemSeparatorComponent={() => <Divider />}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                      onPress={() => this.props.navigation.navigate('Room', { thread: item.chatId, chattingUser: item.title })}
+                      >
+                        <List.Item
+                          key={item.title}
+                          title={item.title}
+                          description='Item description'
+                          titleNumberOfLines={1}
+                          titleStyle={styles.listTitle}
+                          descriptionStyle={styles.listDescription}
+                          descriptionNumberOfLines={1}
+                        />
+                      </TouchableOpacity>
+                    )}
+                  renderBubble={props => {
+                  const color = props.currentMessage.read ? '#0084ff' : '#389bff';
+                  return (
+                    <Bubble
+                      {...props}
+                      wrapperStyle={{ right: { backgroundColor: 'blue' } }}
+                    />
+                  );
+                }}
+                  />
+              </View>
+              <View></View>
+          </Swiper>
+          {this.state.popupVisible && <PopupOrder navigation={this.props.navigation} togglePopupVisibility={this.togglePopupVisibility}/>}
+    </View>
+    );
    }
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f5f5f5',
-    flex: 1,
+    flex:1,
+    paddingTop:30,
+    backgroundColor: "white",
+  },
+header:{
+    flexDirection:"row",
+    alignItems:"center",
+    justifyContent:"space-between",
+    marginTop:50,
+  },
+  nextButton:{
+    width:150,
+    height:20,
+    justifyContent: 'center',
+    alignItems:'center',
+  },
+  prevButton:{
+    width:150,
+    height:20,
+    justifyContent: 'center',
+    alignItems:'center',
+  },
+  content: {
+    backgroundColor: 'white',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    borderRadius: 4,
+    height:300,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  contentTitle: {
+    fontSize: 20,
+    marginBottom: 12,
   },
   listTitle: {
     fontSize: 22,

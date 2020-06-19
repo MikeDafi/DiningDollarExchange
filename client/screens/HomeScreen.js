@@ -120,38 +120,38 @@ export default class HomeScreen extends React.Component{
         return(
             <View style={styles.container}>
                 <View style={styles.header}>
-                        <TouchableOpacity onPress={ () => {
-                            this._swiper.scrollBy(this.state.homepage * -1)
-                            this.setState({homepage : 0})}}>
-                            {this.prevButton()}
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => {
-                            this._swiper.scrollBy((this.state.homepage + 1) % 2)
-                            this.setState({homepage : 1})}}>
-                            {this.nextButton()}
-                        </TouchableOpacity>
-                        <TouchableOpacity style={{
-                                            position:"absolute",
-                                            left: (windowWidth/2) - 62,
-                                            marginTop:40,
-                                            width:120,
-                                            height:120,
-                                            borderRadius:120,
-                                            backgroundColor:"white",
-                                            justifyContent:"center",
-                                            alignItems:"center",
-                                            borderColor:"#fccb00",
-                                            borderWidth:10
-                                            }}
-                                            onPress={()=>{
-                                                // this.props.navigation.navigate("BuyModal")
-                                                console.log(this.state.popupVisible)
-                                                this.setState({popupVisible:true})
-                                            }} 
-                                            >
-                        <FontAwesome5 name="user-friends" size={45} color="black" />
-                            <Text> BUY NOW</Text>
-                        </TouchableOpacity>
+                    <TouchableOpacity onPress={ () => {
+                        this._swiper.scrollBy(this.state.homepage * -1)
+                        this.setState({homepage : 0})}}>
+                        {this.prevButton()}
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                        this._swiper.scrollBy((this.state.homepage + 1) % 2)
+                        this.setState({homepage : 1})}}>
+                        {this.nextButton()}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{
+                                        position:"absolute",
+                                        left: (windowWidth/2) - 62,
+                                        marginTop:40,
+                                        width:120,
+                                        height:120,
+                                        borderRadius:120,
+                                        backgroundColor:"white",
+                                        justifyContent:"center",
+                                        alignItems:"center",
+                                        borderColor:"#FFE300",
+                                        borderWidth:10
+                                        }}
+                                        onPress={()=>{
+                                            // this.props.navigation.navigate("BuyModal")
+                                            console.log(this.state.popupVisible)
+                                            this.setState({popupVisible:true})
+                                        }} 
+                                        >
+                    <FontAwesome5 name="user-friends" size={45} color="black" />
+                        <Text> BUY NOW</Text>
+                    </TouchableOpacity>
 
                 </View>
 

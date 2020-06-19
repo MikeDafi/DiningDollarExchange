@@ -24,8 +24,8 @@ export default class RegisterScreen extends React.Component{
         UserPermissions.getCameraPermission()
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowEditing:true,
-            aspect:[4,3]
+            // allowEditing:true,
+            // aspect:[4,3]
         });
 
         if(!result.cancelled){
