@@ -17,8 +17,10 @@ export default class RoomScreen extends React.Component{
     domain: '',
     profileImage: null,
     customView: false,
+    refreshing:false,
     opacities:{},
     messagess:{},
+    count: 5,
     chattingUser: (this.props.navigation.state.params || {}).chattingUser,
   }
 
@@ -116,7 +118,6 @@ export default class RoomScreen extends React.Component{
     return firebase.database.ServerValue.TIMESTAMP;
   }
 
-  add
 
   parse = snapshot => {
     const { timestamp: numberStamp, text, user,image,confirmAnswer} = snapshot.val();
@@ -147,11 +148,10 @@ export default class RoomScreen extends React.Component{
   };
 
   on = callback =>
-    this.ref().limitToLast(20).on('child_added', snapshot => callback(this.parse(snapshot)));
+    this.ref().limitToLast(this.state.count).on('child_added', snapshot => callback(this.parse(snapshot)));
 
   // send the message to the Backend
   send = (user,text) => {
-    console.log("IN SEND",this.state.profileImage)
     // for (let i = 0; i < messages.length; i++) {
     //   const { text, user } = messages[i];
     //   const message = {
@@ -334,11 +334,59 @@ export default class RoomScreen extends React.Component{
     )
   }
 
+  onLoadingEarlier = async () => {
+    var originalCount = 1
+    await this.setState(previousState => ({
+      count : previousState.count + 5
+    }))
+    var possible = true
+    var newMessages = []
+    const n = this.state.messages.length
+    this.on(message =>{
+      if(originalCount <= 5 && possible){
+      
+        if(message._id != this.state.messages.slice(n - 1,n)[0]._id){
+         newMessages.push(message)
+        }else{
+          possible = false
+        }
+        originalCount += 1
+      }else{
+      }
+    });
+    if(newMessages.length != 0){
+      newMessages.reverse().forEach(element => {
+        this.setState(previousState => ({
+          messages: GiftedChat.prepend(previousState.messages, element),
+        }))
+      });
+    }
+  }
+
+isCloseToTop({ layoutMeasurement, contentOffset, contentSize }) {
+    const paddingToTop = 80;
+    return contentSize.height - layoutMeasurement.height - paddingToTop <= contentOffset.y;
+  }
+
+
+
   render(){
     const thisClass = this
     const mainContent = (
 
       <GiftedChat
+        listViewProps={{
+          scrollEventThrottle: 400,
+          onScroll: async({ nativeEvent }) => {
+            if (this.isCloseToTop(nativeEvent)) {
+              await this.setState({refreshing: true});
+              await this.onLoadingEarlier();
+              this.setState({refreshing: false});
+            }
+          }
+        }}
+        loadEarlier={true}
+        isLoadingEarlier={this.state.refreshing}
         messages={this.state.messages}
         renderComposer={this.renderComposer}
         onSend={this.send}

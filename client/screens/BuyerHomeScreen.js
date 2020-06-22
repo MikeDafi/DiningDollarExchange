@@ -12,7 +12,7 @@ export default class BuyerHomeScreen extends React.Component{
     state ={
         currentFont : 20,
         clickedStars : false,
-        starCount: ''
+        starCount: 0
     }
 
     onStarRatingPress(rating) {
