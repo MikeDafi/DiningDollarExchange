@@ -4,6 +4,7 @@ import * as firebase from 'firebase'
 import { Notifications } from 'expo';
 import * as Permissions from 'expo-permissions';
 import Constants from 'expo-constants';
+import UserPermissions from "../../utilities/UserPermissions"
 export default class LoginScreen extends React.Component{
 
     state = {
@@ -14,46 +15,28 @@ export default class LoginScreen extends React.Component{
         token :  ''
     }
 
-    getDeviceToken = async () => {
-        if (Constants.isDevice) {
-            const { status: existingStatus } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
-            let finalStatus = existingStatus;
-            if (existingStatus !== 'granted') {
-                const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
-                finalStatus = status;
-            }
-            if (finalStatus !== 'granted') {
-                alert('Failed to get push token for push notification!');
-                return;
-            }
-            token = await Notifications.getExpoPushTokenAsync();
-            console.log(token);
-            this.setState({ token });
-                return
-        }
-    }
-
 
     handleLogin = async () => {
         const {email,password} = this.state
-        await this.getDeviceToken()
+        const token = await UserPermissions.getDeviceToken()
         console.log("woohoo")
-        firebase.auth().signInWithEmailAndPassword(email,password).then(usercredentials =>{
+        firebase.auth().signInWithEmailAndPassword(email,password).then( async usercredentials =>{
             if(firebase.auth().currentUser.emailVerified){
                 const user = firebase.auth().currentUser;
                                 const start = user.email.indexOf("@")
-                const end = user.email.indexOf(".edu")
+                const end = user.email.indexOf(".com")
                 const domain = user.email.substring(start,end)
                 console.log("domain ", domain)
                 console.log("expoToken", this.state.token)
                 firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).set({
-                    expoToken : this.state.token,
+                    expoToken : token,
                     active : true,
                     page: 0,
                     isBuyer:true,
                     isSeller:true
 
                 })
+                UserPermissions.getCameraPermission()
                 this.props.navigation.navigate('Home')
             }else{
                 firebase.auth().currentUser.sendEmailVerification()

@@ -6,7 +6,6 @@ import {CameraRoll,ActivityIndicator,View,Text, StyleSheet,TouchableOpacity,Layo
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 import { ImageBrowser } from 'expo-multiple-media-imagepicker';
-import UserPermissions from "../../utilities/UserPermissions"
 import { Button } from 'react-native-elements';
 import * as firebase from 'firebase'
  
@@ -53,7 +52,7 @@ export default class PopupOrder extends React.Component{
                     animationOut="slideOutRight"
                     style={{justifyContent:"center",alignItems:"center"}}>
                     <View style={styles.content}>
-                        <TouchableOpacity onPress={() => {this.props.togglePopupVisibility()}} >
+                        <TouchableOpacity onPress={() => {this.props.togglePopupVisibility(false)}} >
                             <AntDesign name="close" size={40} color="black" />
                         </TouchableOpacity>
                         <Text>Wait for a notification, when someone has accepted the order.</Text>

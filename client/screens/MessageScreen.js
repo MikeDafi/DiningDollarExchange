@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {View,Text,StyleSheet,TouchableOpacity,FlatList,LayoutAnimation,Dimensions } from "react-native"
-import {Ionicons,FontAwesome5} from "@expo/vector-icons"
+import {View,Text,StyleSheet,TouchableOpacity,FlatList,LayoutAnimation,Dimensions,TouchableWithoutFeedback} from "react-native"
+import {Ionicons,FontAwesome5,FontAwesome} from "@expo/vector-icons"
 import { List, Divider } from 'react-native-paper';
 import firebase from "../../config"
 import Loading from './LoadingScreen';
-import Modal from 'react-native-modal';
 import PopupOrder from './PopupOrder'
 import Swiper from 'react-native-swiper/src'
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
+import { Col, Row, Grid } from "react-native-easy-grid";
 export default class MessageScreen extends React.Component{
 
   state = {
@@ -17,7 +17,11 @@ export default class MessageScreen extends React.Component{
     page : 0,
     domain: '',
     homepage: 0,
+    date: new Date(),
+    popupVisible : false,
+    clicked : []
   }
+  
 
   // useEffect(() => {
   //   const unsubscribe = firebase.firestore()
@@ -69,41 +73,141 @@ export default class MessageScreen extends React.Component{
         )
     }
 
-  componentDidMount(){
-    const thisClass = this
-    const user = firebase.auth().currentUser
-    const start = user.email.indexOf("@")
-    const end = user.email.indexOf(".edu")
-    const domain = user.email.substring(start,end)
-    console.log("currentUID")
-    console.log( firebase.auth().currentUser.uid)
-    console.log("reference",'/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
-    firebase.database().ref('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
-    .once('value', function (chatsSnapshot) {
-        console.log("chatsSnapshot",chatsSnapshot)
-        var threadss = []
-        var thread = {}
-        chatsSnapshot.forEach(chat => {
-            thread.chatId = chat.key
-            thread.title = chat.val().title
-            thread._id = 1
-            threadss.push(thread)
-            thread = {}
-        });
-        console.log("threads")
-        console.log(threadss)
-        thisClass.setState({
-          threads: threadss,
-          loading: false
-        });  
-    });
+    togglePopupVisibility = (value) => {
+      this.setState({popupVisible : value})
+    }
 
-    firebase.database().ref('/users/' + firebase.auth().currentUser.uid).child("page")
-    .once('value', function (homepageSnapshot) {
-        console.log(homepageSnapshot.val())
-        thisClass.setState({homepage:homepageSnapshot.val(),rendered:true})
-        console.log("in component mount ", thisClass.state.homepage)
-    });
+
+    async componentDidMount(){
+      const user = firebase.auth().currentUser
+      const start = user.email.indexOf("@")
+      const end = user.email.indexOf(".com")
+      const domain = user.email.substring(start,end)
+      const email = user.email.substring(0,end)
+      console.log("in message screen")
+      console.log('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
+      await firebase.database().ref('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
+      .once('value',  (chatsSnapshot) => {
+          console.log("chatsSnapshot",chatsSnapshot)
+          var threadss = []
+          var thread = {}
+          chatsSnapshot.forEach(  chat => {
+              var otherChatterEmail
+              console.log("chat" ,chat)
+              if(chat.key.indexOf(email) == 0){
+                otherChatterEmail = chat.key.substring(email.length,chat.key.length)
+              }else{
+                otherChatterEmail = chat.key.substring(0, chat.key.length - email.length)
+              }
+              console.log("otherChatterEmail",otherChatterEmail)
+              const image = firebase.storage().ref().child("profilePics/" + domain + "/" + otherChatterEmail +"/profilePic.jpg")
+              image.getDownloadURL().then((foundURL) => {
+                thread.avatar = foundURL
+                console.log("foundOne")
+              }).catch((error) => {console.log(error)})
+
+              const chatPath = "chats/" + domain + "/" + chat.key + "/chat"
+              console.log("thread.chatId = chat.key")
+              thread.otherChatterEmail = otherChatterEmail
+              thread.chatId = chat.key
+              thread.title = chat.val().title
+              this.getLastMessageInfo(chatPath,thread)
+              this.displayTime(thread)
+              console.log(thread)
+              threadss.push(thread)
+              thread = {}
+              this.sortThreads(threadss)
+              this.setState({
+                threads: threadss,
+              });  
+              console.log("threads",threadss)
+              
+            
+          })
+      })
+
+      firebase.database().ref('/users/' + firebase.auth().currentUser.uid).child("page")
+      .once('value',  (homepageSnapshot) => {
+          // console.log(homepageSnapshot.val())
+          this.setState({homepage:homepageSnapshot.val(),loading: false,rendered:true})
+          // console.log("in component mount ", this.state.homepage)
+      });
+    }
+
+
+    displayTime = (thread) => {
+      console.log("-----------------Display Time----------")
+      console.log("current",this.state.date)
+      console.log("timestamp",thread.timestamp)
+      const dayOfTheWeek = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+      var messageDate = new Date(1593200862 * 1000);
+      var currentDate = this.state.date
+      console.log("getHours ",messageDate.getHours())
+      var hour, minute,seconds
+      //2019 < 2020
+      console.log("messageDate.getFullYear()",messageDate.getFullYear())
+      console.log("currentDate.getFullYear()",currentDate.getFullYear())
+      if(messageDate.getFullYear() == currentDate.getFullYear()){
+        if(messageDate.getMonth() == currentDate.getMonth()){
+          const difference = currentDate.getDate() - messageDate.getDate()
+          if(difference < 7){
+            if(difference == 0){
+              hour = messageDate.getHours() + 1
+              var afterNoon = (hour % 12) > 0 ? "PM" : "AM"
+              hour = hour % 12
+
+              minute = "0" + messageDate.getMinutes()
+              var formattedTime = hour + ':' + minute.substr(-2) + " " + afterNoon
+              thread.formattedTime = formattedTime
+            }else if(difference == 1){
+              thread.formattedTime = "Yesterday"
+            }else{
+              thread.formattedTime = dayOfTheWeek[messageDate.getDay()]
+            }
+            return
+          }
+        }
+      }
+
+      const month = messageDate.getMonth() + 1
+      const day = messageDate.getDate()
+      const year = ("" + messageDate.getFullYear()).substr(-2)
+      const formattedDate = month + "/" + day + "/" + year
+      thread.formattedTime = formattedDate
+
+
+    }
+
+    sortThreads = (threads) => {
+      for(var i = 0; i < threads.length; i += 1){
+        console.log("before",threads[i].timestamp)
+      }
+      threads.sort(function(a, b){return a.timestamp-b.timestamp});
+      for(var i = 0; i < threads.length; i += 1){
+        console.log("after",threads[i].timestamp)
+      }   
+      this.setState({threads}) 
+    }
+
+    getLastMessageInfo = async (chatPath,thread) => {
+      await firebase.database().ref(chatPath).limitToLast(1).once("value",(snapshot) => {
+        snapshot.forEach((chat) => {
+          const message = chat.val()
+          console.log("message",message)
+          thread.timestamp = message.timestamp
+          thread.read = message.read
+          if(message.text == undefined || message.text == ""){
+            if(message.image == undefined){
+              thread.text = "Confirmation Order"
+            }else{
+              thread.text = "Image"
+            }
+          }else{
+            thread.text = message.text
+          }
+        })
+      })
+      console.log("time in")
     }
   
 
@@ -114,8 +218,11 @@ export default class MessageScreen extends React.Component{
 
       LayoutAnimation.easeInEaseOut()
       if(this.state.rendered && this.state.homepage != 0){
+        setTimeout(() => {
           this._swiper.scrollBy(1)
-          this.setState({rendered : false})
+          this.setState({rendered : false,
+                         clicked:Array(this.state.threads.length).fill(false)})
+        }, 100);
       }
       return(
       <View style={styles.container}>
@@ -145,8 +252,7 @@ export default class MessageScreen extends React.Component{
                                   }}
                                   onPress={()=>{
                                       // this.props.navigation.navigate("BuyModal")
-                                      console.log(this.state.popupVisible)
-                                      this.setState({popupVisible:true})
+                                      this.togglePopupVisibility(true)
                                   }} 
                                   >
               <FontAwesome5 name="user-friends" size={45} color="black" />
@@ -154,49 +260,81 @@ export default class MessageScreen extends React.Component{
               </TouchableOpacity>
 
           </View>
+          <View>
+            <Text style={{fontSize:50,fontWeight:"bold"}}>Chats</Text>
+          </View>
           <Swiper ref={(swiper) => {this._swiper = swiper;}} 
                   loop={false}
                   onIndexChanged={this.homepageIndexChanged}>
-                <View>
+                <View style={{height:windowHeight - 300}}>
+                  <Divider/>
                   <FlatList
                     data={this.state.threads}
                     keyExtractor={(item) => item._id}
                     ItemSeparatorComponent={() => <Divider />}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                      onPress={() => this.props.navigation.navigate('Room', { thread: item.chatId, chattingUser: item.title })}
+                    renderItem={({ item,index }) => {
+                      return(
+                      <TouchableWithoutFeedback
+                      onPressIn={()=> {
+                        var clicked = this.state.clicked
+                        clicked[index] = true
+                        this.setState({clicked})
+                      }}
+                      onPressOut={() => {
+                        var clicked = this.state.clicked
+                        clicked[index] = false
+                        this.setState({clicked})
+                      }}
+                      onPress={() => this.props.navigation.navigate('Room', { thread: item.chatId, chattingUser: item.title,otherChatterEmail : item.otherChatterEmail })}
                       >
-                        <List.Item
-                          key={item.title}
-                          title={item.title}
-                          description='Item description'
-                          titleNumberOfLines={1}
-                          titleStyle={styles.listTitle}
-                          descriptionStyle={styles.listDescription}
-                          descriptionNumberOfLines={1}
-                        />
-                      </TouchableOpacity>
-                    )}
-                  renderBubble={props => {
-                  const color = props.currentMessage.read ? '#0084ff' : '#389bff';
-                  return (
-                    <Bubble
-                      {...props}
-                      wrapperStyle={{ right: { backgroundColor: 'blue' } }}
-                    />
-                  );
-                }}
+                        <View style={[styles.chatRow,{backgroundColor : this.state.clicked[index] ? "#A9A9A9" : "white"}]}>
+                          <View style={[styles.chatRow,{width:(3 * windowWidth/4)}]}>
+                            <View style={[styles.avatar,{marginLeft:20}]}>
+                              <FontAwesome name="user" size={50} color="black" />
+                            </View>
+                            <View style={{flexDirection:"column",marginLeft:5}}>
+                              <Text style={{fontSize:20}}>{item.title}</Text>
+                              <Text style={{fontSize:15,color:"gray"}}>{item.text}</Text>
+                            </View>
+                          </View>
+                          <View style={{justifyContent:"center",alignItems:"center",width:windowWidth/4}}>
+                            <Text>{item.formattedTime}</Text>
+                          </View>
+                        </View>
+
+                      </TouchableWithoutFeedback>
+                    )}}
                   />
               </View>
               <View></View>
           </Swiper>
-          {this.state.popupVisible && <PopupOrder navigation={this.props.navigation} togglePopupVisibility={this.togglePopupVisibility}/>}
+          <PopupOrder 
+            navigation={this.props.navigation} 
+            popupVisible={this.state.popupVisible} 
+            togglePopupVisibility={this.togglePopupVisibility}
+            
+          />
     </View>
     );
    }
 }
 
 const styles = StyleSheet.create({
+  chatRow:{
+    flex:1,
+    flexDirection:"row",
+    height:80,
+    alignItems:"center",
+  },
+  avatar:{
+    borderRadius:60, 
+    width:60,
+    height:60, 
+    borderColor:"black",
+    borderWidth:1,
+    alignItems:"center",
+    justifyContent:"center",
+  },
   container: {
     flex:1,
     paddingTop:30,
@@ -239,3 +377,14 @@ header:{
     fontSize: 16,
   },
 });
+
+                        {/* <List.Item
+                          key={item.title}
+                          title={item.title}
+                          description='Item description'
+                          titleNumberOfLines={1}
+                          right={() => {<Text>HI</Text>}}
+                          titleStyle={styles.listTitle}
+                          descriptionStyle={styles.listDescription}
+                          descriptionNumberOfLines={1}
+                        /> */}

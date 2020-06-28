@@ -37,25 +37,123 @@ export default class HomeScreen extends React.Component{
 
     }
 
+    uriToBlob = async (uri) => {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = function() {
+            // return the blob
+            resolve(xhr.response);
+            };
+            
+            xhr.onerror = function() {
+            // something went wrong
+            reject(new Error('uriToBlob failed'));
+            };
+            // this helps us get a blob
+            xhr.responseType = 'blob';
+            xhr.open('GET', uri, true);
+            
+            xhr.send(null);
+        });
+    }
+
+    uploadToFirebase = async (blob,path) => {
+    return new Promise((resolve, reject)=>{
+        var storageRef = firebase.storage().ref();
+        let uid =  (firebase.auth().currentUser || {}).uid
+        const start = this.state.email.indexOf("@")
+        const end = this.state.email.indexOf(".com")
+        const domain = this.state.email.substring(start,end)
+        storageRef.child(`${path}.jpg`).put(blob, {
+        contentType: 'image/jpeg'
+        }).catch((error)=>{
+        reject(error);
+        });
+    });
+    }
+
+    timestamp = () => {
+        return firebase.database.ServerValue.TIMESTAMP;
+    }
 
     _handleNotification = notification => {
+        console.log("-------------------------------------")
         console.log("in notification", notification.data.data.orderNumber)
         const myUser = firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4)
         const start = myUser.indexOf("@")
-        firebase.database().ref("orders/currentOrders/" + notification.data.data.orderNumber)
-        .once("value",function(snapshot){
+        const domain = this.state.email.substring(start,firebase.auth().currentUser.email.length - 4)
+        console.log("85")
+        var hasDone = false
+
+        firebase.database().ref("orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
+        .once("value",async (snapshot) => {
+            //console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
             const order = snapshot.val()
-            if(order.status == "searching"){
-                firebase.database().ref("users/" + myUser.substring(start,myUser.length) +'/'+ myUser + '/chats/' + order.buyer + myUser + '/').push({
+            if(order.status == "searching" && !hasDone){
+                hasDone = true
+                firebase.database().ref("orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber).update({status:"in-progress"})
+                firebase.database().ref("users/" + domain +'/'+ myUser + '/chats/' + order.buyer + myUser + '/').set({
                     title : order.buyer
                 })
-                firebase.database().ref("users/" + myUser.substring(start,myUser.length) +'/'+ order.buyer + '/chats/' + order.buyer + myUser + '/').set({
+                firebase.database().ref("users/" + domain +'/'+ order.buyer + '/chats/' + order.buyer + myUser + '/').set({
                     title : firebase.auth().currentUser.displayName
-                 })
+                })
+                var storageRef = firebase.storage().ref();
+                const path = "/chats/" +domain + "/" + order.buyer + myUser + "/chat";
+                // console.log("path",path)
+                const profileImagePath = "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg"
+                // console.log("profileImagePath",profileImagePath)
+
+                firebase.storage().ref().child(profileImagePath).getDownloadURL().then(onResolve, onReject);
+
+                function onResolve(foundURL) {
+                    this.setState({ profileImage: foundURL})
+                }
+
+                function onReject(error) {
+                }
+                console.log("order")
+                const promises = []
+               const orderImages = firebase.storage().ref('tempPhotos/' + domain + "/" + order.buyer);          
+                for(var i = 0; i < notification.data.data.imageNames.length;i++){
+                    // console.log("length ",notification.data.data.imageNames.length)
+                    // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
+                    // console.log("befor",notification.data.data.imageNames[i] + ".jpg")
+                    const name=  notification.data.data.imageNames[i] 
+                    // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
+                    const image = orderImages.child(notification.data.data.imageNames[i] + ".jpg");
+                    //console.log("BEFORE")
+                    promises.push(this.takePhotoFromTemp(image,path,name,notification.data.data.uid,notification.data.data.displayName))
+                }
+
+                const responses = await Promise.all(promises)
+                console.log("NEDDD")
             }
 
         })
     };
+
+    takePhotoFromTemp = (image,path,name,uid,displayName) =>{
+        image.getDownloadURL().then(  ( url) => {
+            console.log("url ",url)
+            this.uriToBlob(url).then( (blob) =>{
+                this.uploadToFirebase(blob,path + name )
+            // console.log("here i am", path + name)
+            var message = {
+                text:"",
+                image:url,
+                timestamp: this.timestamp(),
+                user:{_id:uid, name: displayName}
+
+            }
+            if(this.state.profileImage){
+                message.user.avatar = this.state.profileImage
+            }
+            // console.log("message", message)
+                firebase.database().ref(path).push(message)
+            })
+        }).catch((error) =>{alert("ERROR getting photos")})
+    }
 
     registerForPushNotificationsAsync = async () => {
         if (Platform.OS === 'android') {
@@ -97,8 +195,8 @@ export default class HomeScreen extends React.Component{
         this.setState({homepage:index})
     }
 
-    togglePopupVisibility = () => {
-        this.setState({popupVisible : !this.state.popupVisible})
+    togglePopupVisibility = (value) => {
+        this.setState({popupVisible : value})
     }
 
     // componentDidMount() {
@@ -146,7 +244,7 @@ export default class HomeScreen extends React.Component{
                                         onPress={()=>{
                                             // this.props.navigation.navigate("BuyModal")
                                             console.log(this.state.popupVisible)
-                                            this.setState({popupVisible:true})
+                                            this.togglePopupVisibility(true)
                                         }} 
                                         >
                     <FontAwesome5 name="user-friends" size={45} color="black" />

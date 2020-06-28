@@ -1,4 +1,5 @@
 import Constants from "expo-constants"
+import { Notifications } from 'expo';
 import * as Permissions from "expo-permissions"
 
 class UserPermissions{
@@ -7,8 +8,28 @@ class UserPermissions{
             const {status} = await Permissions.askAsync(Permissions.CAMERA_ROLL)
 
             if(status != "granted"){
-                alert("We need permission to use camera roll")
-            } 
+                return true
+            }else{
+                return false
+            }
+        }
+    }
+
+    getDeviceToken = async () => {
+        if (Constants.isDevice) {
+            const { status: existingStatus } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+                const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+                finalStatus = status;
+            }
+            if (finalStatus !== 'granted') {
+                alert('Failed to get push token for push notification!');
+                return;
+            }
+            token = await Notifications.getExpoPushTokenAsync();
+            console.log(token);
+            return token
         }
     }
 }

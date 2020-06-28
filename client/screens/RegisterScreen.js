@@ -56,9 +56,11 @@ export default class RegisterScreen extends React.Component{
     uploadToFirebase = (blob) => {
     return new Promise((resolve, reject)=>{
         var storageRef = firebase.storage().ref();
-        let uid =  (firebase.auth().currentUser || {}).uid
-        console.log("uid",uid)
-        storageRef.child(`/profilePics/${uid}.jpg`).put(blob, {
+        const start = this.state.email.indexOf("@")
+        const end = this.state.email.indexOf(".com")
+        const domain = this.state.email.substring(start,end)
+        const email = this.stat.email.substring(0,end)
+        storageRef.child(`/profilePics/${domain}/${email}/profilePic.jpg`).put(blob, {
         contentType: 'image/jpeg'
         }).catch((error)=>{
         reject(error);
@@ -83,9 +85,9 @@ export default class RegisterScreen extends React.Component{
             console.log("in create user")
             var user = firebase.auth().currentUser;
             user.updateEmail(this.state.email)
-            // this.uriToBlob(this.state.avatar).then((blob) =>{
-            //     this.uploadToFirebase(blob)
-            // })
+            this.uriToBlob(this.state.avatar).then((blob) =>{
+                this.uploadToFirebase(blob)
+            })
 
             // firebase.database().ref('userNotifications1').push({
             //     expoToken : true
@@ -97,17 +99,16 @@ export default class RegisterScreen extends React.Component{
                 displayName:this.state.name
             })
         })
-        .catch(error => this.setState({emailError: "*Email already in use*"}))
+        .catch(error => {this.setState({emailError: "*Email already in use, Go to Login*"})})
 
-        console.log("new user uid", firebase.auth().currentUser.uid)
     }
 
     handleEmail = (email) =>{
         this.setState({email: email})
         if(email.length == 0){
             this.setState({emailError : "*Email is empty"})
-        }else if(!email.endsWith(".edu") || !email.includes("@")){
-            this.setState({emailError : "*Email isn't a valid school email*"})
+        // }else if(!email.endsWith(".com") || !email.includes("@")){
+        //     this.setState({emailError : "*Email isn't a valid school email*"})
         }else{
             this.setState({emailError : ""})
         }
