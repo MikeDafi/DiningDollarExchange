@@ -1,13 +1,20 @@
 import * as firebase from 'firebase';
 import firestore from 'firebase/firestore'
   var firebaseConfig = {
-    apiKey: "AIzaSyDPi80ilddhtCh9wfPIxT5YLt8hLa1zZoM",
-    authDomain: "diningdollarreactnative.firebaseapp.com",
-    databaseURL: "https://diningdollarreactnative.firebaseio.com",
-    projectId: "diningdollarreactnative",
-    storageBucket: "diningdollarreactnative.appspot.com",
-    messagingSenderId: "529283379449",
-    appId: "1:529283379449:web:aaea13bb1526e3b182b228"
+    // apiKey: "AIzaSyDPi80ilddhtCh9wfPIxT5YLt8hLa1zZoM",
+    // authDomain: "diningdollarreactnative.firebaseapp.com",
+    // databaseURL: "https://diningdollarreactnative.firebaseio.com",
+    // projectId: "diningdollarreactnative",
+    // storageBucket: "diningdollarreactnative.appspot.com",
+    // messagingSenderId: "529283379449",
+    // appId: "1:529283379449:web:aaea13bb1526e3b182b228"
+    apiKey: "AIzaSyDcWtjV9MFr-Fg3VHZ_TikxDCqZ6EYyQok",
+    authDomain: "diningcredite.firebaseapp.com",
+    databaseURL: "https://diningcredite.firebaseio.com",
+    projectId: "diningcredite",
+    storageBucket: "diningcredite.appspot.com",
+    messagingSenderId: "95895318701",
+    appId: "1:95895318701:web:cb9edba598c690c6961624"
   };
 
 firebase.initializeApp(firebaseConfig);

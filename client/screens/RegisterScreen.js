@@ -59,7 +59,7 @@ export default class RegisterScreen extends React.Component{
         const start = this.state.email.indexOf("@")
         const end = this.state.email.indexOf(".com")
         const domain = this.state.email.substring(start,end)
-        const email = this.stat.email.substring(0,end)
+        const email = this.state.email.substring(0,end)
         storageRef.child(`/profilePics/${domain}/${email}/profilePic.jpg`).put(blob, {
         contentType: 'image/jpeg'
         }).catch((error)=>{

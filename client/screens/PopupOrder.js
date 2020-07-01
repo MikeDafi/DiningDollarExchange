@@ -204,8 +204,9 @@ export default class PopupOrder extends React.Component{
                     orderNumberNow += 1
                     orders.set({currentOrders:currentOrdersNow,orderNumber:orderNumberNow})
                     
-
+                    setTimeout(() => {
                     this.sendAllNotifications(orderNumberForNotification);
+                    },1000)
                     setTimeout(() => {
                         orders.child("currentOrders/" + orderNumberForNotification).once("value",(orderSnapshot)=>{
                             if(orderSnapshot.val().status == "searching"){
@@ -283,7 +284,7 @@ export default class PopupOrder extends React.Component{
                         <Grid>
                             <Row style={styles.rowStyle}>
                                 <Col style={[styles.label,{width:firstColumnWidth}]}>
-                                <TouchableOpacity onPress={ async () => {
+                                <TouchableOpacity onPress={  () => {
                                     this.setState({imageNames:[],uploadImagesVisible:true});
                                     // this.props.navigation.navigate("UploadImages",{photoCallb: this.photoCallback})
                                     }} 

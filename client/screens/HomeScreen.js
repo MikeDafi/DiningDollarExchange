@@ -20,6 +20,11 @@ export default class HomeScreen extends React.Component{
         rendered : false,
         popupVisible : false,
     }
+
+    componentWillUnmount(){
+        console.log("LAST")
+    }
+
     componentDidMount(){
         const{email,displayName} = firebase.auth().currentUser
         this.setState({email,displayName})
@@ -98,20 +103,18 @@ export default class HomeScreen extends React.Component{
                 firebase.database().ref("users/" + domain +'/'+ order.buyer + '/chats/' + order.buyer + myUser + '/').set({
                     title : firebase.auth().currentUser.displayName
                 })
+                const buyerSentMessage = order.buyer + "_hasSentMessage"
+                firebase.database().ref("/chats/" + domain + "/" + order.buyer + myUser).update({[buyerSentMessage] : true})
+
                 var storageRef = firebase.storage().ref();
                 const path = "/chats/" +domain + "/" + order.buyer + myUser + "/chat";
                 // console.log("path",path)
                 const profileImagePath = "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg"
                 // console.log("profileImagePath",profileImagePath)
 
-                firebase.storage().ref().child(profileImagePath).getDownloadURL().then(onResolve, onReject);
-
-                function onResolve(foundURL) {
-                    this.setState({ profileImage: foundURL})
-                }
-
-                function onReject(error) {
-                }
+                // await firebase.storage().ref().child(profileImagePath).getDownloadURL().then((foundURL) => {
+                //     this.setState({ profileImage: foundURL})
+                // })
                 console.log("order")
                 const promises = []
                const orderImages = firebase.storage().ref('tempPhotos/' + domain + "/" + order.buyer);          
@@ -143,7 +146,7 @@ export default class HomeScreen extends React.Component{
                 text:"",
                 image:url,
                 timestamp: this.timestamp(),
-                user:{_id:uid, name: displayName}
+                user:{_id:uid, name: displayName,avatar : null}
 
             }
             if(this.state.profileImage){
@@ -152,7 +155,7 @@ export default class HomeScreen extends React.Component{
             // console.log("message", message)
                 firebase.database().ref(path).push(message)
             })
-        }).catch((error) =>{alert("ERROR getting photos")})
+        }).catch((error) =>{console.log(error)})
     }
 
     registerForPushNotificationsAsync = async () => {

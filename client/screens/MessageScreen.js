@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {View,Text,StyleSheet,TouchableOpacity,FlatList,LayoutAnimation,Dimensions,TouchableWithoutFeedback} from "react-native"
+import {View,Text,StyleSheet,TouchableOpacity,FlatList,Image,LayoutAnimation,Dimensions,TouchableWithoutFeedback} from "react-native"
 import {Ionicons,FontAwesome5,FontAwesome} from "@expo/vector-icons"
 import { List, Divider } from 'react-native-paper';
 import firebase from "../../config"
@@ -87,11 +87,11 @@ export default class MessageScreen extends React.Component{
       console.log("in message screen")
       console.log('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
       await firebase.database().ref('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
-      .once('value',  (chatsSnapshot) => {
+      .once('value', (chatsSnapshot) => {
           console.log("chatsSnapshot",chatsSnapshot)
           var threadss = []
           var thread = {}
-          chatsSnapshot.forEach(  chat => {
+          chatsSnapshot.forEach( async chat => {
               var otherChatterEmail
               console.log("chat" ,chat)
               if(chat.key.indexOf(email) == 0){
@@ -101,7 +101,7 @@ export default class MessageScreen extends React.Component{
               }
               console.log("otherChatterEmail",otherChatterEmail)
               const image = firebase.storage().ref().child("profilePics/" + domain + "/" + otherChatterEmail +"/profilePic.jpg")
-              image.getDownloadURL().then((foundURL) => {
+              await image.getDownloadURL().then((foundURL) => {
                 thread.avatar = foundURL
                 console.log("foundOne")
               }).catch((error) => {console.log(error)})
@@ -111,7 +111,7 @@ export default class MessageScreen extends React.Component{
               thread.otherChatterEmail = otherChatterEmail
               thread.chatId = chat.key
               thread.title = chat.val().title
-              this.getLastMessageInfo(chatPath,thread)
+              await this.getLastMessageInfo(chatPath,thread)
               this.displayTime(thread)
               console.log(thread)
               threadss.push(thread)
@@ -136,23 +136,19 @@ export default class MessageScreen extends React.Component{
 
 
     displayTime = (thread) => {
-      console.log("-----------------Display Time----------")
-      console.log("current",this.state.date)
-      console.log("timestamp",thread.timestamp)
+
       const dayOfTheWeek = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
-      var messageDate = new Date(1593200862 * 1000);
+      var messageDate = new Date(thread.timestamp);
       var currentDate = this.state.date
       console.log("getHours ",messageDate.getHours())
       var hour, minute,seconds
       //2019 < 2020
-      console.log("messageDate.getFullYear()",messageDate.getFullYear())
-      console.log("currentDate.getFullYear()",currentDate.getFullYear())
       if(messageDate.getFullYear() == currentDate.getFullYear()){
         if(messageDate.getMonth() == currentDate.getMonth()){
           const difference = currentDate.getDate() - messageDate.getDate()
           if(difference < 7){
             if(difference == 0){
-              hour = messageDate.getHours() + 1
+              hour = messageDate.getHours()
               var afterNoon = (hour % 12) > 0 ? "PM" : "AM"
               hour = hour % 12
 
@@ -194,7 +190,11 @@ export default class MessageScreen extends React.Component{
         snapshot.forEach((chat) => {
           const message = chat.val()
           console.log("message",message)
-          thread.timestamp = message.timestamp
+          if(message.readTime != undefined && message.readTime > message.timestamp){
+            thread.timestamp = message.readTime
+          }else{
+            thread.timestamp = message.timestamp
+          }
           thread.read = message.read
           if(message.text == undefined || message.text == ""){
             if(message.image == undefined){
@@ -290,7 +290,8 @@ export default class MessageScreen extends React.Component{
                         <View style={[styles.chatRow,{backgroundColor : this.state.clicked[index] ? "#A9A9A9" : "white"}]}>
                           <View style={[styles.chatRow,{width:(3 * windowWidth/4)}]}>
                             <View style={[styles.avatar,{marginLeft:20}]}>
-                              <FontAwesome name="user" size={50} color="black" />
+                              {item.avatar ? <Image source={{url : item.avatar}} style={styles.avatar}/> :
+                              <FontAwesome name="user" size={50} color="black" />}
                             </View>
                             <View style={{flexDirection:"column",marginLeft:5}}>
                               <Text style={{fontSize:20}}>{item.title}</Text>
