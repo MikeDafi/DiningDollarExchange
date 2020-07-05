@@ -30,7 +30,13 @@ export default class HomeScreen extends React.Component{
         this.setState({email,displayName})
         const thisClass = this
 
-        firebase.database().ref('/users/' + firebase.auth().currentUser.uid).child("page")
+        const user = firebase.auth().currentUser
+        const start = user.email.indexOf("@")
+        const end = user.email.indexOf(".com")
+        const domain = user.email.substring(start,end)
+        const realEmail = user.email.substring(0,end)
+
+        firebase.database().ref('/users/' + domain + "/" + realEmail + "/page")
         .once('value', function (homepageSnapshot) {
             console.log(homepageSnapshot.val())
             thisClass.setState({homepage:homepageSnapshot.val(),rendered:true})
@@ -88,20 +94,21 @@ export default class HomeScreen extends React.Component{
         const start = myUser.indexOf("@")
         const domain = this.state.email.substring(start,firebase.auth().currentUser.email.length - 4)
         console.log("85")
-        var hasDone = false
 
         firebase.database().ref("orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
         .once("value",async (snapshot) => {
             //console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
             const order = snapshot.val()
-            if(order.status == "searching" && !hasDone){
-                hasDone = true
+            if(order.status == "searching"){
+                const name = ""
                 firebase.database().ref("orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber).update({status:"in-progress"})
-                firebase.database().ref("users/" + domain +'/'+ myUser + '/chats/' + order.buyer + myUser + '/').set({
-                    title : order.buyer
+                firebase.database().ref("users/" + domain +'/'+ myUser + '/chats/seller/' + order.buyer + myUser + '/').set({
+                    timestamp : this.timestamp(),
+                    text : "Image"
                 })
-                firebase.database().ref("users/" + domain +'/'+ order.buyer + '/chats/' + order.buyer + myUser + '/').set({
-                    title : firebase.auth().currentUser.displayName
+                firebase.database().ref("users/" + domain +'/'+ order.buyer + '/chats/buyer/' + order.buyer + myUser + '/').set({
+                    timestamp : this.timestamp(),
+                    text:"image"
                 })
                 const buyerSentMessage = order.buyer + "_hasSentMessage"
                 firebase.database().ref("/chats/" + domain + "/" + order.buyer + myUser).update({[buyerSentMessage] : true})
@@ -126,7 +133,7 @@ export default class HomeScreen extends React.Component{
                     // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
                     const image = orderImages.child(notification.data.data.imageNames[i] + ".jpg");
                     //console.log("BEFORE")
-                    promises.push(this.takePhotoFromTemp(image,path,name,notification.data.data.uid,notification.data.data.displayName))
+                    promises.push(this.takePhotoFromTemp(image,path,name,notification.data.data.uid,name))
                 }
 
                 const responses = await Promise.all(promises)
@@ -136,24 +143,21 @@ export default class HomeScreen extends React.Component{
         })
     };
 
-    takePhotoFromTemp = (image,path,name,uid,displayName) =>{
+    takePhotoFromTemp = (image,path,name,uid,name1) =>{
         image.getDownloadURL().then(  ( url) => {
             console.log("url ",url)
             this.uriToBlob(url).then( (blob) =>{
-                this.uploadToFirebase(blob,path + name )
+                this.uploadToFirebase(blob,path + name1 )
             // console.log("here i am", path + name)
             var message = {
                 text:"",
                 image:url,
                 timestamp: this.timestamp(),
-                user:{_id:uid, name: displayName,avatar : null}
+                user:{_id:uid, name: name1}
 
             }
-            if(this.state.profileImage){
-                message.user.avatar = this.state.profileImage
-            }
             // console.log("message", message)
-                firebase.database().ref(path).push(message)
+            firebase.database().ref(path).push(message)
             })
         }).catch((error) =>{console.log(error)})
     }
@@ -195,7 +199,14 @@ export default class HomeScreen extends React.Component{
     }
 
     homepageIndexChanged = (index) => {
-        this.setState({homepage:index})
+      const user = firebase.auth().currentUser
+      const start = user.email.indexOf("@")
+      const end = user.email.indexOf(".com")
+      const domain = user.email.substring(start,end)
+      const email = user.email.substring(0,end)
+      this.setState({homepage:index})
+
+      firebase.database().ref('/users/' + domain + "/" + email).update({page:index})
     }
 
     togglePopupVisibility = (value) => {
@@ -274,7 +285,12 @@ export default class HomeScreen extends React.Component{
                     <SellerHomeScreen  navigation={this.props.navigation}/>
                 </Swiper>
 
-                {this.state.popupVisible && <PopupOrder navigation={this.props.navigation} togglePopupVisibility={this.togglePopupVisibility}/>}
+                <PopupOrder 
+                    navigation={this.props.navigation} 
+                    popupVisible={this.state.popupVisible} 
+                    togglePopupVisibility={this.togglePopupVisibility}
+                    
+                />
 
             </View>
         )

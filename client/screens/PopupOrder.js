@@ -44,8 +44,7 @@ export default class PopupOrder extends React.Component{
     }
 
     sendSingleNotification = async (token,orderNumber) => {
-        var user = firebase.auth().currentUser
-        const displayName = user.displayName
+        const user = firebase.auth().currentUser
         const uid = user.uid
         console.log("imgeNames",this.state.imageNames)
         const message = {
@@ -54,7 +53,6 @@ export default class PopupOrder extends React.Component{
             title: 'Be a Seller!',
             body: 'Earn ' + this.state.rangeSelected,
             data: { data: {orderNumber :orderNumber,
-                           displayName :displayName,
                            uid         :uid,
                            imageNames  :this.state.imageNames}},
             _displayInForeground: true,
@@ -209,22 +207,20 @@ export default class PopupOrder extends React.Component{
                     },1000)
                     setTimeout(() => {
                         orders.child("currentOrders/" + orderNumberForNotification).once("value",(orderSnapshot)=>{
-                            if(orderSnapshot.val().status == "searching"){
-                                orders.child("currentOrders/").update({[orderNumberForNotification]:null})
-                                const email = user.email.substring(0,end)
-                                // Create a reference to the file to delete
-                                console.log("mickey mouse",email)
-                                for(var i = 0; i < this.state.imageNames.length; i++){
-                                    console.log("/tempPhotos/"+domain+"/"+email +"/"+this.state.imageNames[i] + ".jpg")
-                                    var imageRef = firebase.storage().ref(`/tempPhotos/${domain}/${email}/${this.state.imageNames[i]}.jpg`);
+                            orders.child("currentOrders/").update({[orderNumberForNotification]:null})
+                            const email = user.email.substring(0,end)
+                            // Create a reference to the file to delete
+                            console.log("mickey mouse",email)
+                            for(var i = 0; i < this.state.imageNames.length; i++){
+                                console.log("/tempPhotos/"+domain+"/"+email +"/"+this.state.imageNames[i] + ".jpg")
+                                var imageRef = firebase.storage().ref(`/tempPhotos/${domain}/${email}/${this.state.imageNames[i]}.jpg`);
 
-                                    // Delete the file
-                                    imageRef.delete().then(function() {
-                                    
-                                    }).catch(function(error) {
-                                    // Uh-oh, an error occurred!
-                                    });
-                                }
+                                // Delete the file
+                                imageRef.delete().then(function() {
+                                
+                                }).catch(function(error) {
+                                // Uh-oh, an error occurred!
+                                });
                             }
                         })
                     }, 200000);
@@ -286,6 +282,8 @@ export default class PopupOrder extends React.Component{
                                 <Col style={[styles.label,{width:firstColumnWidth}]}>
                                 <TouchableOpacity onPress={  () => {
                                     this.setState({imageNames:[],uploadImagesVisible:true});
+                                    UserPermissions.getCameraPermission()
+                                    UserPermissions.getDeviceToken()
                                     // this.props.navigation.navigate("UploadImages",{photoCallb: this.photoCallback})
                                     }} 
                                 >
@@ -395,9 +393,10 @@ export default class PopupOrder extends React.Component{
                                     thumbIconBorderColor="black"
                                     title={this.state.imageUris.length == 0 || this.state.rangeSelected == "" ? "*Complete Above*" : "Swipe to Submit"}
                                     railBackgroundColor="white"
+                                    renderMessageImage={null}
                                     railFillBorderColor="black"
                                     railFillBackgroundColor="black"
-                                    disabled={this.state.rangeSelected == "" || this.state.imageUris.length == 0 ? true : false}
+                                    disabled={this.state.rangeSelected == "" || this.state.imageUris.length == 0 ? false : false}
                                 />
                             </Row>
                         </Grid>

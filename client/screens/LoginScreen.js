@@ -27,13 +27,14 @@ export default class LoginScreen extends React.Component{
                 const end = user.email.indexOf(".com")
                 const domain = user.email.substring(start,end)
                 console.log("domain ", domain)
-                console.log("expoToken", this.state.token)
-                firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).set({
+                console.log("expoToken", token)
+                firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).update({
                     expoToken : token,
                     active : true,
-                    page: 0,
-                    isBuyer:true,
-                    isSeller:true
+                    // page: 0,
+                    // isBuyer:true,
+                    // isSeller:true,
+                    name: firebase.auth().currentUser.displayName
 
                 })
                 UserPermissions.getCameraPermission()

@@ -12,14 +12,16 @@ import { Col, Row, Grid } from "react-native-easy-grid";
 export default class MessageScreen extends React.Component{
 
   state = {
-    threads : [],
+    threadsBuyer : [],
+    threadsSeller: [],
     loading : true,
     page : 0,
     domain: '',
     homepage: 0,
     date: new Date(),
     popupVisible : false,
-    clicked : []
+    clickedBuyer : [],
+    clickedSeller : [],
   }
   
 
@@ -50,7 +52,14 @@ export default class MessageScreen extends React.Component{
   // }, []);  
 
     homepageIndexChanged = (index) => {
+      const user = firebase.auth().currentUser
+      const start = user.email.indexOf("@")
+      const end = user.email.indexOf(".com")
+      const domain = user.email.substring(start,end)
+      const email = user.email.substring(0,end)
       this.setState({homepage:index})
+
+      firebase.database().ref('/users/' + domain + "/" + email).update({page:index})
     }
 
     nextButton = () => {
@@ -77,8 +86,17 @@ export default class MessageScreen extends React.Component{
       this.setState({popupVisible : value})
     }
 
+    ref = () => {
+      const user = firebase.auth().currentUser
+      const start = user.email.indexOf("@")
+      const end = user.email.indexOf(".com")
+      const domain = user.email.substring(start,end)
+      return firebase.database().ref('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
+    }
 
-    async componentDidMount(){
+
+    keepUpdatedList = async(isBuyer) =>{
+      const buyer = isBuyer ? "buyer" : "seller"
       const user = firebase.auth().currentUser
       const start = user.email.indexOf("@")
       const end = user.email.indexOf(".com")
@@ -86,12 +104,13 @@ export default class MessageScreen extends React.Component{
       const email = user.email.substring(0,end)
       console.log("in message screen")
       console.log('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
-      await firebase.database().ref('/users/' + domain +'/'+ firebase.auth().currentUser.email.substring(0,firebase.auth().currentUser.email.length - 4) + '/chats/')
-      .once('value', (chatsSnapshot) => {
+      await this.ref().child(buyer).orderByChild('timestamp').on("value", async (chatsSnapshot) => {
           console.log("chatsSnapshot",chatsSnapshot)
           var threadss = []
+          var count = 0
           var thread = {}
-          chatsSnapshot.forEach( async chat => {
+          const promises = []
+          chatsSnapshot.forEach( chat => {
               var otherChatterEmail
               console.log("chat" ,chat)
               if(chat.key.indexOf(email) == 0){
@@ -101,37 +120,73 @@ export default class MessageScreen extends React.Component{
               }
               console.log("otherChatterEmail",otherChatterEmail)
               const image = firebase.storage().ref().child("profilePics/" + domain + "/" + otherChatterEmail +"/profilePic.jpg")
-              await image.getDownloadURL().then((foundURL) => {
-                thread.avatar = foundURL
-                console.log("foundOne")
-              }).catch((error) => {console.log(error)})
+              const realCount = count
+              promises.push(
+                  image.getDownloadURL().then((foundURL) => {
+                  threadss[realCount].avatar = foundURL
+                }).catch((error) => {console.log(error)})
+              )
 
+              var name = ""
+              promises.push(
+                firebase.database().ref("users/" + domain + "/" + otherChatterEmail ).once("value",(snapshot) =>{
+                  console.log("snapshot.val()",snapshot.val().name)
+                  threadss[realCount].title = snapshot.val().name
+                })
+              )
               const chatPath = "chats/" + domain + "/" + chat.key + "/chat"
               console.log("thread.chatId = chat.key")
               thread.otherChatterEmail = otherChatterEmail
               thread.chatId = chat.key
-              thread.title = chat.val().title
-              await this.getLastMessageInfo(chatPath,thread)
+              thread.timestamp = chat.val().timestamp
+              thread.text = chat.val().text
               this.displayTime(thread)
               console.log(thread)
               threadss.push(thread)
               thread = {}
-              this.sortThreads(threadss)
-              this.setState({
-                threads: threadss,
-              });  
-              console.log("threads",threadss)
-              
-            
+              // this.sortThreads(threadss)
+              // this.setState({
+              //   threads: threadss,
+              // });  
+              count += 1         
           })
-      })
+          console.log("promises ready")
+          const responses = await Promise.all(promises)
+          console.log("after response")
+          console.log("threads",threadss)
+          if(isBuyer){
+            this.setState({
+              threadsBuyer: threadss.reverse(),
+            });  
+          }else{
+            this.setState({
+              threadsSeller: threadss.reverse(),
+            });  
+          }
 
-      firebase.database().ref('/users/' + firebase.auth().currentUser.uid).child("page")
+      })
+    }
+
+    async componentDidMount(){
+      this.keepUpdatedList(true)
+      this.keepUpdatedList(false)      
+      const user = firebase.auth().currentUser
+      const start = user.email.indexOf("@")
+      const end = user.email.indexOf(".com")
+      const domain = user.email.substring(start,end)
+      const realEmail = user.email.substring(0,end)
+
+      firebase.database().ref('/users/' + domain + "/" + realEmail + "/page")
       .once('value',  (homepageSnapshot) => {
           // console.log(homepageSnapshot.val())
           this.setState({homepage:homepageSnapshot.val(),loading: false,rendered:true})
           // console.log("in component mount ", this.state.homepage)
       });
+    }
+
+    componentWillUnmount(){
+      this.ref().child("buyer").off()
+      this.ref().child("seller").off()
     }
 
 
@@ -173,42 +228,7 @@ export default class MessageScreen extends React.Component{
 
 
     }
-
-    sortThreads = (threads) => {
-      for(var i = 0; i < threads.length; i += 1){
-        console.log("before",threads[i].timestamp)
-      }
-      threads.sort(function(a, b){return a.timestamp-b.timestamp});
-      for(var i = 0; i < threads.length; i += 1){
-        console.log("after",threads[i].timestamp)
-      }   
-      this.setState({threads}) 
-    }
-
-    getLastMessageInfo = async (chatPath,thread) => {
-      await firebase.database().ref(chatPath).limitToLast(1).once("value",(snapshot) => {
-        snapshot.forEach((chat) => {
-          const message = chat.val()
-          console.log("message",message)
-          if(message.readTime != undefined && message.readTime > message.timestamp){
-            thread.timestamp = message.readTime
-          }else{
-            thread.timestamp = message.timestamp
-          }
-          thread.read = message.read
-          if(message.text == undefined || message.text == ""){
-            if(message.image == undefined){
-              thread.text = "Confirmation Order"
-            }else{
-              thread.text = "Image"
-            }
-          }else{
-            thread.text = message.text
-          }
-        })
-      })
-      console.log("time in")
-    }
+    
   
 
     render(){
@@ -221,7 +241,8 @@ export default class MessageScreen extends React.Component{
         setTimeout(() => {
           this._swiper.scrollBy(1)
           this.setState({rendered : false,
-                         clicked:Array(this.state.threads.length).fill(false)})
+                         clickedBuyer:Array(this.state.threadsBuyer.length).fill(false),
+                         clickedSeller:Array(this.state.threadsSeller.length).fill(false)})
         }, 100);
       }
       return(
@@ -269,25 +290,25 @@ export default class MessageScreen extends React.Component{
                 <View style={{height:windowHeight - 300}}>
                   <Divider/>
                   <FlatList
-                    data={this.state.threads}
+                    data={this.state.threadsBuyer}
                     keyExtractor={(item) => item._id}
                     ItemSeparatorComponent={() => <Divider />}
                     renderItem={({ item,index }) => {
                       return(
                       <TouchableWithoutFeedback
                       onPressIn={()=> {
-                        var clicked = this.state.clicked
-                        clicked[index] = true
-                        this.setState({clicked})
+                        var clickedBuyer = this.state.clickedBuyer
+                        clickedBuyer[index] = true
+                        this.setState({clickedBuyer})
                       }}
                       onPressOut={() => {
-                        var clicked = this.state.clicked
-                        clicked[index] = false
-                        this.setState({clicked})
+                        var clickedBuyer = this.state.clickedBuyer
+                        clickedBuyer[index] = false
+                        this.setState({clickedBuyer})
                       }}
                       onPress={() => this.props.navigation.navigate('Room', { thread: item.chatId, chattingUser: item.title,otherChatterEmail : item.otherChatterEmail })}
                       >
-                        <View style={[styles.chatRow,{backgroundColor : this.state.clicked[index] ? "#A9A9A9" : "white"}]}>
+                        <View style={[styles.chatRow,{backgroundColor : this.state.clickedBuyer[index] ? "#A9A9A9" : "white"}]}>
                           <View style={[styles.chatRow,{width:(3 * windowWidth/4)}]}>
                             <View style={[styles.avatar,{marginLeft:20}]}>
                               {item.avatar ? <Image source={{url : item.avatar}} style={styles.avatar}/> :
@@ -307,7 +328,47 @@ export default class MessageScreen extends React.Component{
                     )}}
                   />
               </View>
-              <View></View>
+              <View style={{height:windowHeight - 300}}>
+                  <Divider/>
+                  <FlatList
+                    data={this.state.threadsSeller}
+                    keyExtractor={(item) => item._id}
+                    ItemSeparatorComponent={() => <Divider />}
+                    renderItem={({ item,index }) => {
+                      return(
+                      <TouchableWithoutFeedback
+                      onPressIn={()=> {
+                        var clickedSeller = this.state.clickedSeller
+                        clickedSeller[index] = true
+                        this.setState({clickedSeller})
+                      }}
+                      onPressOut={() => {
+                        var clickedSeller = this.state.clickedSeller
+                        clickedSeller[index] = false
+                        this.setState({clickedSeller})
+                      }}
+                      onPress={() => this.props.navigation.navigate('Room', { thread: item.chatId, chattingUser: item.title,otherChatterEmail : item.otherChatterEmail })}
+                      >
+                        <View style={[styles.chatRow,{backgroundColor : this.state.clickedSeller[index] ? "#A9A9A9" : "white"}]}>
+                          <View style={[styles.chatRow,{width:(3 * windowWidth/4)}]}>
+                            <View style={[styles.avatar,{marginLeft:20}]}>
+                              {item.avatar ? <Image source={{url : item.avatar}} style={styles.avatar}/> :
+                              <FontAwesome name="user" size={50} color="black" />}
+                            </View>
+                            <View style={{flexDirection:"column",marginLeft:5}}>
+                              <Text style={{fontSize:20}}>{item.title}</Text>
+                              <Text style={{fontSize:15,color:"gray"}}>{item.text}</Text>
+                            </View>
+                          </View>
+                          <View style={{justifyContent:"center",alignItems:"center",width:windowWidth/4}}>
+                            <Text>{item.formattedTime}</Text>
+                          </View>
+                        </View>
+
+                      </TouchableWithoutFeedback>
+                    )}}
+                  />
+              </View>
           </Swiper>
           <PopupOrder 
             navigation={this.props.navigation} 

@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
 import {IconButton} from 'react-native-paper'
 import { GiftedChat,Bubble,Composer,Day } from 'react-native-gifted-chat';
-import {StyleSheet,Platform, View,Dimensions,Animated,ActivityIndicator,SafeAreaView,TouchableOpacity,Text} from 'react-native'
+import {StyleSheet,Platform,Image,View,Dimensions,Animated,ActivityIndicator,SafeAreaView,TouchableOpacity,Text} from 'react-native'
 import firebase from "../../config"
+import Modal from 'react-native-modal';
 import { Entypo,AntDesign } from '@expo/vector-icons'; 
 import UploadImages from "./UploadImages"
 import * as ImagePicker from "expo-image-picker"
+import ImageViewer from 'react-native-image-zoom-viewer';
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
+const images = [{
+    url: 'https://avatars2.githubusercontent.com/u/7970947?v=3&s=460'
+}, {
+    url: 'https://avatars2.githubusercontent.com/u/7970947?v=3&s=460'
+}, {
+    url: 'https://avatars2.githubusercontent.com/u/7970947?v=3&s=460'
+}]
+
 export default class RoomScreen extends React.Component{
 
   constructor(props){
@@ -19,6 +29,7 @@ export default class RoomScreen extends React.Component{
     const domain = this.user.email.substring(start,end)
     const email = this.user.email.substring(0,end)
     this.earlierMessage = ""
+    this.earlierMessagetext = ""
 
     const path = "profilePics/" + domain + "/" + email +"/profilePic.jpg"
   
@@ -38,7 +49,11 @@ export default class RoomScreen extends React.Component{
       delivered : false,
       date : new Date(),
       uploadImagesVisible : false,
-      count: 20,
+      count: 5,
+      imageUrls : [],
+      imageCount: 0,
+      index: 0,
+      showImageViewer : false,
       chattingUser: (this.props.navigation.state.params || {}).chattingUser,
       otherChatterEmail : (this.props.navigation.state.params || {}).otherChatterEmail,
       otherChatterOnline : false,
@@ -48,14 +63,16 @@ export default class RoomScreen extends React.Component{
     }
   }
 
-  worthPuttingCenterTimestamp = (currentTimestamp) => {
+  worthPuttingCenterTimestamp = (currentTimestamp,text) => {
     if( this.earlierMessage == ""){
       this.earlierMessage = currentTimestamp
+      this.earlierMessagetext = text
       return null
     }else{
       const old = this.earlierMessage
       this.earlierMessage = currentTimestamp
-      if(this.earlierMessage - old >= 3600){
+      this.earlierMessagetext = text
+      if(this.earlierMessage - old >= 216000){
 
         return (
           <View style={{alignItems:"center", marginVertical:10}}>
@@ -71,11 +88,12 @@ export default class RoomScreen extends React.Component{
 
   renderBubble = (props) => {
     const currentTimestamp = props.currentMessage.timestamp
+    const messageId = props.currentMessage._id
     const userId = props.currentMessage.user._id
-        console.log("MESSAGE ",props.currentMessage)
+    const centerTimestamp = this.state.messagess[[messageId]].centerTimestamp
     return (
       <View style={{flex:1}}>
-        {this.worthPuttingCenterTimestamp(currentTimestamp)}
+        {centerTimestamp != null && centerTimestamp}
         <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center"}}>
           {userId == this.userId &&  <View>
             <Text style={{fontSize:10, color:"gray",marginLeft:5}}>{this.displayActualTime(currentTimestamp)}</Text>
@@ -133,14 +151,13 @@ export default class RoomScreen extends React.Component{
       return
     }
 
-    const uriToBlobPromises = []
-    const uploadToFirebasePromises = []
     params.then(async (images) =>{
-      for(var i = 0; i < images.length;i++){
-        console.log("in for loop")
-        const name = this.generateRandomString()
-        this.uriToBlob(images[i].uri).then((blob) =>{
-          console.log("in uritoblob")
+      // for(var i = 0; i < images.length;i++){
+        // console.log("in for loop")
+        this.uriToBlob(images[0].uri).then((blob) =>{
+        //   console.log("in uritoblob")
+            const name = this.generateRandomString()
+            console.log("name ", name)
             this.uploadToFirebase(blob,name)
             .then((snapshot) => {
               console.log("in snapshot")
@@ -148,7 +165,7 @@ export default class RoomScreen extends React.Component{
                 snapshot.ref.getDownloadURL().then(url => {
                   var message = {
                     text:"",
-                    image:name,
+                    image:url,
                     read : this.state.otherChatterOnline,
                     timestamp: this.timestamp(),
                     user:{_id:firebase.auth().currentUser.uid}
@@ -160,10 +177,10 @@ export default class RoomScreen extends React.Component{
                 console.log("Hi there")
               })
           })
-      }
+      // }
     })
   }
-
+  
 
     // Promise.all(uriToBlobPromises).then(() => {
     // Promise.all(uploadToFirebasePromises).then(() => {
@@ -246,16 +263,18 @@ export default class RoomScreen extends React.Component{
 
 
 uploadToFirebase = (blob,name) => {
-    const user = firebase.auth().currentUser
-    const start = user.email.indexOf("@")
-    const end = user.email.indexOf(".com")
-    const domain = user.email.substring(start,end)
-    const email = user.email.substring(0,end)
-    this.setState({name})
-    firebase.storage().ref(`/chats/${this.state.domain}/${this.state.thread}/${name}.jpg`).put(blob, {
-        contentType: 'image/jpeg'
-    })
-  }
+  console.log("in upload")
+  const user = firebase.auth().currentUser
+  const start = user.email.indexOf("@")
+  const end = user.email.indexOf(".com")
+  const domain = user.email.substring(start,end)
+  const email = user.email.substring(0,end)
+  this.setState({name})
+  return (firebase.storage().ref(`/chats/${this.state.domain}/${this.state.thread}/${name}.jpg`).put(blob, {
+      contentType: 'image/jpeg'
+  })
+  )
+}
 
  renderComposer = props => {
     return (
@@ -283,6 +302,7 @@ uploadToFirebase = (blob,name) => {
   }
 
   refCheckChatter = ()=> {
+    console.log("this.state.thread ", this.state.thread)
     return firebase.database().ref('/chats/' + this.state.domain + '/' + this.state.thread + "/");
   }
 
@@ -344,7 +364,8 @@ uploadToFirebase = (blob,name) => {
   parse = (snapshot,loadEarlier) => {
     var { timestamp, text, user,image,confirmAnswer,read,readTime} = snapshot.val()
     const { key: _id } = snapshot;
-    // const timestamp = new Date(timestamp);
+    const centerTimestamp = this.worthPuttingCenterTimestamp(timestamp,text)
+
     const message = {
       _id,
       timestamp,
@@ -352,6 +373,8 @@ uploadToFirebase = (blob,name) => {
       user,
       image,
     };
+
+
     if(!loadEarlier && user._id == firebase.auth().currentUser.uid){
       // console.log("user._id ", user._id)
       // console.log("firebase.auth",firebase.auth().currentUser.uid)
@@ -374,9 +397,16 @@ uploadToFirebase = (blob,name) => {
     }
     this.setState(previousState => {
         let messagess = previousState.messagess;  
-        messagess[[_id]] = {confirmAnswer:confirmAnswer} 
+        messagess[[_id]] = {confirmAnswer,centerTimestamp,index: this.state.imageCount}
         return { messagess }; 
     });
+
+    if(image != ""){
+      const imageUrls = this.state.imageUrls
+      const imageCount = this.state.imageCount += 1
+      imageUrls.push({url : image})
+      this.setState({imageUrls,imageCount})
+    }
     
     // console.log("opacities1",this.state.messagess)
     return message;
@@ -388,9 +418,9 @@ uploadToFirebase = (blob,name) => {
   onCheckOtherChatter = callback => {
 
     this.refCheckChatter().child(this.state.otherChatterEmail).on("value",snapshot => {
-
-      this.setState({otherChatterOnline : snapshot.val()[[this.state.otherChatterEmail]]})
-      if(snapshot.val()[[this.state.otherChatterEmail]]){
+      console.log("NOT IN RHYTHM ", snapshot.val())
+      this.setState({otherChatterOnline : snapshot.val() && snapshot.val()[[this.state.otherChatterEmail]] ? true : false})
+      if(snapshot.val() && snapshot.val()[[this.state.otherChatterEmail]]){
         callback(snapshot.val())
       }
       })
@@ -666,8 +696,8 @@ uploadToFirebase = (blob,name) => {
                   //console.log("lastMessage ", lastMessage)
       snapshot.forEach((premessage) => {
           // console.log("premessage ",premessage)
-          const message = this.parse(premessage,true)
           if(originalCount <= 10 && possible){
+            const message = this.parse(premessage,true)
             console.log(message)
             if(message._id != lastMessage._id){
               if(!this.state.messagess[[message._id]]){
@@ -714,54 +744,99 @@ uploadToFirebase = (blob,name) => {
     return <Day textStyle={{color: 'red'}}/>
   }
 
+  handleImageViewer(index,close)  {
+    this.setState({showImageViewer : !close,index})
+  }
+
+  renderMessageImage(props) {
+    const id = props.currentMessage._id
+    console.log("index ",this.state.messagess[[id]].index)
+    console.log(this.displayTime(props.currentMessage.timestamp))
+    return(
+      <TouchableOpacity activeOpacity={1} style={{width:200,height:150,justifyContent:"center",alignItems:"center"}} onPress={() => this.handleImageViewer(this.state.messagess[[id]].index,false)}>
+        <Image
+          source={{ uri: props.currentMessage.image }}
+          style={{width:186,height:140}}
+        />
+      </TouchableOpacity>
+      );
+  }
+
+
   render(){
     const thisClass = this
     const mainContent = (
+        <GiftedChat
 
-      <GiftedChat
-
-        renderLoadEarlier={this.renderLoadEarlier}
-        loadEarlier={this.state.refreshing}
-        isLoadingEarlier={this.state.refreshing}
-        messages={this.state.messages}
-        renderComposer={this.renderComposer}
-        onSend={this.send}
-        renderCustomView={this.renderConfirm}
-        renderSend={null}
-        user={this.state.user}
-        isCustomViewBottom={true}
-        renderAvatar={null}
-        renderBubble={this.renderBubble}
-        onInputTextChanged={(text) => this.setState({text})}
-        text={this.state.text}
-        placeholder='Type your message here...'
-        showAvatarForEveryMessage={false}
-        renderLoading={this.renderLoading}
-        scrollToBottomComponent={this.scrollToBottomComponent}
-        listViewProps={{
-          scrollEventThrottle: 400,
-          onScroll: async({ nativeEvent }) => {
-            if (this.isCloseToTop(nativeEvent)) {
-              await this.setState({refreshing: true});
-              await this.onLoadingEarlier();
-              setTimeout(() => {this.setState({refreshing: false})}, 1000)
-            
+          renderLoadEarlier={this.renderLoadEarlier}
+          loadEarlier={this.state.refreshing}
+          isLoadingEarlier={this.state.refreshing}
+          messages={this.state.messages}
+          renderComposer={this.renderComposer}
+          onSend={this.send}
+          renderCustomView={this.renderConfirm}
+          renderSend={null}
+          user={this.state.user}
+          isCustomViewBottom={true}
+          renderAvatar={null}
+          renderBubble={this.renderBubble}
+          onInputTextChanged={(text) => this.setState({text})}
+          text={this.state.text}
+          placeholder='Type your message here...'
+          showAvatarForEveryMessage={false}
+          renderLoading={this.renderLoading}
+          scrollToBottomComponent={this.scrollToBottomComponent}
+          renderMessageImage={(props) => this.renderMessageImage(props)}
+          imageProps={{openImageViewer: this.openImageViewer}}
+          listViewProps={{
+            scrollEventThrottle: 400,
+            onScroll: async({ nativeEvent }) => {
+              if (this.isCloseToTop(nativeEvent)) {
+                await this.setState({refreshing: true});
+                await this.onLoadingEarlier();
+                setTimeout(() => {this.setState({refreshing: false})}, 1000)
+              
+              }
             }
-          }
-        }}
-      />
+          }}
+        />
     );
+    const model = (
+            <Modal
+                    testID={'modal'}
+                    isVisible={this.state.showImageViewer}
+                    // onBackdropPress={() => {this.props.togglePopupVisibility(false);}}
+                    animationIn="slideInUp"
+                    animationInTiming={500}
+                    style={{width:windowWidth,height:windowHeight,margin:0}}
+                   >
+        <ImageViewer
+          index={this.state.index}
+          imageUrls={this.state.imageUrls}
+          enableSwipeDown
+          onSwipeDown={() => this.handleImageViewer(0,true)}
+        />
+        <View style={{position:"absolute",left:windowWidth - 50,top:30}}>
+          <TouchableOpacity  onPress={() => this.handleImageViewer(0,true)}>
+            <AntDesign name="close" size={35} color="white" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    )
+
     if (Platform.OS === 'android') {
       return (
       <KeyboardAvoidingView style={{backgroundColor:"white"}} behavior="padding"  keyboardVerticalOffset={80} enabled>
            {thisClass.renderNavigation()}
            {mainContent} 
+            {model}
       </KeyboardAvoidingView>
     );
     } else {
       return (<SafeAreaView style={{flex: 1,backgroundColor:"white"}}>
         {thisClass.renderNavigation()}
-        {mainContent}
+        {mainContent} 
+        {model}
       </SafeAreaView>)
     } 
   }
