@@ -8,6 +8,8 @@ import * as firebase from 'firebase'
 import Modal from 'react-native-modal';
 import { Col, Row, Grid } from "react-native-easy-grid";
 import Image from 'react-native-image-progress';
+import DropDownPicker from 'react-native-dropdown-picker';
+
 export default class ProfileScreen extends React.Component{
 
 
@@ -16,7 +18,9 @@ export default class ProfileScreen extends React.Component{
         imageUrl:"",
         generalCategory: [],
         clicked : Array(100).fill(false),
-        accountCategory:[]
+        accountCategory:[],
+        buyerRanges:[],
+        sellerRanges:[]
     }
 
     async componentDidMount(){
@@ -47,12 +51,6 @@ export default class ProfileScreen extends React.Component{
         var isBuyer = {}
         var isSeller = {}
         this.setState({generalCategory})
-        await firebase.database().ref("users/" + realDomain + "/" + email).once("value",(snapshot) =>{
-            console.log("snapshot ",snapshot)
-            console.log("path ","users/" + realDomain + "/" + email )
-            isBuyer = snapshot.val().isBuyer
-            isSeller = snapshot.val().isSeller
-        })
         const accountCategory = [
             {
                 title:"Change Password",
@@ -76,6 +74,22 @@ export default class ProfileScreen extends React.Component{
             this.setState({imageUrl : foundURL})
         }).catch((error) => {console.log(error)})
         )
+
+        promises.push(firebase.database().ref("users/" + realDomain + "/" + email).once("value",(snapshot) =>{
+            console.log("snapshot ",snapshot)
+            console.log("path ","users/" + realDomain + "/" + email )
+            console.log(snapshot.val().isBuyer.ranges)
+            const accountCategory = this.state.accountCategory
+            var isBuyer = snapshot.val().isBuyer
+            isBuyer.ranges = this.convertToArray(isBuyer.ranges)
+            var isSeller = snapshot.val().isSeller   
+            isSeller.ranges = this.convertToArray(isSeller.ranges)  
+            accountCategory[1].isBuyer = isBuyer
+            accountCategory[2].isSeller = isSeller
+            this.setState({accountCategory})
+        })
+        )
+
         const responses = await Promise.all(promises)
     }
 
@@ -115,8 +129,13 @@ export default class ProfileScreen extends React.Component{
             this.setState({generalCategory})
             console.log(this.state.generalCategory)
         }else if(category == 1){
-            const accountCategory = this.state.accountCategory
-            accountCategory[index][[title]] = field
+            var accountCategory = this.state.accountCategory
+            if(index == 1){
+                accountCategory[index]["isBuyer"][[title]] = field
+                console.log(accountCategory)
+            }else if(index == 2){
+                accountCategory[index]["isSeller"][[title]] = field
+            }
             this.setState({accountCategory})
         }
     }
@@ -125,9 +144,9 @@ export default class ProfileScreen extends React.Component{
 
     general = () => {
         return(
-            <View style={{width:windowWidth}}>
-                <View style={{borderBottomWidth:1,marginHorizontal:50}}>
-                    <Text style={{fontSize:20}}>General</Text>
+            <View style={{width:windowWidth,marginBottom:15}}>
+                <View style={{borderBottomWidth:1,borderColor:"#C5C5C5",marginHorizontal:25}}>
+                    <Text style={{fontSize:25}}>General</Text>
                 </View>
                 <View style={{marginHorizontal:35}}>
                     {this.state.generalCategory.map((item,i) => {
@@ -153,14 +172,28 @@ export default class ProfileScreen extends React.Component{
         )
     }
 
+    convertToArray = (number) => {
+        const array = []
+        var binary = 8
+        while( binary >= 1){
+            if(number >= binary){
+                number -= binary
+                array.push(binary)
+            }
+            binary = binary/2
+        }
+        console.log("array ",array)
+        return array
+    }
+
+
     account = () => {
-        console.log("account ", this.state.accountCategory)
         return(
              <View style={{width:windowWidth}}>
              {this.state.accountCategory.length > 0 && 
                 <>
-                <View style={{borderBottomWidth:1,marginHorizontal:50}}>
-                    <Text style={{fontSize:20}}>Account</Text>
+                <View style={{borderBottomWidth:1,borderColor:"#C5C5C5",marginHorizontal:25}}>
+                    <Text style={{fontSize:25}}>Account</Text>
                 </View>
                 <View style={{marginHorizontal:35}}>
                     <View style={{backgroundColor: this.state.accountCategory[0].inEditMode ? "#A9A9A9" : "white"}}>
@@ -177,35 +210,71 @@ export default class ProfileScreen extends React.Component{
                         <View style={{flexDirection:"row",justifyContent:"space-between",marginVertical:10}}>
                             <Text style={{fontSize:17}}>{this.state.accountCategory[1].title}</Text>
                             <Switch
-                                trackColor={{ false: "white", true: "black" }}
-                                thumbColor={this.state.accountCategory[1].isBuyer.searching ? "white" : "black"}
-                                ios_backgroundColor="#3e3e3e"
-                                // onValueChange={}
+                                trackColor={{ false: "gray", true: "black" }}
+                                thumbColor={this.state.accountCategory[1].isBuyer.searching ? "yellow" : "black"}
+                                onValueChange={(value) => {this.setEditMode(1,1,"searching",value)}}
                                 value={this.state.accountCategory[1].isBuyer.searching}
                             />
                         </View>
                         {this.state.accountCategory[1].isBuyer.searching &&
-                        <View style={{flexDirection:"row"}}>
-                        {/* <DropDownPicker
-                            items={[
-                                {label: "0 to 5", value: 8},
-                                {label: '5 to 10', value: 4},
-                                {label:"10 to 15", value:2},
-                                {label:"15+",value:1}
-                            ]}
-                        
-                            multiple={true}
-                            multipleText="%d items have been selected."
-                            placeHolder="Select at Least One"
-                            min={1}
-                            max={4}
-                        
-                            // defaultValue={this.state.countries}
-                            containerStyle={{height: 40}}
-                            // onChangeItem={item => this.setState({
-                            //     countries: item // an array of the selected items
-                            // })}
-                        /> */}
+                        <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingLeft:30}}>
+                            <Text style={{fontSize:17}}>Range</Text>
+                            <DropDownPicker
+                                items={[
+                                    {label: "0 to 5", value: 8},
+                                    {label: '5 to 10', value: 4},
+                                    {label:"10 to 15", value:2},
+                                    {label:"15+",value:1}
+                                ]}
+                            
+                                multiple={true}
+                                multipleText="%d items have been selected."
+                                min={1}
+                                max={4}
+                            
+                                defaultValue={this.state.buyerRanges}
+                                containerStyle={{height: 40,width:200}}
+                                onChangeItem={item => this.setState({
+                                    buyerRanges: item // an array of the selected items
+                                })}
+                            />
+
+                        </View> }
+                    </View>
+                    <View>
+                        <View style={{flexDirection:"row",justifyContent:"space-between",marginVertical:10}}>
+                            <Text style={{fontSize:17}}>{this.state.accountCategory[2].title}</Text>
+                            <Switch
+                                trackColor={{ false: "white", true: "black" }}
+                                thumbColor={this.state.accountCategory[2].isSeller.searching ? "white" : "black"}
+                                ios_backgroundColor="#3e3e3e"
+                                onValueChange={(value) => {this.setEditMode(1,2,"searching",value)}}
+                                value={this.state.accountCategory[2].isSeller.searching}
+                            />
+                        </View>
+                        {this.state.accountCategory[2].isSeller.searching &&
+                        <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingLeft:30}}>
+                            <Text style={{fontSize:17}}>Range</Text>
+                            <DropDownPicker
+                                items={[
+                                    {label: "0 to 5", value: 8},
+                                    {label: '5 to 10', value: 4},
+                                    {label:"10 to 15", value:2},
+                                    {label:"15+",value:1}
+                                ]}
+                            
+                                multiple={true}
+                                multipleText="%d items have been selected."
+                                placeHolder="Select at Least One"
+                                min={1}
+                                max={4}
+                            
+                                defaultValue={this.state.sellerRanges}
+                                containerStyle={{height: 40,width:200}}
+                                onChangeItem={item => this.setState({
+                                    sellerRanges: item // an array of the selected items
+                                })}
+                            />
 
                         </View> }
                     </View>
