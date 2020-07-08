@@ -306,11 +306,12 @@ export default class PopupOrder extends React.Component{
                                                 }else{
 
                                                     return(
-                                                        <View style={{flexDirection:"row"}}>
+                                                        <View 
+                                                            key={i}  
+                                                            style={{flexDirection:"row"}}>
                                                             <Image
                                                                 style={[styles.imageSelected,{width:secondColumnWidth/5}]}
-                                                                source={{uri:item}}
-                                                                key={i}                                               
+                                                                source={{uri:item}}                                             
                                                             />
                                                             <View style={[styles.imageSelected,{marginLeft: -(secondColumnWidth/5) - 5,width:secondColumnWidth/5,justifyContent:"center",alignItems:"center",backgroundColor: 'rgba(162,162,162,0.7)'}]} >
                                                                 <Text style={{fontSize:20}}>{this.state.imageUris.length - 4}+</Text>

@@ -23,33 +23,6 @@ export default class MessageScreen extends React.Component{
     clickedBuyer : [],
     clickedSeller : [],
   }
-  
-
-  // useEffect(() => {
-  //   const unsubscribe = firebase.firestore()
-  //     .collection('users')
-  //     .onSnapshot((querySnapshot) => {
-  //       const threads = querySnapshot.docs.map((documentSnapshot) => {
-  //         return {
-  //           _id: documentSnapshot.id,
-  //           // give defaults
-  //           name: '',
-  //           ...documentSnapshot.data(),
-  //         };
-  //       });
-
-  //       setThreads(threads);
-
-  //       if (loading) {
-  //         setLoading(false);
-  //       }
-  //     });
-
-  //   /**
-  //    * unsubscribe listener
-  //    */
-  //   return () => unsubscribe();
-  // }, []);  
 
     homepageIndexChanged = (index) => {
       const user = firebase.auth().currentUser

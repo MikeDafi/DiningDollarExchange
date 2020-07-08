@@ -1,5 +1,5 @@
 import React from "react"
-import {View,Text,StyleSheet,ScrollView,Dimensions,TouchableWithoutFeedback,Switch} from "react-native"
+import {Animated,View,Text,StyleSheet,TouchableOpacity,ScrollView,Dimensions,TouchableWithoutFeedback,Switch} from "react-native"
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 import {FontAwesome,AntDesign} from "@expo/vector-icons"
@@ -19,8 +19,32 @@ export default class ProfileScreen extends React.Component{
         generalCategory: [],
         clicked : Array(100).fill(false),
         accountCategory:[],
-        buyerRanges:[],
-        sellerRanges:[]
+        buyerDropdown: new Animated.Value(0),
+        sellerDropdown: new Animated.Value(0),
+        beforeChanges : [],
+        formEditMode: false,
+    }
+
+    _start = (heightVariable) => {
+        console.log("oooooooooo")
+        Animated.timing(
+            heightVariable,
+            {
+                toValue: 150,
+                duration: 50,
+            }
+        ).start();
+    }
+
+    _close = (heightVariable) => {
+        console.log("iiiiii")
+        Animated.timing(
+            heightVariable,
+            {
+                toValue: 0,
+                duration: 50,
+            }
+        ).start();
     }
 
     async componentDidMount(){
@@ -76,9 +100,9 @@ export default class ProfileScreen extends React.Component{
         )
 
         promises.push(firebase.database().ref("users/" + realDomain + "/" + email).once("value",(snapshot) =>{
-            console.log("snapshot ",snapshot)
-            console.log("path ","users/" + realDomain + "/" + email )
-            console.log(snapshot.val().isBuyer.ranges)
+            // console.log("snapshot ",snapshot)
+            // console.log("path ","users/" + realDomain + "/" + email )
+            // console.log(snapshot.val().isBuyer.ranges)
             const accountCategory = this.state.accountCategory
             var isBuyer = snapshot.val().isBuyer
             isBuyer.ranges = this.convertToArray(isBuyer.ranges)
@@ -87,10 +111,26 @@ export default class ProfileScreen extends React.Component{
             accountCategory[1].isBuyer = isBuyer
             accountCategory[2].isSeller = isSeller
             this.setState({accountCategory})
+           // console.log("after get ", accountCategory)
         })
         )
 
         const responses = await Promise.all(promises)
+    }
+
+    updatingFields = () => {
+        return(
+            <>
+                <TouchableOpacity onPress={() => this.setState({formEditMode : false})}
+                            style={{position:"absolute",top:50,left:25}}>
+                    <Text style={{color:"white",fontSize:20}}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => this.setState({formEditMode : false})}
+                        style={{position:"absolute",top:50,right:25}}>
+                    <Text style={{color:"white",fontSize:20}}>Submit</Text>
+                </TouchableOpacity>
+            </>
+        )
     }
 
     uploadAndStars = () => {
@@ -122,17 +162,19 @@ export default class ProfileScreen extends React.Component{
     }
 
     setEditMode = (category,index,title,field) => {
-        console.log("values ", index + " " + title + " " + field)
+        if(!this.state.formEditMode){
+            this.setState({formEditMode:true,beforeChanges:[this.state.generalCategory,this.state.accountCategory]})
+        }
+        // console.log("values ", index + " " + title + " " + field)
         if(category == 0){
             const generalCategory = this.state.generalCategory
             generalCategory[index][[title]] = field
             this.setState({generalCategory})
-            console.log(this.state.generalCategory)
+            //console.log(this.state.generalCategory)
         }else if(category == 1){
             var accountCategory = this.state.accountCategory
             if(index == 1){
                 accountCategory[index]["isBuyer"][[title]] = field
-                console.log(accountCategory)
             }else if(index == 2){
                 accountCategory[index]["isSeller"][[title]] = field
             }
@@ -151,7 +193,7 @@ export default class ProfileScreen extends React.Component{
                 <View style={{marginHorizontal:35}}>
                     {this.state.generalCategory.map((item,i) => {
                         return(
-                            <View style={{backgroundColor: item.inEditMode ? "#A9A9A9" : "white"}}>
+                            <View key={i} style={{backgroundColor: item.inEditMode ? "#A9A9A9" : "white"}}>
                             <TouchableWithoutFeedback style={{flexDirection:"row"}} 
                                                     onPressIn={() => {if(item.inEditMode != undefined) { this.setEditMode(0,i,"inEditMode",true)}}}
                                                     onPressOut={() => {if(item.inEditMode != undefined) { this.setEditMode(0,i,"inEditMode",false)}}}
@@ -182,12 +224,12 @@ export default class ProfileScreen extends React.Component{
             }
             binary = binary/2
         }
-        console.log("array ",array)
         return array
     }
 
 
     account = () => {
+        console.log("buyerRange ", this.state.buyerRanges)
         return(
              <View style={{width:windowWidth}}>
              {this.state.accountCategory.length > 0 && 
@@ -212,34 +254,35 @@ export default class ProfileScreen extends React.Component{
                             <Switch
                                 trackColor={{ false: "gray", true: "black" }}
                                 thumbColor={this.state.accountCategory[1].isBuyer.searching ? "yellow" : "black"}
-                                onValueChange={(value) => {this.setEditMode(1,1,"searching",value)}}
+                                onValueChange={(value) => {this.setEditMode(1,1,"searching",value);this.setEditMode(1,1,"ranges",[])}}
                                 value={this.state.accountCategory[1].isBuyer.searching}
                             />
                         </View>
                         {this.state.accountCategory[1].isBuyer.searching &&
-                        <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingLeft:30}}>
+                        <Animated.View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:this.state.buyerDropdown,paddingLeft:30}}>
                             <Text style={{fontSize:17}}>Range</Text>
                             <DropDownPicker
+                                onOpen={() => {this._start(this.state.buyerDropdown)}}
+                                onClose={() => {this._close(this.state.buyerDropdown)}}
                                 items={[
                                     {label: "0 to 5", value: 8},
                                     {label: '5 to 10', value: 4},
                                     {label:"10 to 15", value:2},
                                     {label:"15+",value:1}
                                 ]}
-                            
+                                placeholder="Select at Least One"
                                 multiple={true}
                                 multipleText="%d items have been selected."
-                                min={1}
+                                min={0}
                                 max={4}
                             
-                                defaultValue={this.state.buyerRanges}
+                                defaultValue={this.state.accountCategory[1].isBuyer.ranges}
                                 containerStyle={{height: 40,width:200}}
-                                onChangeItem={item => this.setState({
-                                    buyerRanges: item // an array of the selected items
-                                })}
+                                dropDownMaxHeight={150}
+                                onChangeItem={item => this.setEditMode(1,1,"ranges",item)}
                             />
 
-                        </View> }
+                        </Animated.View> }
                     </View>
                     <View>
                         <View style={{flexDirection:"row",justifyContent:"space-between",marginVertical:10}}>
@@ -248,14 +291,17 @@ export default class ProfileScreen extends React.Component{
                                 trackColor={{ false: "white", true: "black" }}
                                 thumbColor={this.state.accountCategory[2].isSeller.searching ? "white" : "black"}
                                 ios_backgroundColor="#3e3e3e"
-                                onValueChange={(value) => {this.setEditMode(1,2,"searching",value)}}
+                                onValueChange={(value) => {this.setEditMode(1,2,"searching",value);this.setEditMode(1,2,"ranges",[])}}
                                 value={this.state.accountCategory[2].isSeller.searching}
                             />
                         </View>
                         {this.state.accountCategory[2].isSeller.searching &&
-                        <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingLeft:30}}>
+                        <Animated.View style={{flexDirection:"row",marginBottom:this.state.sellerDropdown,justifyContent:"space-between",alignItems:"center",paddingLeft:30}}>
                             <Text style={{fontSize:17}}>Range</Text>
                             <DropDownPicker
+                                onOpen={() => {this._start(this.state.sellerDropdown)}}
+                                onClose={() => {this._close(this.state.sellerDropdown)}}
+ 
                                 items={[
                                     {label: "0 to 5", value: 8},
                                     {label: '5 to 10', value: 4},
@@ -265,18 +311,16 @@ export default class ProfileScreen extends React.Component{
                             
                                 multiple={true}
                                 multipleText="%d items have been selected."
-                                placeHolder="Select at Least One"
-                                min={1}
+                                placeholder="Select at Least One"
+                                min={0}
                                 max={4}
                             
-                                defaultValue={this.state.sellerRanges}
+                                defaultValue={this.state.accountCategory[2].isSeller.ranges}
                                 containerStyle={{height: 40,width:200}}
-                                onChangeItem={item => this.setState({
-                                    sellerRanges: item // an array of the selected items
-                                })}
+                                onChangeItem={item => this.setEditMode(1,2,"ranges",item)}
                             />
 
-                        </View> }
+                        </Animated.View> }
                     </View>
                 </View>
                 </>}
@@ -288,10 +332,11 @@ export default class ProfileScreen extends React.Component{
         return(
             <View style={styles.container}>
                 <ScrollView>
-                {this.uploadAndStars()}
-                {this.general()}
-                {this.account()}
+                    {this.uploadAndStars()}
+                    {this.general()}
+                    {this.account()}
                 </ScrollView>
+                {this.state.formEditMode ? this.updatingFields() : null}
                 {/* <Modal
                     testID={'modal'}
                     coverScreen={true}
