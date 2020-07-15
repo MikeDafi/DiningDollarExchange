@@ -6,16 +6,19 @@ export default class RatingUser extends React.Component {
     return (
       <StarRating
         disabled={false}
-        emptyStar={'star'}
+        emptyStar={'star-border'}
         fullStar={'star'}
-        iconSet={'Entypo'}
+        halfStar={'star-half'}
+        halfStarEnabled
+        iconSet={'MaterialIcons'}
         maxStars={5}
         rating={this.props.starCount}
         selectedStar={(rating) => this.props.selected(rating)}
         fullStarColor={'#FFE300'}
         emptyStarColor={'#676767'}
-        starSize={37}
-        starStyle={{marginHorizontal:-3}}
+        starSize={this.props.starSize}
+        starStyle={{marginHorizontal: this.props.marginHorizontal}}
+        disabled={this.props.disabled}
       />
     );
   }

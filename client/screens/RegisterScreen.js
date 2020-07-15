@@ -124,9 +124,9 @@ export default class RegisterScreen extends React.Component{
     }
 
     handlePassword = (password) =>{
-        var atLeastOneNumber = /^(?=.*\d).{6,}$/;
-        var atLeastOneLowerCase = /^(?=.*[a-z]).{6,}$/;
-        var atLeastOneUpperCase = /^(?=.*[A-Z]).{6,}$/;
+        var atLeastOneNumber = /^(?=.*\d).{1,}$/;
+        var atLeastOneLowerCase = /^(?=.*[a-z]).{1,}$/;
+        var atLeastOneUpperCase = /^(?=.*[A-Z]).{1,}$/;
         this.setState({password: password})
         if(password.length == 0){
             this.setState({passwordError : "Password is empty"})            
@@ -137,8 +137,8 @@ export default class RegisterScreen extends React.Component{
             this.setState({passwordError : "*Password must have at least one uppercase*"})
         }else if(!password.match(atLeastOneLowerCase)){
             this.setState({passwordError : "*Password must have at least one lowercase*"})
-        }else if(!password.length >= 6){
-            this.setState({passwordError : "*Password must be at least length 6*"})
+        }else if(!(password.length >= 8)){
+            this.setState({passwordError : "*Password must be at least length 8*"})
         }else{
             this.setState({passwordError : ""})
         }

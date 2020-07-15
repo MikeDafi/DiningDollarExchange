@@ -28,7 +28,7 @@ export default class BuyerHomeScreen extends React.Component{
             <View style={[styles.itemContainer,{height : (windowHeight - 280)/2}]}>
                 <View style={{alignItems:"center"}}>
                     <Text>Review</Text>
-                    <RatingUser starSize={20} starCount={this.state.starCount} selected={(rating) => this.onStarRatingPress(rating)}/>
+                    <RatingUser disabled={false} starSize={37} marginHorizontal={-3} starCount={this.state.starCount} selected={(rating) => this.onStarRatingPress(rating)}/>
                     <View style={styles.avatarPlaceholder} >
                         <Image source={require('./a.jpg')} style={styles.avatar}/>
                         {/* <Image source={{uri : this.state.avatar}} style={styles.avatar}/>                        */}
