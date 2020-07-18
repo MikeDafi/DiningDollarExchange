@@ -2,7 +2,7 @@ import React from "react"
 import {createAppContainer,createSwitchNavigator} from 'react-navigation'
 import {createStackNavigator} from "react-navigation-stack"
 import {createBottomTabNavigator} from "react-navigation-tabs"
-import {Ionicons} from "@expo/vector-icons"
+import {Ionicons,MaterialIcons,FontAwesome} from "@expo/vector-icons"
 import LoadingScreen from "./client/screens/LoadingScreen"
 import RegisterScreen from "./client/screens/RegisterScreen"
 import LoginScreen from "./client/screens/LoginScreen"
@@ -15,6 +15,7 @@ import BuyModalScreen from "./client/screens/BuyModalScreen"
 import RoomScreen from "./client/screens/RoomScreen";
 import VerifyScreen from "./client/screens/VerifyScreen";
 import UploadImages from './client/screens/UploadImages'
+import HistoryPage from "./client/screens/HistoryPage"
 import firebase from "./config"
 
 const AppContainer = createStackNavigator(
@@ -27,13 +28,19 @@ const AppContainer = createStackNavigator(
                         tabBarIcon: ({tintColor}) => <Ionicons name="ios-home" size={24} color={tintColor}/>
                     }
                 },
+                History:{
+                    screen: HistoryPage,
+                    navigationOptions:{
+                        tabBarIcon: ({tintColor}) => <FontAwesome name="history" size={24} color="black" />
+                    }
+                },
                 Message:{
                     screen: MessageScreen,
                     navigationOptions:{
-                        tabBarIcon: ({tintColor}) => (
+                        tabBarIcon: ({focused,tintColor}) => (
                             <Ionicons 
                                 name="ios-chatboxes" 
-                                size={45} 
+                                size={35} 
                                 color="#E9446A"
                                 style={{
                                     shadowColor:"#E9446A",
@@ -41,14 +48,16 @@ const AppContainer = createStackNavigator(
                                     shadowRadius:10,
                                     shadowOpacity:0.3
                             
-                            }}/>)
+                            }}/>),
+                        tabBarLabel:"Messages"
                     }
                 },
                 Profile:{
                     screen: ProfileScreen,
                     navigationOptions:{
-                        tabBarIcon: ({tintColor}) => <Ionicons name="ios-person" size={24} color={tintColor}/>
-                    }
+                        title : "Settings",
+                        tabBarIcon: ({tintColor}) => (<MaterialIcons name="settings" size={30} color={tintColor}/>),
+                    }                   
                 }
             },
             {
@@ -66,7 +75,8 @@ const AppContainer = createStackNavigator(
                 tabBarOptions:{
                     activeTintColor:"#161F30",
                     inactiveTintColor:"#B8BBC4",
-                    showLabel: false
+                    showLabel: true,
+                    allowFontScaling:true,
                 }
             }
         ),

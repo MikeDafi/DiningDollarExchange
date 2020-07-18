@@ -174,9 +174,6 @@ export default class HomeScreen extends React.Component{
     };
 
 
-    signOutUser = () => {
-        firebase.auth().signOut()
-    }
 
     nextButton = () => {
         return(

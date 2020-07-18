@@ -74,10 +74,13 @@ export default class RegisterScreen extends React.Component{
         this.handlePassword(this.state.password)
         this.handleName(this.state.name)
         console.log(this.state.emailError)
+        const start = this.state.email.indexOf("@")
+        const end = this.state.email.indexOf(".com")
+        const domain = this.state.email.substring(start,end)
         console.log("in signupp")
-        // if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != ""){
-        //     return
-        // }
+        if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != ""){
+            return
+        }
         console.log("in sign up")
         var user = firebase.auth().currentUser;
         firebase.auth().createUserWithEmailAndPassword(email,password)
@@ -85,22 +88,55 @@ export default class RegisterScreen extends React.Component{
             console.log("in create user")
             var user = firebase.auth().currentUser;
             user.updateEmail(this.state.email)
-            this.uriToBlob(this.state.avatar).then((blob) =>{
-                this.uploadToFirebase(blob)
-            })
+            if(this.state.avatar){
+                this.uriToBlob(this.state.avatar).then((blob) =>{
+                    this.uploadToFirebase(blob)
+                })
+            }
 
             // firebase.database().ref('userNotifications1').push({
             //     expoToken : true
             //     active : false
             // })
             user.sendEmailVerification()
-            this.props.navigation.navigate("Login",{errorMessage : "A verification email has been sent"})
             user.updateProfile({
                 displayName:this.state.name
             })
-        })
-        .catch(error => {this.setState({emailError: "*Email already in use, Go to Login*"})})
+            console.log("about to set");
+            firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).update({
+                name:this.state.name,
+                starRating:5,
+                notifications:{
+                    newMessages:true,
+                    notifications:true,
+                    buyer:{
+                        buyerNotification:true
+                    },
+                    seller:{
+                        scheduled:true,
+                        sellerNotification:true,
+                        reminders : 0,
+                    }
+                },
+                isBuyer:{
+                    searching:true
+                },
+                isSeller:{
+                    searching:true,
+                    range:15,
+                }
 
+            })
+            setTimeout(() => {
+                if(!firebase.auth().currentUser.emailVerified){
+                    firebase.auth().currentUser.delete();
+                    firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).set({})
+                }
+            }, 300000);
+            this.props.navigation.navigate("Login",{errorMessage : "A verification email has been sent"})
+        })
+        .catch(error => {console.log(error);this.setState({emailError: "*Email already in use, Go to Login*"})})
+        
     }
 
     handleEmail = (email) =>{
@@ -159,7 +195,7 @@ export default class RegisterScreen extends React.Component{
                                     <AntDesign name="arrowleft" size={30} color="white" />
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={this.handleSignUp}>
-                                    <Text style={styles.headerNext}>Next</Text>
+                                    <Text style={styles.headerNext}>Finish</Text>
                                 </TouchableOpacity>
                             </View>
                             <View style={{alignItems:"center",justifyContent:"flex-end",marginBottom:80}}>

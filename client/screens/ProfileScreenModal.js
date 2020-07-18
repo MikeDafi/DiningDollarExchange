@@ -133,7 +133,7 @@ export default class ProfileScreenModal extends React.Component {
               shadowRadius: 10,
             }}
             autoCapitalize="none"
-            secureTextEntry
+            secureTextEntry={this.props.modal.title == "Change Password" ? true : false}
             onSubmitEditing={Keyboard.dismiss}
             onFocus={() =>
               this.setState({ stillInTextInput: true, inTextInput: true })
@@ -237,10 +237,10 @@ export default class ProfileScreenModal extends React.Component {
       return(
           <Row style={{justifyContent:"center",alignItems:"flex-end"}}>
             {this.state.password.changed ? 
-              <LottieView source={require('./checkMarkAnimation.json')} autoPlay /> :
-              <LottieView source={require('./xMarkAnimation.json')} autoPlay />
+              <LottieView source={require('./checkMarkAnimation.json')} autoPlay loop={false} /> :
+              <LottieView source={require('./xMarkAnimation.json')} autoPlay loop={false}/>
             }
-            <Text>{this.state.password.changed ? "Successfully Changed" : "Unsuccessful. Try Again"}</Text>
+            <Text>{this.state.password.changed ? "Successful" : "Unsuccessful. Try Again"}</Text>
           </Row>
       )
   }
@@ -261,6 +261,42 @@ export default class ProfileScreenModal extends React.Component {
     this.setState({inTextInput,stillInTextInput,cancelHighlight,submitHighlight,firstTextInputError,password})
 
   }
+
+  sendResetEmail = () => {
+    var auth = firebase.auth();
+    this.setState({loading:true})
+    auth.sendPasswordResetEmail(auth.currentUser.email).then(() => {
+      const password = this.state.password
+      password["verified"] = true
+      password["changed"] = true
+      this.setState({password,loading : false})
+    }).catch((error) => {
+      const password = this.state.password
+      password["verified"] = true
+      password["changed"] = false
+      this.setState({password, loading : false})
+    });
+  }
+
+  deleteUserWarning = () => {
+    return(
+      <Col style={{justifyContent:"center"}}>
+        <Row style={{height:75,alignItems:"center",justifyContent: 'center'}}>
+          <View style={{justifyContent:"center",alignItems:"center"}}>
+          <Text style={{fontSize:15,}}>Are you sure you want to delete</Text>
+          <Text style={{fontSize:15}}> your account?</Text>
+          <Text style={{fontSize:19,fontWeight:"bold"}}>This is NOT reversable</Text>
+          </View>
+        </Row>
+        {/* <Row style={{justifyContent:"center",alignItems:"center"}}>
+        </Row> */}
+        <Row>
+          <LottieView source={require('./warningAnimation.json')} autoPlay loop/>
+        </Row>
+      </Col>
+    )
+  }
+
 
   render() {
      
@@ -289,8 +325,8 @@ export default class ProfileScreenModal extends React.Component {
         <View
           style={{
             backgroundColor: "white",
-            width: 300,
             height: 300,
+            width: 300,
             borderRadius: 20,
           }}
         >
@@ -317,10 +353,23 @@ export default class ProfileScreenModal extends React.Component {
                   this.resultMessage()
               )
             ) : (
-              this.textInput("Name", 65)
+              this.props.modal.title == "Delete Account" ?
+                this.deleteUserWarning()  
+                : this.textInput("Name", 65)
+                
             )}
 
+
             <Row style={{ alignItems: "flex-end", height: 50 }}>
+                <Col>
+                                          {!this.state.loading && this.props.modal.title == "Change Password" && !this.state.password.verified && this.state.password.changed == undefined && 
+                <View style={{justifyContent:"flex-end",alignItems:"center"}}>
+                  <TouchableOpacity style={{alignItems:"center"}}onPress={() => this.sendResetEmail()}>
+                    <Text style={{color:"#428BCA",textDecorationLine:"underline"}}>Forgot Password?</Text>
+                    <Text style={{color:"#428BCA",textDecorationLine:"underline"}}>Send Password Reset Email</Text>
+                  </TouchableOpacity>
+                </View>}
+              <Row style={{ alignItems: "flex-end", height: 50 }}>
               <TouchableWithoutFeedback
                 onPressIn={() => this.setState({ cancelHighlight: true })}
                 onPressOut={() => this.setState({ cancelHighlight: false })}
@@ -380,7 +429,16 @@ export default class ProfileScreenModal extends React.Component {
                         firstTextInputError: "No Password Inputted",
                       });
                     }
-                  } else {
+                  } else if(this.props.modal.title == "Delete Account"){
+                    firebase.auth().currentUser.delete();
+                    this.props.setModal(
+                      this.props.modal.title,
+                      this.props.modal.field,
+                      false
+                    );
+                    this.props.setLoading(true);
+
+                  }else{
                     this.props.setModal(
                       this.props.modal.title,
                       this.props.modal.field,
@@ -408,10 +466,13 @@ export default class ProfileScreenModal extends React.Component {
                     {this.props.modal.title == "Change Password" &&
                     !this.state.password.verified
                       ? "Next" : (this.state.password.changed != undefined ? "Try Again"
-                      : "Save")}
+                      : (this.props.modal.title == "Delete Account" ? "Delete" : 
+                      (this.props.modal.title == "Sign Out" ? "Sign Out" : "Save")))}
                   </Text>
                 </Col>
               </TouchableWithoutFeedback>
+              </Row>
+              </Col>
             </Row>
           </Grid>
         </View>
