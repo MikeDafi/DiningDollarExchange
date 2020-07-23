@@ -9,7 +9,7 @@ export default class RatingUser extends React.Component {
         emptyStar={'star-border'}
         fullStar={'star'}
         halfStar={'star-half'}
-        halfStarEnabled
+        halfStarEnabled={!this.props.halfStarEnabled}
         iconSet={'MaterialIcons'}
         maxStars={5}
         rating={this.props.starCount}
