@@ -151,7 +151,6 @@ export default class ProfileScreen extends React.Component {
             ranges: this.convertToArray(snapshot.val().isSeller.ranges),
           };
 
-          console.log(accountCategory);
           const notifications = snapshot.val().notifications;
           notificationCategory.buyer = notifications.buyer;
           notificationCategory.seller = notifications.seller;
@@ -952,6 +951,20 @@ export default class ProfileScreen extends React.Component {
     );
   };
 
+  signOutHelper = () => {
+    const user = firebase.auth().currentUser;
+    const start = user.email.indexOf("@");
+    const end = user.email.indexOf(".com");
+    const domain = user.email.substring(start, end);
+    const realEmail = user.email.substring(0, end);
+    this.setLoading(true)
+    firebase.database().ref('users/' + domain +'/' + realEmail).update({
+      expoToken : null,
+      active : false,
+    })
+    firebase.auth().signOut(); 
+  }
+
   deleteAndSignOut = () => {
     return(
     <View style={{flexDirection:"row",marginHorizontal:35,alignItems:"center",justifyContent:"space-between",height:50}}>
@@ -966,7 +979,7 @@ export default class ProfileScreen extends React.Component {
               </TouchableOpacity>
               <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() =>  {firebase.auth().signOut(); this.setLoading(true)}}
+            onPress={() =>  this.signOutHelper()}
         >
       <View style={{ flexDirection:"row",borderRadius: 10, height: 50,width:(windowWidth/2) - 37,alignItems:"center",justifyContent:"center",backgroundColor: "#DADADA" }}>
         <Text style={{fontWeight:"bold",fontSize:20,color:"white"}}>Sign Out</Text>

@@ -10,11 +10,11 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
 } from "react-native";
-import { Ionicons, FontAwesome5, FontAwesome,Entypo } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, FontAwesome,AntDesign } from "@expo/vector-icons";
 import { List, Divider } from "react-native-paper";
 import firebase from "../../config";
 import Loading from "./LoadingScreen";
-import PopupOrder from "./PopupOrder";
+import HistoryModal from "./HistoryModal";
 import Swiper from "react-native-swiper/src";
 import RatingUser from "./RatingUser"
 import QuickOrder from "./QuickOrder";
@@ -70,8 +70,6 @@ export default class MessageScreen extends React.Component {
       .database()
       .ref("/users/" + domain + "/" + email + "/orders");
   };
-
-
 
   merge = (left,right,orderBy,ascending) => {
     let resultArray = [], leftIndex = 0, rightIndex = 0;
@@ -132,7 +130,6 @@ export default class MessageScreen extends React.Component {
 
     await this.ref()
       .child(buyer)
-      .orderByChild("timestamp")
       .on("value", async (ordersSnapshot) => {
         var threadss = [];
         var count = 0;
@@ -388,24 +385,88 @@ export default class MessageScreen extends React.Component {
           homepage={this.state.homepage}
           togglePopupVisibility={this.togglePopupVisibility}
         />
-        <View style={{marginTop:50,marginHorizontal:20,alignItems:"center",flexDirection:"row",justifyContent:"space-between"}}>
-          <View style={{flexDirection:"column"}}>
-            <TouchableOpacity activeOpacity={0.6} onPress={() => this.setState({orderBy:"name"})}>
-              <Text style={{fontWeight:this.state.orderBy == "name" ? "bold" : "normal"}}>Name</Text>
-            </TouchableOpacity>
-            {this.state.orderBy == "name" ? <View style={{flexDirection:"row"}}>
-              <TouchableOpacity activeOpacity={0.3} onPress={() => this.setState({ascending:false})}>
-                <Entypo name="arrow-bold-up" size={24} color="black" />
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.3} onPress={() => this.setState({ascending:true})}>
-                <Entypo name="arrow-bold-down" size={24} color="black" />
-              </TouchableOpacity>
+        <View style={{marginTop:50,marginHorizontal:10,height:20,alignItems:"center",flexDirection:"row",justifyContent:"space-between"}}>
+
+          <TouchableOpacity activeOpacity={0.6} onPress={() => {
+            const ascending = this.state.orderBy == "name" ? !this.state.ascending : false
+            this.setState({orderBy:"name",ascending});
+            const isBuyer = this.state.page ? "threadsSeller": "threadsBuyer"
+            const arr = this.mergeSort(this.state[[isBuyer]],"name",ascending)
+            this.setState({[isBuyer] : arr})  
+          
+          }}
+          style={{width:90}}
+          >
+          <View style={{flexDirection:"row",alignItems:"center"}}>
+              <Text style={{fontWeight:this.state.orderBy == "name" ? "bold" : "normal",fontSize:15}}>Name</Text>
+            {this.state.orderBy == "name" ? 
+            <View style={{alignItems:"center",paddingHorizontal:3}}>
+              {this.state.ascending ? 
+              <AntDesign name="caretdown" size={15} color="black" /> :
+              <View style={{paddingTop:3}}>
+              <AntDesign name="caretup" size={15} color="black" />
+              </View>
+              }
             </View> : null}
           </View>
-          <Text style={{fontWeight:this.state.orderBy == "title" ? "bold" : "normal"}}>Title</Text>
-          <View>
-            <Text style={{fontWeight:this.state.orderBy == "price" ? "bold" : "normal"}}>Price/</Text>
-            <Text style={{fontWeight:this.state.orderBy == "date" ? "bold" : "normal"}}>Date</Text>
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.6} onPress={() => {
+            const ascending = this.state.orderBy == "title" ? !this.state.ascending : false
+            this.setState({orderBy:"title",ascending});
+            const isBuyer = this.state.page ? "threadsSeller": "threadsBuyer"
+            const arr = this.mergeSort(this.state[[isBuyer]],"title",ascending)
+            this.setState({[isBuyer] : arr})  
+          
+          }}>
+          <View style={{flexDirection:"row",alignItems:"center",width:35}}>
+              <Text style={{fontSize:15,fontWeight:this.state.orderBy == "title" ? "bold" : "normal"}}>Title</Text>
+            {this.state.orderBy == "title" ? 
+            <View style={{alignItems:"center",paddingHorizontal:3}}>
+              {this.state.ascending ? 
+              <AntDesign name="caretdown" size={15} color="black" /> :
+              <View style={{paddingTop:3}}>
+              <AntDesign name="caretup" size={15} color="black" />
+              </View>
+              }
+            </View> : null}
+          </View>
+        </TouchableOpacity>
+        {/* <View> */}
+          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"flex-end",width:90}}>
+            {this.state.orderBy == "price" || this.state.orderBy == "date" ? 
+            <View style={{alignItems:"center",paddingHorizontal:3}}>
+              <TouchableOpacity activeOpacity={0.6} onPress={() => this.setState({ascending: !this.state.ascending})}>
+                {this.state.ascending ? 
+                <AntDesign name="caretdown" size={15} color="black" /> :
+                <View style={{paddingTop:3}}>
+                <AntDesign name="caretup" size={15} color="black" />
+                </View>
+                }
+              </TouchableOpacity>
+            </View> : null}
+            <View style={{flexDirection:"row"}}>
+              <TouchableOpacity activeOpacity={0.6} onPress={() => {
+                const ascending = this.state.orderBy == "price" ? !this.state.ascending : false
+                this.setState({orderBy:"price",ascending});
+                const isBuyer = this.state.page ? "threadsSeller": "threadsBuyer"
+                const arr = this.mergeSort(this.state[[isBuyer]],"price",ascending)
+                this.setState({[isBuyer] : arr})  
+              
+              }}>
+                <Text style={{fontSize:15,fontWeight:this.state.orderBy == "price" ? "bold" : "normal"}}>Price</Text>
+              </TouchableOpacity>
+              <Text style={{fontSize:15}}>/</Text>
+              <TouchableOpacity activeOpacity={0.6} onPress={() => {
+                const ascending = this.state.orderBy == "date" ? !this.state.ascending : false
+                this.setState({orderBy:"date",ascending});
+                const isBuyer = this.state.page ? "threadsSeller": "threadsBuyer"
+                const arr = this.mergeSort(this.state[[isBuyer]],"date",ascending)
+                this.setState({[isBuyer] : arr})  
+              
+              }}>
+                <Text style={{fontSize:15,fontWeight:this.state.orderBy == "date" ? "bold" : "normal"}}>Date</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
         <Swiper
@@ -440,7 +501,9 @@ export default class MessageScreen extends React.Component {
                           thread: item.chatId,
                           chattingUser: item.name,
                           otherChatterEmail: item.otherChatterEmail,
+                          historyOrderKey : "-MD4CrJZ07Jh0PMoYGe-"
                         })
+                        // this.setState({popupVisible:true})
                       }
                     >
                       <View
@@ -587,7 +650,7 @@ export default class MessageScreen extends React.Component {
             />
           </View>
         </Swiper>
-        <View style={{marginTop:40,position:"absolute",top:60,right:5}}>
+        {/* <View style={{marginTop:40,position:"absolute",top:60,right:5}}>
           <View style={{flexDirection:"column",alignItems:"flex-end"}}>
             <Text>Sort By</Text>
             <DropDownPicker
@@ -628,8 +691,8 @@ export default class MessageScreen extends React.Component {
               }}
             />
           </View>
-        </View>
-        <PopupOrder
+        </View> */}
+        <HistoryModal
           navigation={this.props.navigation}
           popupVisible={this.state.popupVisible}
           togglePopupVisibility={this.togglePopupVisibility}

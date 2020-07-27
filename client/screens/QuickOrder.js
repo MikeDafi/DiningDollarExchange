@@ -99,13 +99,11 @@ header: {
     marginTop: 50,
   },
     nextButton: {
-    width: 150,
     height: 20,
     justifyContent: "center",
     alignItems: "center",
   },
   prevButton: {
-    width: 150,
     height: 20,
     justifyContent: "center",
     alignItems: "center",

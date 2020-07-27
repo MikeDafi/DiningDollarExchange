@@ -2,15 +2,19 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  Animated,
   StyleSheet,
   TouchableOpacity,
   FlatList,
   Image,
   LayoutAnimation,
   Dimensions,
+  Platform,
+  Keyboard,
+  TextInput,
   TouchableWithoutFeedback,
 } from "react-native";
-import { Ionicons, FontAwesome5, FontAwesome } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, FontAwesome,EvilIcons,MaterialIcons } from "@expo/vector-icons";
 import { List, Divider } from "react-native-paper";
 import firebase from "../../config";
 import Loading from "./LoadingScreen";
@@ -21,18 +25,31 @@ const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 import { Col, Row, Grid } from "react-native-easy-grid";
 export default class MessageScreen extends React.Component {
-  state = {
-    threadsBuyer: [],
-    threadsSeller: [],
-    loading: true,
-    page: 0,
-    domain: "",
-    homepage: 0,
-    date: new Date(),
-    popupVisible: false,
-    clickedBuyer: [],
-    clickedSeller: [],
-  };
+  constructor(props){
+    super(props);
+    this.buyerSnapshotKeys = []
+    this.sellerSnapshotKeys = []
+    this.state = {
+      threadsBuyer: [],
+      threadsSeller: [],
+      loading: true,
+      page: 0,
+      domain: "",
+      homepage: 0,
+      date: new Date(),
+      popupVisible: false,
+      searchInputFocus:false,
+      searchInputValue:new Animated.Value(windowWidth - 30),
+      textInputValue : new Animated.Value(windowWidth - 100),
+      textSearchInput : "",
+      openedSearch:false,
+      clearSearch : false,
+      searchPressIn: new Animated.Value(0),
+      clickedBuyer: [],
+      clickedSeller: [],
+            scrollY: new Animated.Value(0)
+    };
+  }
 
   homepageIndexChanged = (index) => {
     const user = firebase.auth().currentUser;
@@ -58,7 +75,7 @@ export default class MessageScreen extends React.Component {
 
   ref = () => {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
+    const start = user == null ? null : user.email.indexOf("@");
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     return firebase
@@ -101,6 +118,11 @@ export default class MessageScreen extends React.Component {
       .child(buyer)
       .orderByChild("timestamp")
       .on("value", async (chatsSnapshot) => {
+        if(isBuyer){
+          this.buyerSnapshotKeys = Object.keys(chatsSnapshot.val())
+        }else{
+          this.sellerSnapshotKeys = Object.keys(chatsSnapshot.val())
+        }
         console.log("chatsSnapshot", chatsSnapshot);
         var threadss = [];
         var count = 0;
@@ -171,8 +193,8 @@ export default class MessageScreen extends React.Component {
         });
         console.log("promises ready");
         const responses = await Promise.all(promises);
-        console.log("after response");
-        console.log("threads", threadss);
+        // console.log("after response");
+        // console.log("threads", threadss);
         if (isBuyer) {
           this.setState({
             threadsBuyer: threadss.reverse(),
@@ -258,6 +280,94 @@ export default class MessageScreen extends React.Component {
     thread.formattedTime = formattedDate;
   };
 
+    _start = (variable,result) => {
+    console.log("oooooooooo");
+    Animated.timing(variable, {
+      toValue: result,
+      duration: 100,
+    }).start();
+  };
+
+    _close = (variable,result) => {
+    console.log("oooooooooo");
+    Animated.timing(variable, {
+      toValue: result,
+      duration: 100,
+    }).start();
+  };
+
+  getUpdatedList = () => {
+    if(thist.state.page == 0){
+      if(this.state.beforeBuyerSearchList == undefined){
+        this.setState({beforeBuyerSearchList : this.state.threadsBuyer})
+      }
+    }else{
+      if(this.state.beforeSellerSearchList == undefined){
+        this.setState({beforeSellerSearchList : this.state.threadsSeller})
+      }
+    }
+
+    const currentArray = this.state.page == 0 ? this.state.buyerSnapshotKeys : this.state.sellerSnapshotKeys
+    for(var i = 0; i < currentArray.length; i++){
+      
+    }
+  }
+
+
+
+  searchComponent = () => {
+    if(!this.state.openedSearch){return null}
+    return(
+      <Animated.View style={{height:this.state.searchPressIn,flexDirection:"row",alignItems:"center",padding:15}}>
+         <Animated.View style={{flexDirection:"row",
+                      alignItems:"center",
+                      height:40,
+                      width:this.state.searchInputValue,
+                      borderRadius:15,
+                      backgroundColor:"#E8E8E8"}}>
+          <View style={{marginHorizontal:5}}>
+            <EvilIcons name="search" size={24} color="black" />
+          </View>
+            <Animated.View style={{width:this.state.textInputValue}}>
+            <TextInput 
+                onEndEditing={() => {
+                    if(this.state.searchInputFocus){
+                        this.setState({searchInputFocus : false}); 
+                        this._close(this.state.searchInputValue,windowWidth - 30)
+                        this._close(this.state.textInputValue,windowWidth - 100)
+                    }
+                }}
+                onFocus={() => {this.setState({searchInputFocus : true});this._start(this.state.searchInputValue,windowWidth - 100);this._start(this.state.textInputValue,windowWidth - 170)}}
+                style={{fontSize:18,
+                    width:this.state.searchInputValue ? windowWidth - 170 : windowWidth - 100,
+                    height:40}}
+                value={this.state.textSearchInput}
+                onChangeText={(text) => this.setState({textSearchInput : text})}
+                numberOfLines={1} 
+                placeholder="Search"/>
+            </Animated.View>
+          <TouchableWithoutFeedback 
+            onPressIn={() => this.setState({clearSearch : true})}
+            onPressOut={() => this.setState({clearSearch : false})}
+            onPress={() => this.setState({clearSearch : false,textSearchInput:""})}>
+            <View style={{borderRadius:50}}>
+            <MaterialIcons name="cancel" size={24} color={this.state.clearSearch ? "black" : "gray"} />
+            </View>
+          </TouchableWithoutFeedback>
+        </Animated.View>
+        <TouchableOpacity onPress={() => 
+                        {Keyboard.dismiss();
+                        this.setState({searchInputFocus : false,textSearchInput : ""});                        
+                        this._close(this.state.searchInputValue,windowWidth - 30)
+                        this._close(this.state.textInputValue,windowWidth - 100)}}>
+          <View style={{paddingLeft:this.state.searchInputFocus ? 7 : 15}}>
+            <Text style={{color:"#0182FF",fontSize:20}}>Cancel</Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    )
+  }
+
   render() {
     if (this.state.loading) {
       return <Loading navigation={this.props.navigation} />;
@@ -285,9 +395,27 @@ export default class MessageScreen extends React.Component {
           homepage={this.state.homepage}
           togglePopupVisibility={this.togglePopupVisibility}
         />
-        <View>
+        <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}>
           <Text style={{ fontSize: 50, fontWeight: "bold" }}>Chats</Text>
+          <TouchableWithoutFeedback
+            // onPressOut={() => this._close()}
+            onPress={() => {this.setState({openedSearch:!this.state.openedSearch,textSearchInput : "",searchInputFocus : false});
+                           this.state.openedSearch ? this._close(this.state.searchPressIn,0) :this._start(this.state.searchPressIn,65);
+                           this._close(this.state.searchInputValue,windowWidth - 30)
+                           this._close(this.state.textInputValue,windowWidth - 100) }}>
+            <View style={{
+                  marginRight:(windowWidth/2 - 100)/2,
+                  borderRadius:50,
+                  width:50,
+                  height:50,
+                  justifyContent:"center",
+                  alignItems:"center",
+                  backgroundColor:this.state.openedSearch ? "#BCBFBE" : "#EAEAEA"}}>  
+              <EvilIcons name="search" size={50} color={this.state.openedSearch ? "black" : "#676767"} />
+            </View>
+          </TouchableWithoutFeedback>
         </View>
+        {this.searchComponent()}
         <Swiper
           ref={(swiper) => {
             this._swiper = swiper;

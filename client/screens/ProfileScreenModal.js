@@ -3,7 +3,7 @@ import Modal from "react-native-modal";
 import { Col, Row, Grid } from "react-native-easy-grid";
 import * as firebase from "firebase";
 import Loading from "./LoadingScreen";
-import LottieView from 'lottie-react-native';
+import LottieView from "lottie-react-native";
 import {
   Animated,
   View,
@@ -133,7 +133,9 @@ export default class ProfileScreenModal extends React.Component {
               shadowRadius: 10,
             }}
             autoCapitalize="none"
-            secureTextEntry={this.props.modal.title == "Change Password" ? true : false}
+            secureTextEntry={
+              this.props.modal.title == "Change Password" ? true : false
+            }
             onSubmitEditing={Keyboard.dismiss}
             onFocus={() =>
               this.setState({ stillInTextInput: true, inTextInput: true })
@@ -219,87 +221,117 @@ export default class ProfileScreenModal extends React.Component {
 
   setCredentials = () => {
     var user = firebase.auth().currentUser;
-    const password = this.state.password
+    const password = this.state.password;
     user
       .updatePassword(this.state.password.newPassword)
       .then(() => {
-        password["changed"] = true
+        password["changed"] = true;
         this.setState({ loading: false, password });
-        console.log(this.state.password)
+        console.log(this.state.password);
       })
       .catch((error) => {
-        password["changed"] = false
+        password["changed"] = false;
         this.setState({ loading: false, password });
       });
   };
 
   resultMessage = (message) => {
-      return(
-          <Row style={{justifyContent:"center",alignItems:"flex-end"}}>
-            {this.state.password.changed ? 
-              <LottieView source={require('./checkMarkAnimation.json')} autoPlay loop={false} /> :
-              <LottieView source={require('./xMarkAnimation.json')} autoPlay loop={false}/>
-            }
-            <Text>{this.state.password.changed ? "Successful" : "Unsuccessful. Try Again"}</Text>
-          </Row>
-      )
-  }
+    return (
+      <Row style={{ justifyContent: "center", alignItems: "flex-end" }}>
+        {this.state.password.changed ? (
+          <LottieView
+            source={require("./checkMarkAnimation.json")}
+            autoPlay
+            loop={false}
+          />
+        ) : (
+          <LottieView
+            source={require("./xMarkAnimation.json")}
+            autoPlay
+            loop={false}
+          />
+        )}
+        <Text>
+          {this.state.password.changed
+            ? "Successful"
+            : "Unsuccessful. Try Again"}
+        </Text>
+      </Row>
+    );
+  };
 
   resetState = () => {
-    const inTextInput = false
-    const stillInTextInput = false
-    const cancelHighlight = false
-    const submitHighlight =  false
-    const firstTextInputError = ""
+    const inTextInput = false;
+    const stillInTextInput = false;
+    const cancelHighlight = false;
+    const submitHighlight = false;
+    const firstTextInputError = "";
     const password = {
       oldPassword: "",
       newPassword: "",
       confirmPassword: "",
       secondTextInputError: "",
       verified: false,
-    }
-    this.setState({inTextInput,stillInTextInput,cancelHighlight,submitHighlight,firstTextInputError,password})
-
-  }
+    };
+    this.setState({
+      inTextInput,
+      stillInTextInput,
+      cancelHighlight,
+      submitHighlight,
+      firstTextInputError,
+      password,
+    });
+  };
 
   sendResetEmail = () => {
     var auth = firebase.auth();
-    this.setState({loading:true})
-    auth.sendPasswordResetEmail(auth.currentUser.email).then(() => {
-      const password = this.state.password
-      password["verified"] = true
-      password["changed"] = true
-      this.setState({password,loading : false})
-    }).catch((error) => {
-      const password = this.state.password
-      password["verified"] = true
-      password["changed"] = false
-      this.setState({password, loading : false})
-    });
-  }
+    this.setState({ loading: true });
+    auth
+      .sendPasswordResetEmail(auth.currentUser.email)
+      .then(() => {
+        const password = this.state.password;
+        password["verified"] = true;
+        password["changed"] = true;
+        this.setState({ password, loading: false });
+      })
+      .catch((error) => {
+        const password = this.state.password;
+        password["verified"] = true;
+        password["changed"] = false;
+        this.setState({ password, loading: false });
+      });
+  };
 
   deleteUserWarning = () => {
-    return(
-      <Col style={{justifyContent:"center"}}>
-        <Row style={{height:75,alignItems:"center",justifyContent: 'center'}}>
-          <View style={{justifyContent:"center",alignItems:"center"}}>
-          <Text style={{fontSize:15,}}>Are you sure you want to delete</Text>
-          <Text style={{fontSize:15}}> your account?</Text>
-          <Text style={{fontSize:19,fontWeight:"bold"}}>This is NOT reversable</Text>
+    return (
+      <Col style={{ justifyContent: "center" }}>
+        <Row
+          style={{ height: 75, alignItems: "center", justifyContent: "center" }}
+        >
+          <View style={{ justifyContent: "center", alignItems: "center" }}>
+            <Text style={{ fontSize: 15 }}>
+              Are you sure you want to delete
+            </Text>
+            <Text style={{ fontSize: 15 }}> your account?</Text>
+            <Text style={{ fontSize: 19, fontWeight: "bold" }}>
+              This is NOT reversable
+            </Text>
           </View>
         </Row>
         {/* <Row style={{justifyContent:"center",alignItems:"center"}}>
         </Row> */}
         <Row>
-          <LottieView source={require('./warningAnimation.json')} autoPlay loop/>
+          <LottieView
+            source={require("./warningAnimation.json")}
+            autoPlay
+            loop
+          />
         </Row>
       </Col>
-    )
-  }
-
+    );
+  };
 
   render() {
-     
     return (
       <Modal
         testID={"modal"}
@@ -307,7 +339,7 @@ export default class ProfileScreenModal extends React.Component {
         hasBackdrop={true}
         isVisible={this.props.modal.visible}
         onBackdropPress={() => {
-          this.resetState()
+          this.resetState();
           this.props.setModal(
             this.props.modal.title,
             this.props.modal.field,
@@ -347,131 +379,167 @@ export default class ProfileScreenModal extends React.Component {
             ) : this.props.modal.title == "Change Password" ? (
               !this.state.password.verified ? (
                 this.textInput("Old Password", 65)
+              ) : this.state.password.changed == undefined ? (
+                this.packagePassword()
               ) : (
-                this.state.password.changed == undefined ?
-                  this.packagePassword() :
-                  this.resultMessage()
+                this.resultMessage()
               )
+            ) : this.props.modal.title == "Delete Account" ? (
+              this.deleteUserWarning()
             ) : (
-              this.props.modal.title == "Delete Account" ?
-                this.deleteUserWarning()  
-                : this.textInput("Name", 65)
-                
+              this.textInput("Name", 65)
             )}
 
-
             <Row style={{ alignItems: "flex-end", height: 50 }}>
-                <Col>
-                                          {!this.state.loading && this.props.modal.title == "Change Password" && !this.state.password.verified && this.state.password.changed == undefined && 
-                <View style={{justifyContent:"flex-end",alignItems:"center"}}>
-                  <TouchableOpacity style={{alignItems:"center"}}onPress={() => this.sendResetEmail()}>
-                    <Text style={{color:"#428BCA",textDecorationLine:"underline"}}>Forgot Password?</Text>
-                    <Text style={{color:"#428BCA",textDecorationLine:"underline"}}>Send Password Reset Email</Text>
-                  </TouchableOpacity>
-                </View>}
-              <Row style={{ alignItems: "flex-end", height: 50 }}>
-              <TouchableWithoutFeedback
-                onPressIn={() => this.setState({ cancelHighlight: true })}
-                onPressOut={() => this.setState({ cancelHighlight: false })}
-                onPress={() => {
-                  this.resetState()
-                  this.props.setModal(
-                    this.props.modal.title,
-                    this.props.modal.field,
-                    false
-                  );
-                }}
-              >
-                <Col
-                  style={{
-                    height: 50,
-                    backgroundColor: this.state.cancelHighlight
-                      ? "#C5C5C5"
-                      : "white",
-                    justifyContent: "center",
-                    borderBottomLeftRadius: 20,
-                    borderTopWidth: 2,
-                    borderRightWidth: 2,
-                    borderColor: "black",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 20 }}>{this.state.password.changed != undefined ? "Exit" :"Cancel"}</Text>
-                </Col>
-              </TouchableWithoutFeedback>
-              <TouchableWithoutFeedback
-                onPressIn={() => this.setState({ submitHighlight: true })}
-                onPressOut={() => this.setState({ submitHighlight: false })}
-                onPress={() => {
-                  this.setState({ submitHighlight: false });
-                  Keyboard.dismiss();
-                  this.setState({ inTextInput: false });
-                  if (this.props.modal.title == "Change Password") {
-                    if (this.state.password.verified) {
-                      if (
-                        this.state.firstTextInputError == "" &&
-                        (this.state.secondTextInputError == "" || this.state.secondTextInputError == undefined)
-                      ) {
-                        if(this.state.password.changed != undefined){
-                          this.resetState()
-                        }else{
-                          this.setState({loading:true})
-                          this.setCredentials();
+              <Col>
+                {!this.state.loading &&
+                  this.props.modal.title == "Change Password" &&
+                  !this.state.password.verified &&
+                  this.state.password.changed == undefined && (
+                    <View
+                      style={{
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                      }}
+                    >
+                      <TouchableOpacity
+                        style={{ alignItems: "center" }}
+                        onPress={() => this.sendResetEmail()}
+                      >
+                        <Text
+                          style={{
+                            color: "#428BCA",
+                            textDecorationLine: "underline",
+                          }}
+                        >
+                          Forgot Password?
+                        </Text>
+                        <Text
+                          style={{
+                            color: "#428BCA",
+                            textDecorationLine: "underline",
+                          }}
+                        >
+                          Send Password Reset Email
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                <Row style={{ alignItems: "flex-end", height: 50 }}>
+                  <TouchableWithoutFeedback
+                    onPressIn={() => this.setState({ cancelHighlight: true })}
+                    onPressOut={() => this.setState({ cancelHighlight: false })}
+                    onPress={() => {
+                      this.resetState();
+                      this.props.setModal(
+                        this.props.modal.title,
+                        this.props.modal.field,
+                        false
+                      );
+                    }}
+                  >
+                    <Col
+                      style={{
+                        height: 50,
+                        backgroundColor: this.state.cancelHighlight
+                          ? "#C5C5C5"
+                          : "white",
+                        justifyContent: "center",
+                        borderBottomLeftRadius: 20,
+                        borderTopWidth: 2,
+                        borderRightWidth: 2,
+                        borderColor: "black",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 20 }}>
+                        {this.state.password.changed != undefined
+                          ? "Exit"
+                          : "Cancel"}
+                      </Text>
+                    </Col>
+                  </TouchableWithoutFeedback>
+                  <TouchableWithoutFeedback
+                    onPressIn={() => this.setState({ submitHighlight: true })}
+                    onPressOut={() => this.setState({ submitHighlight: false })}
+                    onPress={() => {
+                      this.setState({ submitHighlight: false });
+                      Keyboard.dismiss();
+                      this.setState({ inTextInput: false });
+                      if (this.props.modal.title == "Change Password") {
+                        if (this.state.password.verified) {
+                          if (
+                            this.state.firstTextInputError == "" &&
+                            (this.state.secondTextInputError == "" ||
+                              this.state.secondTextInputError == undefined)
+                          ) {
+                            if (this.state.password.changed != undefined) {
+                              this.resetState();
+                            } else {
+                              this.setState({ loading: true });
+                              this.setCredentials();
+                            }
+                          }
+                          console.log("first ", this.state.firstTextInputError);
+                          console.log(
+                            "second ",
+                            this.state.secondTextInputError
+                          );
+                        } else if (this.state.password.oldPassword != "") {
+                          this.setState({ loading: true });
+                          this.checkCredentials();
+                        } else {
+                          this.setState({
+                            firstTextInputError: "No Password Inputted",
+                          });
                         }
+                      } else if (this.props.modal.title == "Delete Account") {
+                        firebase.auth().currentUser.delete();
+                        this.props.setModal(
+                          this.props.modal.title,
+                          this.props.modal.field,
+                          false
+                        );
+                        this.props.setLoading(true);
+                      } else {
+                        this.props.setModal(
+                          this.props.modal.title,
+                          this.props.modal.field,
+                          false
+                        );
+                        this.props.submitModal();
                       }
-                      console.log("first ", this.state.firstTextInputError)
-                      console.log("second ", this.state.secondTextInputError)
-                    } else if (this.state.password.oldPassword != "") {
-                      this.setState({ loading: true });
-                      this.checkCredentials();
-                    } else {
-                      this.setState({
-                        firstTextInputError: "No Password Inputted",
-                      });
-                    }
-                  } else if(this.props.modal.title == "Delete Account"){
-                    firebase.auth().currentUser.delete();
-                    this.props.setModal(
-                      this.props.modal.title,
-                      this.props.modal.field,
-                      false
-                    );
-                    this.props.setLoading(true);
-
-                  }else{
-                    this.props.setModal(
-                      this.props.modal.title,
-                      this.props.modal.field,
-                      false
-                    );
-                    this.props.submitModal();
-                  }
-                }}
-              >
-                <Col
-                  style={{
-                    height: 50,
-                    backgroundColor: this.state.submitHighlight
-                      ? "#C5C5C5"
-                      : "white",
-                    justifyContent: "center",
-                    borderTopWidth: 2,
-                    borderBottomRightRadius: 20,
-                    borderLefttWidth: 2,
-                    borderColor: "black",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 20 }}>
-                    {this.props.modal.title == "Change Password" &&
-                    !this.state.password.verified
-                      ? "Next" : (this.state.password.changed != undefined ? "Try Again"
-                      : (this.props.modal.title == "Delete Account" ? "Delete" : 
-                      (this.props.modal.title == "Sign Out" ? "Sign Out" : "Save")))}
-                  </Text>
-                </Col>
-              </TouchableWithoutFeedback>
-              </Row>
+                    }}
+                  >
+                    <Col
+                      style={{
+                        height: 50,
+                        backgroundColor: this.state.submitHighlight
+                          ? "#C5C5C5"
+                          : "white",
+                        justifyContent: "center",
+                        borderTopWidth: 2,
+                        borderBottomRightRadius: 20,
+                        borderLefttWidth: 2,
+                        borderColor: "black",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 20 }}>
+                        {this.props.modal.title == "Change Password" &&
+                        !this.state.password.verified
+                          ? "Next"
+                          : this.state.password.changed != undefined
+                          ? "Try Again"
+                          : this.props.modal.title == "Delete Account"
+                          ? "Delete"
+                          : this.props.modal.title == "Sign Out"
+                          ? "Sign Out"
+                          : "Save"}
+                      </Text>
+                    </Col>
+                  </TouchableWithoutFeedback>
+                </Row>
               </Col>
             </Row>
           </Grid>

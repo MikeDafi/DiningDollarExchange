@@ -23,7 +23,7 @@ const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 import * as Permissions from "expo-permissions";
 import Constants from "expo-constants";
-
+import UserPermissions from "../../utilities/UserPermissions"
 export default class HomeScreen extends React.Component {
   state = {
     email: "",
@@ -33,7 +33,7 @@ export default class HomeScreen extends React.Component {
     popupVisible: false,
   };
 
-  componentDidMount() {
+  async componentDidMount() {
     const { email, displayName } = firebase.auth().currentUser;
     this.setState({ email, displayName });
     const thisClass = this;
@@ -43,7 +43,7 @@ export default class HomeScreen extends React.Component {
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const realEmail = user.email.substring(0, end);
-
+    const token = await UserPermissions.getDeviceToken()
     firebase
       .database()
       .ref("/users/" + domain + "/" + realEmail + "/page")
@@ -55,6 +55,16 @@ export default class HomeScreen extends React.Component {
         });
         console.log("in component mount ", thisClass.state.homepage);
       });
+
+    firebase.database().ref('users/' + domain +'/' + realEmail).update({
+      expoToken : token,
+      active : true,
+      // page: 0,
+      // isBuyer:true,
+      // isSeller:true,
+      // name: firebase.auth().currentUser.displayName
+
+    })
 
     this.registerForPushNotificationsAsync();
     this._notificationSubscription = Notifications.addListener(
@@ -224,6 +234,7 @@ export default class HomeScreen extends React.Component {
   };
 
   takePhotoFromTemp = (image, path, name, uid, name1) => {
+    console.log("path ",path)
     image
       .getDownloadURL()
       .then((url) => {
@@ -237,7 +248,7 @@ export default class HomeScreen extends React.Component {
             timestamp: this.timestamp(),
             user: { _id: uid, name: name1 },
           };
-          // console.log("message", message)
+          console.log("message", message)
           firebase.database().ref(path).push(message);
         });
       })
