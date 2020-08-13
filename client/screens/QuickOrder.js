@@ -13,13 +13,13 @@ export default class QuickOrder extends React.Component {
         style={[
           styles.nextButton,
           {
-            backgroundColor: this.props.homepage == 1 ? "#FFE300" : (this.props.blackBackground ? "white" :"black"),
+            backgroundColor: this.props.page == 1 ? "#FFE300" : (this.props.blackBackground ? "white" :"black"),
             marginLeft: -5,
             width: windowWidth / 2 - 50,
           },
         ]}
       >
-        <Text style={{color : (!this.props.blackBackground && this.props.homepage == 0 ? "white" : "black" )}}>SELLER</Text>
+        <Text style={{color : (!this.props.blackBackground && this.props.page == 0 ? "white" : "black" )}}>SELLER</Text>
       </View>
     );
   };
@@ -30,13 +30,13 @@ export default class QuickOrder extends React.Component {
         style={[
           styles.prevButton,
           {
-            backgroundColor: this.props.homepage == 0 ? "#FFE300" : (this.props.blackBackground ? "white" :"black"),
+            backgroundColor: this.props.page == 0 ? "#FFE300" : (this.props.blackBackground ? "white" :"black"),
             marginRight: -5,
             width: windowWidth / 2 - 60,
           },
         ]}
       >
-        <Text style={{color:(!this.props.blackBackground && this.props.homepage == 1 ? "white" : "black" )}}>BUYER</Text>
+        <Text style={{color:(!this.props.blackBackground && this.props.page == 1 ? "white" : "black" )}}>BUYER</Text>
       </View>
     );
   };
@@ -46,16 +46,16 @@ export default class QuickOrder extends React.Component {
 <View style={styles.header}>
           <TouchableOpacity
             onPress={() => {
-              this.props._swiper.scrollBy(this.props.homepage * -1);
-              this.props.setHomePage(0);
+              this.props._swiper.scrollBy(this.props.page * -1);
+              this.props.setPage(0);
             }}
           >
             {this.prevButton()}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
-              this.props._swiper.scrollBy((this.props.homepage + 1) % 2);
-              this.props.setHomePage(1);
+              this.props._swiper.scrollBy((this.props.page + 1) % 2);
+              this.props.setPage(1);
             }}
           >
             {this.nextButton()}

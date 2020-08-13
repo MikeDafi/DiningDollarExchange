@@ -17,6 +17,7 @@
     "@react-navigation/stack": "^5.3.7",
     "expo": "~37.0.3",
     "expo-constants": "^9.0.0",
+    "expo-file-system": "^9.1.0",
     "expo-image-picker": "^8.1.0",
     "expo-multiple-media-imagepicker": "^1.2.1",
     "expo-permissions": "^8.1.0",
@@ -31,6 +32,7 @@
     "react-native-collapse-view": "^1.0.0",
     "react-native-collapsible-toolbar": "^0.1.2",
     "react-native-collapsingtoolbar": "^1.0.3",
+    "react-native-datepicker": "^1.7.2",
     "react-native-dropdown-picker": "^3.0.5",
     "react-native-easy-grid": "^0.2.2",
     "react-native-elements": "^2.0.2",
@@ -43,6 +45,7 @@
     "react-native-image-zoom-viewer": "^3.0.1",
     "react-native-modal": "^11.5.6",
     "react-native-paper": "^3.10.1",
+    "react-native-popup-dialog": "^0.18.3",
     "react-native-really-awesome-button": "^1.6.0",
     "react-native-reanimated": "^1.8.0",
     "react-native-safe-area-context": "^1.0.2",
@@ -57,6 +60,7 @@
     "react-navigation-stack": "^2.5.1",
     "react-navigation-tabs": "^2.8.13",
     "rfdc": "^1.1.4",
+    "rn-fetch-blob": "^0.12.0",
     "rn-swipe-button": "^1.2.8"
   },
   "devDependencies": {

@@ -22,14 +22,20 @@ export default class RegisterScreen extends React.Component{
 
     handlePickAvatar = async () =>{
         UserPermissions.getCameraPermission()
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            // allowEditing:true,
-            // aspect:[4,3]
-        });
+        try {
+            let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.All,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+            });
+            if (!result.cancelled) {
+            this.setState({ avatar: result.uri });
+            }
 
-        if(!result.cancelled){
-            this.setState({avatar:result.uri})
+            console.log(result);
+        } catch (E) {
+            console.log(E);
         }
     }
 

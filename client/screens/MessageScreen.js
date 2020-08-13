@@ -12,9 +12,11 @@ import {
   Platform,
   Keyboard,
   TextInput,
+  ActivityIndicator,
   TouchableWithoutFeedback,
+  AsyncStorage,
 } from "react-native";
-import { Ionicons, FontAwesome5, FontAwesome,EvilIcons,MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, FontAwesome,EvilIcons,MaterialIcons,MaterialCommunityIcons } from "@expo/vector-icons";
 import { List, Divider } from "react-native-paper";
 import firebase from "../../config";
 import Loading from "./LoadingScreen";
@@ -23,41 +25,40 @@ import Swiper from "react-native-swiper/src";
 import QuickOrder from "./QuickOrder";
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
+const clone = require('rfdc')()
+import * as FileSystem from 'expo-file-system';
 import { Col, Row, Grid } from "react-native-easy-grid";
 export default class MessageScreen extends React.Component {
-  constructor(props){
-    super(props);
-    this.buyerSnapshotKeys = []
-    this.sellerSnapshotKeys = []
-    this.state = {
-      threadsBuyer: [],
-      threadsSeller: [],
-      loading: true,
-      page: 0,
-      domain: "",
-      homepage: 0,
-      date: new Date(),
-      popupVisible: false,
-      searchInputFocus:false,
-      searchInputValue:new Animated.Value(windowWidth - 30),
-      textInputValue : new Animated.Value(windowWidth - 100),
-      textSearchInput : "",
-      openedSearch:false,
-      clearSearch : false,
-      searchPressIn: new Animated.Value(0),
-      clickedBuyer: [],
-      clickedSeller: [],
-            scrollY: new Animated.Value(0)
-    };
+
+  state = {
+    threadsBuyer: [],
+    threadsSeller: [],
+    loading: true,
+    page: 0,
+    date: new Date(),
+    popupVisible: false,
+    searchInputFocus:false,
+    searchInputValue:new Animated.Value(windowWidth - 30),
+    textInputValue : new Animated.Value(windowWidth - 100),
+    textSearchInput : "",
+    openedSearch:false,
+    clearSearch : false,
+    searchPressIn: new Animated.Value(0),
+    clickedBuyer: [],
+    clickedSeller: [],
+    scrollY: new Animated.Value(0),
+    loadingBuyer : true,
+    loadingSeller : true,
   }
 
-  homepageIndexChanged = (index) => {
-    const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
-    this.setState({ homepage: index });
+  setPage = (index) => {
+    const user = firebase.auth().currentUser || {};
+    const start = (user.email || "").indexOf("@");
+    const end = (user.email || "").indexOf(".com");
+    const domain = (user.email || "").substring(start, end);
+    const email = (user.email || "").substring(0, end);
+    this.getUpdatedList(this.state.textSearchInput)
+    this.setState({ page: index });
 
     firebase
       .database()
@@ -69,26 +70,21 @@ export default class MessageScreen extends React.Component {
     this.setState({ popupVisible: value });
   };
 
-  setHomePage = (value) => {
-    this.setState({ homepage: value });
-  };
-
   ref = () => {
-    const user = firebase.auth().currentUser;
-    const start = user == null ? null : user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
+    const user = firebase.auth().currentUser || {};
+    const email = (user.email || "")
+    const start = (user.email || "").indexOf("@");
+    const end = (user.email || "").indexOf(".com");
+    const domain = (user.email || "").substring(start, end);
     return firebase
       .database()
       .ref(
         "/users/" +
           domain +
           "/" +
-          firebase
-            .auth()
-            .currentUser.email.substring(
+            email.substring(
               0,
-              firebase.auth().currentUser.email.length - 4
+              email.length - 4
             ) +
           "/chats/"
       );
@@ -96,41 +92,36 @@ export default class MessageScreen extends React.Component {
 
   keepUpdatedList = async (isBuyer) => {
     const buyer = isBuyer ? "buyer" : "seller";
-    const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
-    console.log("in message screen");
-    console.log(
-      "/users/" +
-        domain +
-        "/" +
-        firebase
-          .auth()
-          .currentUser.email.substring(
-            0,
-            firebase.auth().currentUser.email.length - 4
-          ) +
-        "/chats/"
-    );
+    const user = firebase.auth().currentUser || {};
+    const start = (user.email || "").indexOf("@");
+    const end = (user.email || "").indexOf(".com");
+    const domain = (user.email || "").substring(start, end);
+    const email = (user.email || "").substring(0, end);
+    
+    if(isBuyer){
+      this.setState({loadingBuyer : true})
+    }else{
+      this.setState({loadingSeller : true})
+    }
+
+    let otherChattersObject = await AsyncStorage.getItem('otherChattersProfileImages')
+    otherChattersObject = JSON.parse(otherChattersObject);
+    console.log("before other ", otherChattersObject)
+    if(!otherChattersObject){
+      otherChattersObject = {}
+    }
     await this.ref()
       .child(buyer)
       .orderByChild("timestamp")
       .on("value", async (chatsSnapshot) => {
-        if(isBuyer){
-          this.buyerSnapshotKeys = Object.keys(chatsSnapshot.val())
-        }else{
-          this.sellerSnapshotKeys = Object.keys(chatsSnapshot.val())
-        }
-        console.log("chatsSnapshot", chatsSnapshot);
+        // console.log("chatsSnapshot", chatsSnapshot);
         var threadss = [];
         var count = 0;
         var thread = {};
         const promises = [];
         chatsSnapshot.forEach((chat) => {
           var otherChatterEmail;
-          console.log("chat", chat);
+          // console.log("chat", chat);
           if (chat.key.indexOf(email) == 0) {
             otherChatterEmail = chat.key.substring(
               email.length,
@@ -142,27 +133,37 @@ export default class MessageScreen extends React.Component {
               chat.key.length - email.length
             );
           }
-          console.log("otherChatterEmail", otherChatterEmail);
-          const image = firebase
-            .storage()
-            .ref()
-            .child(
-              "profilePics/" +
-                domain +
-                "/" +
-                otherChatterEmail +
-                "/profilePic.jpg"
-            );
-          const realCount = count;
+          const realCount = count
           promises.push(
-            image
-              .getDownloadURL()
-              .then((foundURL) => {
-                threadss[realCount].avatar = foundURL;
-              })
-              .catch((error) => {
-                console.log(error);
-              })
+            firebase.database().ref("users/" + domain + "/" + otherChatterEmail).once("value",async (snapshot) => {
+            // console.log("otherChatterEmail", otherChatterEmail);
+             console.log("CODE RED",otherChattersObject)
+             console.log("otherChatterEmail ", otherChatterEmail)
+              if(snapshot.val().profileImageUrl){
+                if(otherChattersObject[[otherChatterEmail]] == undefined || !otherChattersObject[[otherChatterEmail]].uri || otherChattersObject[[otherChatterEmail]].url != snapshot.val().profileImageUrl){
+                  console.log("trying to download")
+                    if(!otherChattersObject[[otherChatterEmail]] && !otherChattersObject[[otherChatterEmail]].uri){
+                      console.log("delete")
+                      this.deleteUri(otherChattersObject[[otherChatterEmail]].uri)
+                    }
+                  try{
+                    const uri = await this.downloadUrl(snapshot.val().profileImageUrl,otherChatterEmail)
+                    const newProfileObject = {uri,url : snapshot.val().profileImageUrl}
+                    otherChattersObject[[otherChatterEmail]] = newProfileObject
+                    console.log("WOOOHOOO",otherChattersObject[[otherChatterEmail]])
+                    console.log("uri ", uri)
+                    threadss[realCount].avatar = otherChattersObject[[otherChatterEmail]].uri
+                    AsyncStorage.setItem("otherChattersProfileImages", JSON.stringify(otherChattersObject))
+                  }catch(e){
+                      console.log("big error")
+                  }
+                }else{
+                  console.log("already defined")
+                  console.log(otherChattersObject[[otherChatterEmail]])
+                  threadss[realCount].avatar = otherChattersObject[[otherChatterEmail]].uri
+                }
+              }
+            })
           );
 
           var name = "";
@@ -171,16 +172,17 @@ export default class MessageScreen extends React.Component {
               .database()
               .ref("users/" + domain + "/" + otherChatterEmail)
               .once("value", (snapshot) => {
-                console.log("snapshot.val()", snapshot.val().name);
+                // console.log("snapshot.val()", snapshot.val().name);
                 threadss[realCount].title = snapshot.val().name;
               })
           );
           const chatPath = "chats/" + domain + "/" + chat.key + "/chat";
-          console.log("thread.chatId = chat.key");
+          // console.log("thread.chatId = chat.key");
           thread.otherChatterEmail = otherChatterEmail;
           thread.chatId = chat.key;
           thread.timestamp = chat.val().timestamp;
           thread.text = chat.val().text;
+          thread.read = chat.val().read;
           this.displayTime(thread);
           console.log(thread);
           threadss.push(thread);
@@ -193,14 +195,24 @@ export default class MessageScreen extends React.Component {
         });
         console.log("promises ready");
         const responses = await Promise.all(promises);
+            console.log("after other ", otherChattersObject)
+        // await AsyncStorage.setItem("otherChattersProfileImages", JSON.stringify(otherChattersObject))
+        //   .then( ()=>{
+        //   console.log("It was saved successfully")
+        //   } )
+        //   .catch( ()=>{
+        //   console.log("There was an error saving the product")
+        //   } )
         // console.log("after response");
         // console.log("threads", threadss);
         if (isBuyer) {
           this.setState({
+            loadingBuyer : false,
             threadsBuyer: threadss.reverse(),
           });
         } else {
           this.setState({
+            loadingSeller : false,
             threadsSeller: threadss.reverse(),
           });
         }
@@ -210,24 +222,97 @@ export default class MessageScreen extends React.Component {
   async componentDidMount() {
     this.keepUpdatedList(true);
     this.keepUpdatedList(false);
-    const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const realEmail = user.email.substring(0, end);
+    const user = firebase.auth().currentUser || {};
+    const start = (user.email || "").indexOf("@");
+    const end = (user.email || "").indexOf(".com");
+    const domain = (user.email || "").substring(start, end);
+    const realEmail = (user.email || "").substring(0, end);
 
     firebase
       .database()
       .ref("/users/" + domain + "/" + realEmail + "/page")
-      .once("value", (homepageSnapshot) => {
-        // console.log(homepageSnapshot.val())
+      .once("value", (pageSnapshot) => {
         this.setState({
-          homepage: homepageSnapshot.val(),
+          page: pageSnapshot.val(),
           loading: false,
           rendered: true,
         });
-        // console.log("in component mount ", this.state.homepage)
       });
+  }
+
+  deleteUri = async(path) => {
+    try{
+      await FileSystem.deleteAsync(path, {})
+    }catch(e){
+      console.log("ERROR deleting profile image in profile screen")
+    }
+    
+  }
+
+  downloadUrl = async (url,name) => {
+    const callback = downloadProgress => {
+    const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+    // this.setState({
+    //   downloadProgress: progress,
+    // });
+    }
+
+   console.log("url ", url)
+   await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"otherChattersProfileImages/",{intermediates:true})
+  // const downloadResumable = FileSystem.createDownloadResumable(
+  //     url,
+  //     FileSystem.documentDirectory  + name + ".png",
+  //     {},
+  //     callback
+  //   )
+
+    try {
+      const { uri } = await FileSystem.downloadAsync(
+              url,
+      FileSystem.documentDirectory  + "otherChattersProfileImages/" + name + ".png",
+      {},
+      callback
+      );
+      console.log('Finished downloading to ', uri);
+      return uri;
+    } catch (e) {
+      console.error(e);
+    }
+
+
+    // try {
+    //   await downloadResumable.pauseAsync();
+    //   console.log('Paused download operation, saving for future retrieval');
+    //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    //   this.setState({imageUrl :uri})
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    //To resume a download across app restarts, assuming the the DownloadResumable.savable() object was stored:
+    // const downloadSnapshotJson = await AsyncStorage.getItem('pausedDownload');
+    // const downloadSnapshot = JSON.parse(downloadSnapshotJson);
+    // const downloadResumable = new FileSystem.DownloadResumable(
+    //   downloadSnapshot.url,
+    //   downloadSnapshot.fileUri,
+    //   downloadSnapshot.options,
+    //   callback,
+    //   downloadSnapshot.resumeData
+    // );
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    // } catch (e) {
+    //   console.error(e);
+    // }
   }
 
   componentWillUnmount() {
@@ -247,7 +332,7 @@ export default class MessageScreen extends React.Component {
     ];
     var messageDate = new Date(thread.timestamp);
     var currentDate = this.state.date;
-    console.log("getHours ", messageDate.getHours());
+    // console.log("getHours ", messageDate.getHours());
     var hour, minute, seconds;
     //2019 < 2020
     if (messageDate.getFullYear() == currentDate.getFullYear()) {
@@ -256,8 +341,8 @@ export default class MessageScreen extends React.Component {
         if (difference < 7) {
           if (difference == 0) {
             hour = messageDate.getHours();
-            var afterNoon = hour % 12 > 0 ? "PM" : "AM";
-            hour = hour % 12;
+            var afterNoon = hour  > 11 ? "PM" : "AM";
+            hour = hour == 0 || hour == 12 ? "12" : (hour > 12 ? hour - 12 : hour)
 
             minute = "0" + messageDate.getMinutes();
             var formattedTime =
@@ -281,7 +366,7 @@ export default class MessageScreen extends React.Component {
   };
 
     _start = (variable,result) => {
-    console.log("oooooooooo");
+    // console.log("oooooooooo");
     Animated.timing(variable, {
       toValue: result,
       duration: 100,
@@ -289,27 +374,125 @@ export default class MessageScreen extends React.Component {
   };
 
     _close = (variable,result) => {
-    console.log("oooooooooo");
+    // console.log("oooooooooo");
     Animated.timing(variable, {
       toValue: result,
       duration: 100,
     }).start();
   };
 
-  getUpdatedList = () => {
-    if(thist.state.page == 0){
-      if(this.state.beforeBuyerSearchList == undefined){
-        this.setState({beforeBuyerSearchList : this.state.threadsBuyer})
-      }
-    }else{
-      if(this.state.beforeSellerSearchList == undefined){
-        this.setState({beforeSellerSearchList : this.state.threadsSeller})
-      }
-    }
+  getUpdatedList = async (textUnedited) => {
+    const user = firebase.auth().currentUser || {};
+    const start = (user.email || "").indexOf("@");
+    const end = (user.email || "").indexOf(".com");
+    const domain = (user.email || "").substring(start, end);
+    const email = (user.email || "").substring(0, end);
+    
+    setTimeout(async () => {
 
-    const currentArray = this.state.page == 0 ? this.state.buyerSnapshotKeys : this.state.sellerSnapshotKeys
-    for(var i = 0; i < currentArray.length; i++){
-      
+      if(this.state.textSearchInput == textUnedited){
+        const text = textUnedited.toLowerCase();
+        if(this.state.page == 0){
+          this.setState({loadingBuyer : true})
+          // console.log("page 0",text.length)
+          if(this.state.beforeBuyerSearchList == undefined){
+            await this.setState({beforeBuyerSearchList : this.state.threadsBuyer})
+          }else if(text.length == 0){
+            // console.log("text empty",this.state.beforeBuyerSearchList)
+            await this.setState({threadsBuyer:this.state.beforeBuyerSearchList,loadingBuyer:false})
+            return;
+          }
+        }else{
+          this.setState({loadingSeller : true})
+          if(this.state.beforeSellerSearchList == undefined){
+            await this.setState({beforeSellerSearchList : this.state.threadsSeller})
+          }else if(text.length == 0){
+            console.log("beforeSellerSearchList ")
+            await this.setState({threadsSeller:this.state.beforeSellerSearchList,loadingSeller:false})
+            return
+          }
+        }
+
+        if(text.length == 0){
+          this.setState({loadingBuyer:false,loadingSeller:false,beforeBuyerSearchList:undefined,beforeSellerSearchList:undefined})
+          return
+        }
+
+        var currentArray = this.state.page == 0 ? clone(this.state.beforeBuyerSearchList) : clone(this.state.beforeSellerSearchList)
+        const currentArrayLength = currentArray.length
+        var currentArray = Object.assign({},currentArray);
+        // console.log("page ",this.state.page)
+        const promises = []
+        for(var i = 0; i < currentArrayLength; i++){
+          var path = "/chats/" + domain + "/" 
+          if(this.state.page == 0){
+            path += email + currentArray[[i]].otherChatterEmail
+          }else{
+            path += currentArray[[i]].otherChatterEmail + email
+          }
+          //console.log("path ", path)
+          
+          const index = i
+          promises.push(
+            firebase.database().ref(path).once("value",(snapshot) => {
+              var foundRecentText = false
+              snapshot.forEach((messages) =>{
+                const objectMessages = messages.val()
+                Object.keys(objectMessages).reverse().forEach((message) =>{
+                  if(objectMessages[[message]].text != undefined && objectMessages[[message]].text.toLowerCase().includes(text)){
+                    // console.log("index ", message)
+                    currentArray[[index]].text = objectMessages[[message]].text;
+                    currentArray[[index]].timestamp = objectMessages[[message]].timestamp
+                    currentArray[[index]].key = message
+                    this.displayTime(currentArray[[index]])
+                    foundRecentText = true
+                    //console.log("mind control",currentArray[[index]])
+                  }
+                })
+              })
+              if(!foundRecentText){
+                delete currentArray[[index]]
+              }
+
+            })
+          )
+        }
+        const responses = await Promise.all(promises);
+        currentArray = Object.values(currentArray).sort(function(a, b) {
+          return b["timestamp"] - a["timestamp"];
+        });
+        if(this.state.page == 0){
+          await this.setState({threadsBuyer : currentArray,loadingBuyer : false})
+        }else{
+          await this.setState({threadsSeller : currentArray,loadingSeller:false})
+        }
+      }
+    }, 2000);
+  }
+
+  makeTextBold = (text,thisPage) => {
+    if(this.state.page == thisPage){
+    var position = text == undefined ? 0 : text.toLowerCase().indexOf(this.state.textSearchInput.toLowerCase())
+    // console.log("position ", position)
+    // console.log("text ", text)
+    var beginning = position == 0  ? "" : (text || "").substring(0,position - 1)
+    var middle = (text || "").substring(position,this.state.textSearchInput.length +position)
+    var end = position == (beginning.length + middle.length) == (text || "").length ? "" : (text ||  "").substring(position + this.state.textSearchInput.length)
+    // console.log("position " + position + " beginning " + beginning + " middle " + middle + " end " + end)
+    return(
+      <View style={{flexDirection:"row"}}>
+        <Text style={{ fontSize: 15, color: "gray"}} numberOfLines={1} >
+          {beginning}
+          <Text style={{fontWeight:"800",color:"black"}}>{middle}</Text>
+          {end}
+        </Text>
+      </View>
+    )
+    }else{
+      return (<Text style={{ fontSize: 15, color: "gray"}} numberOfLines={1} >
+          {beginning}
+          </Text>
+      )
     }
   }
 
@@ -342,14 +525,14 @@ export default class MessageScreen extends React.Component {
                     width:this.state.searchInputValue ? windowWidth - 170 : windowWidth - 100,
                     height:40}}
                 value={this.state.textSearchInput}
-                onChangeText={(text) => this.setState({textSearchInput : text})}
+                onChangeText={async (text) => {this.setState({textSearchInput : text});this.getUpdatedList(text)}}
                 numberOfLines={1} 
                 placeholder="Search"/>
             </Animated.View>
           <TouchableWithoutFeedback 
-            onPressIn={() => this.setState({clearSearch : true})}
+            onPressIn={() => {this.setState({clearSearch : true,textSearchInput: ""});this.getUpdatedList("")}}
             onPressOut={() => this.setState({clearSearch : false})}
-            onPress={() => this.setState({clearSearch : false,textSearchInput:""})}>
+            onPress={() => {this.setState({clearSearch : false,textSearchInput:""});this.getUpdatedList("")}}>
             <View style={{borderRadius:50}}>
             <MaterialIcons name="cancel" size={24} color={this.state.clearSearch ? "black" : "gray"} />
             </View>
@@ -357,7 +540,8 @@ export default class MessageScreen extends React.Component {
         </Animated.View>
         <TouchableOpacity onPress={() => 
                         {Keyboard.dismiss();
-                        this.setState({searchInputFocus : false,textSearchInput : ""});                        
+                        this.setState({searchInputFocus : false,textSearchInput : ""});    
+                        this.getUpdatedList("")                    
                         this._close(this.state.searchInputValue,windowWidth - 30)
                         this._close(this.state.textInputValue,windowWidth - 100)}}>
           <View style={{paddingLeft:this.state.searchInputFocus ? 7 : 15}}>
@@ -369,6 +553,7 @@ export default class MessageScreen extends React.Component {
   }
 
   render() {
+
     if (this.state.loading) {
       return <Loading navigation={this.props.navigation} />;
     }
@@ -380,7 +565,7 @@ export default class MessageScreen extends React.Component {
         clickedBuyer: Array(this.state.threadsBuyer.length).fill(false),
         clickedSeller: Array(this.state.threadsSeller.length).fill(false),
       });
-      if (this.state.homepage != 0) {
+      if (this.state.page != 0) {
         setTimeout(() => {
           this._swiper.scrollBy(1);
         }, 100);
@@ -391,8 +576,8 @@ export default class MessageScreen extends React.Component {
         <QuickOrder
           _swiper={this._swiper}
           blackBackground={false}
-          setHomePage={this.setHomePage}
-          homepage={this.state.homepage}
+          setPage={this.setPage}
+          page={this.state.page}
           togglePopupVisibility={this.togglePopupVisibility}
         />
         <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}>
@@ -400,18 +585,18 @@ export default class MessageScreen extends React.Component {
           <TouchableWithoutFeedback
             // onPressOut={() => this._close()}
             onPress={() => {this.setState({openedSearch:!this.state.openedSearch,textSearchInput : "",searchInputFocus : false});
-                           this.state.openedSearch ? this._close(this.state.searchPressIn,0) :this._start(this.state.searchPressIn,65);
+                           this.state.openedSearch ? (this._close(this.state.searchPressIn,0),this.getUpdatedList("")) :this._start(this.state.searchPressIn,65);
                            this._close(this.state.searchInputValue,windowWidth - 30)
                            this._close(this.state.textInputValue,windowWidth - 100) }}>
             <View style={{
                   marginRight:(windowWidth/2 - 100)/2,
-                  borderRadius:50,
-                  width:50,
-                  height:50,
+                  borderRadius:40,
+                  width:40,
+                  height:40,
                   justifyContent:"center",
                   alignItems:"center",
                   backgroundColor:this.state.openedSearch ? "#BCBFBE" : "#EAEAEA"}}>  
-              <EvilIcons name="search" size={50} color={this.state.openedSearch ? "black" : "#676767"} />
+              <EvilIcons name="search" size={40} color={this.state.openedSearch ? "black" : "#676767"} />
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -421,10 +606,13 @@ export default class MessageScreen extends React.Component {
             this._swiper = swiper;
           }}
           loop={false}
-          onIndexChanged={this.homepageIndexChanged}
+          onIndexChanged={this.setPage}
         >
+          {this.state.threadsBuyer.length > 0 ? (
           <View style={{ height: windowHeight - 300 }}>
             <Divider />
+            {this.state.loadingBuyer ? 
+            <ActivityIndicator size="large"></ActivityIndicator> :
             <FlatList
               data={this.state.threadsBuyer}
               keyExtractor={(item) => item._id}
@@ -432,6 +620,7 @@ export default class MessageScreen extends React.Component {
               renderItem={({ item, index }) => {
                 return (
                   <TouchableWithoutFeedback
+                    key={index}
                     onPressIn={() => {
                       var clickedBuyer = this.state.clickedBuyer;
                       clickedBuyer[index] = true;
@@ -442,13 +631,21 @@ export default class MessageScreen extends React.Component {
                       clickedBuyer[index] = false;
                       this.setState({ clickedBuyer });
                     }}
-                    onPress={() =>
+                    onPress={() =>{
+                      if(this.state.textSearchInput != ""){
+                        this.props.navigation.navigate("Room", {
+                          thread: item.chatId,
+                          chattingUser: item.title,
+                          otherChatterEmail: item.otherChatterEmail,
+                          historyOrderKey: item.key
+                        })
+                      }
                       this.props.navigation.navigate("Room", {
                         thread: item.chatId,
                         chattingUser: item.title,
                         otherChatterEmail: item.otherChatterEmail,
                       })
-                    }
+                    }}
                   >
                     <View
                       style={[
@@ -466,7 +663,11 @@ export default class MessageScreen extends React.Component {
                           { width: (3 * windowWidth) / 4 },
                         ]}
                       >
-                        <View style={[styles.avatar, { marginLeft: 20 }]}>
+                        {!item.read &&
+                        <View>
+                          <MaterialCommunityIcons name="checkbox-blank-circle" size={15} color="#03A9F4" />
+                        </View>}
+                        <View style={[styles.avatar, { marginLeft: !item.read ? 5 : 20}]}>
                           {item.avatar ? (
                             <Image
                               source={{ url: item.avatar }}
@@ -480,28 +681,41 @@ export default class MessageScreen extends React.Component {
                           style={{ flexDirection: "column", marginLeft: 5 }}
                         >
                           <Text style={{ fontSize: 20 }}>{item.title}</Text>
-                          <Text style={{ fontSize: 15, color: "gray" }}>
-                            {item.text}
-                          </Text>
+                          {/* {console.log(this.state.threadsBuyer)} */}
+                          {this.makeTextBold(item.text,0)}
+
                         </View>
                       </View>
                       <View
                         style={{
-                          justifyContent: "center",
+                          justifyContent: "flex-end",
                           alignItems: "center",
                           width: windowWidth / 4,
+                          flexDirection:"row"
                         }}
                       >
-                        <Text>{item.formattedTime}</Text>
+                        <Text style={{fontSize:15,color:"gray"}}>{item.formattedTime}</Text>
+                      </View>
+                      <View style={{marginTop:3}}>
+                        <EvilIcons name="chevron-right" size={28} color="gray" />
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
                 );
               }}
-            />
-          </View>
+            />}
+          </View> ) : (
+              <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
+                <Text style={{color:"gray",fontSize:20}}>
+                  No Buyer Messages
+                </Text>
+              </View>
+          )}
+          {this.state.threadsSeller.length > 0 ? (
           <View style={{ height: windowHeight - 300 }}>
             <Divider />
+            {this.state.loadingSeller ? 
+            <ActivityIndicator size="large"></ActivityIndicator> : 
             <FlatList
               data={this.state.threadsSeller}
               keyExtractor={(item) => item._id}
@@ -509,6 +723,7 @@ export default class MessageScreen extends React.Component {
               renderItem={({ item, index }) => {
                 return (
                   <TouchableWithoutFeedback
+                  key={index}
                     onPressIn={() => {
                       var clickedSeller = this.state.clickedSeller;
                       clickedSeller[index] = true;
@@ -543,7 +758,11 @@ export default class MessageScreen extends React.Component {
                           { width: (3 * windowWidth) / 4 },
                         ]}
                       >
-                        <View style={[styles.avatar, { marginLeft: 20 }]}>
+                        {!item.read &&
+                        <View>
+                          <MaterialCommunityIcons name="checkbox-blank-circle" size={15} color="#03A9F4" />
+                        </View>}
+                        <View style={[styles.avatar, { marginLeft: !item.read ? 5 : 20}]}>
                           {item.avatar ? (
                             <Image
                               source={{ url: item.avatar }}
@@ -557,9 +776,7 @@ export default class MessageScreen extends React.Component {
                           style={{ flexDirection: "column", marginLeft: 5 }}
                         >
                           <Text style={{ fontSize: 20 }}>{item.title}</Text>
-                          <Text style={{ fontSize: 15, color: "gray" }}>
-                            {item.text}
-                          </Text>
+                          {this.makeTextBold(item.text,1)}
                         </View>
                       </View>
                       <View
@@ -567,16 +784,26 @@ export default class MessageScreen extends React.Component {
                           justifyContent: "center",
                           alignItems: "center",
                           width: windowWidth / 4,
+                          flexDirection:"row"
                         }}
                       >
-                        <Text>{item.formattedTime}</Text>
+                        <Text style={{fontSize:15,color:"gray"}}>{item.formattedTime}</Text>
+                        <View style={{marginTop:3}}>
+                          <EvilIcons name="chevron-right" size={28} color="gray" />
+                        </View>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
                 );
               }}
-            />
-          </View>
+            />}
+          </View> ) : (
+              <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
+                <Text style={{color:"gray",fontSize:20}}>
+                  No Seller Messages
+                </Text>
+              </View>
+          )}
         </Swiper>
         <PopupOrder
           navigation={this.props.navigation}

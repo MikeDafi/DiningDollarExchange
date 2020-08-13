@@ -28,12 +28,16 @@ export default class HomeScreen extends React.Component {
   state = {
     email: "",
     displayName: "",
-    homepage: 0,
+    page: 0,
     rendered: false,
     popupVisible: false,
   };
 
   async componentDidMount() {
+    // this.props.navigation.navigate("SelectedOrderModal",{
+    //   BuyerUid : "123",
+    //   orderNumber  : 55,
+    // })
     const { email, displayName } = firebase.auth().currentUser;
     this.setState({ email, displayName });
     const thisClass = this;
@@ -47,13 +51,13 @@ export default class HomeScreen extends React.Component {
     firebase
       .database()
       .ref("/users/" + domain + "/" + realEmail + "/page")
-      .once("value", function (homepageSnapshot) {
-        console.log(homepageSnapshot.val());
+      .once("value", function (pageSnapshot) {
+        console.log(pageSnapshot.val());
         thisClass.setState({
-          homepage: homepageSnapshot.val(),
+          page: pageSnapshot.val(),
           rendered: false,
         });
-        console.log("in component mount ", thisClass.state.homepage);
+        console.log("in component mount ", thisClass.state.page);
       });
 
     firebase.database().ref('users/' + domain +'/' + realEmail).update({
@@ -116,146 +120,135 @@ export default class HomeScreen extends React.Component {
 
   _handleNotification = (notification) => {
     console.log("-------------------------------------");
-    console.log("in notification", notification.data.data.orderNumber);
-    const myUser = firebase
-      .auth()
-      .currentUser.email.substring(
-        0,
-        firebase.auth().currentUser.email.length - 4
-      );
-    const start = myUser.indexOf("@");
-    const domain = this.state.email.substring(
-      start,
-      firebase.auth().currentUser.email.length - 4
-    );
-    console.log("85");
-
-    firebase
-      .database()
-      .ref(
-        "orders/" +
-          domain +
-          "/currentOrders/" +
-          notification.data.data.orderNumber
-      )
-      .once("value", async (snapshot) => {
-        //console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
-        const order = snapshot.val();
-        if (order.status == "searching") {
-          const name = "";
-          firebase
-            .database()
-            .ref(
-              "orders/" +
-                domain +
-                "/currentOrders/" +
-                notification.data.data.orderNumber
-            )
-            .update({ status: "in-progress" });
-          firebase
-            .database()
-            .ref(
-              "users/" +
-                domain +
-                "/" +
-                myUser +
-                "/chats/seller/" +
-                order.buyer +
-                myUser +
-                "/"
-            )
-            .set({
-              timestamp: this.timestamp(),
-              text: "Image",
-            });
-          firebase
-            .database()
-            .ref(
-              "users/" +
-                domain +
-                "/" +
-                order.buyer +
-                "/chats/buyer/" +
-                order.buyer +
-                myUser +
-                "/"
-            )
-            .set({
-              timestamp: this.timestamp(),
-              text: "image",
-            });
-          const buyerSentMessage = order.buyer + "_hasSentMessage";
-          firebase
-            .database()
-            .ref("/chats/" + domain + "/" + order.buyer + myUser)
-            .update({ [buyerSentMessage]: true });
-
-          var storageRef = firebase.storage().ref();
-          const path =
-            "/chats/" + domain + "/" + order.buyer + myUser + "/chat";
-          // console.log("path",path)
-          const profileImagePath =
-            "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg";
-          // console.log("profileImagePath",profileImagePath)
-
-          // await firebase.storage().ref().child(profileImagePath).getDownloadURL().then((foundURL) => {
-          //     this.setState({ profileImage: foundURL})
-          // })
-          console.log("order");
-          const promises = [];
-          const orderImages = firebase
-            .storage()
-            .ref("tempPhotos/" + domain + "/" + order.buyer);
-          for (var i = 0; i < notification.data.data.imageNames.length; i++) {
-            // console.log("length ",notification.data.data.imageNames.length)
-            // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
-            // console.log("befor",notification.data.data.imageNames[i] + ".jpg")
-            const name = notification.data.data.imageNames[i];
-            // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
-            const image = orderImages.child(
-              notification.data.data.imageNames[i] + ".jpg"
-            );
-            //console.log("BEFORE")
-            promises.push(
-              this.takePhotoFromTemp(
-                image,
-                path,
-                name,
-                notification.data.data.uid,
-                name
-              )
-            );
-          }
-
-          const responses = await Promise.all(promises);
-          console.log("NEDDD");
-        }
-      });
-  };
-
-  takePhotoFromTemp = (image, path, name, uid, name1) => {
-    console.log("path ",path)
-    image
-      .getDownloadURL()
-      .then((url) => {
-        console.log("url ", url);
-        this.uriToBlob(url).then((blob) => {
-          this.uploadToFirebase(blob, path + name1);
-          // console.log("here i am", path + name)
-          var message = {
-            text: "",
-            image: url,
-            timestamp: this.timestamp(),
-            user: { _id: uid, name: name1 },
-          };
-          console.log("message", message)
-          firebase.database().ref(path).push(message);
-        });
+    if(notification.data.data.thread != undefined){
+      this.props.navigation.navigate("Room", {
+        thread: notification.data.data.thread,
+        chattingUser: notification.data.data.name,
+        otherChatterEmail: notification.data.data.otherChatterEmail,
       })
-      .catch((error) => {
-        console.log(error);
-      });
+    }else{
+      this.props.navigation.navigate("SelectedOrderModal",{
+        BuyerUid : notification.data.data.BuyerUid,
+        orderNumber  : notification.data.data.orderNumber,
+      })
+    }
+    // console.log("in notification", notification.data.data.orderNumber);
+    // const myUser = firebase
+    //   .auth()
+    //   .currentUser.email.substring(
+    //     0,
+    //     firebase.auth().currentUser.email.length - 4
+    //   );
+    // const start = myUser.indexOf("@");
+    // const domain = this.state.email.substring(
+    //   start,
+    //   firebase.auth().currentUser.email.length - 4
+    // );
+    // console.log("85");
+
+    // firebase
+    //   .database()
+    //   .ref(
+    //     "orders/" +
+    //       domain +
+    //       "/currentOrders/" +
+    //       notification.data.data.orderNumber
+    //   )
+    //   .once("value", async (snapshot) => {
+    //     //console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
+    //     const order = snapshot.val();
+    //     if (order.status == "searching") {
+    //       const name = "";
+    //       firebase
+    //         .database()
+    //         .ref(
+    //           "orders/" +
+    //             domain +
+    //             "/currentOrders/" +
+    //             notification.data.data.orderNumber
+    //         )
+    //         .update({ status: "in-progress" });
+    //       firebase
+    //         .database()
+    //         .ref(
+    //           "users/" +
+    //             domain +
+    //             "/" +
+    //             myUser +
+    //             "/chats/seller/" +
+    //             order.buyer +
+    //             myUser +
+    //             "/"
+    //         )
+    //         .set({
+    //           timestamp: this.timestamp(),
+    //           text: "Image",
+    //         });
+    //       firebase
+    //         .database()
+    //         .ref(
+    //           "users/" +
+    //             domain +
+    //             "/" +
+    //             order.buyer +
+    //             "/chats/buyer/" +
+    //             order.buyer +
+    //             myUser +
+    //             "/"
+    //         )
+    //         .set({
+    //           timestamp: this.timestamp(),
+    //           text: "Image",
+    //         });
+    //       const buyerSentMessage = order.buyer + "_hasSentMessage";
+    //       firebase
+    //         .database()
+    //         .ref("/chats/" + domain + "/" + order.buyer + myUser)
+    //         .update({ [buyerSentMessage]: true });
+
+    //       var storageRef = firebase.storage().ref();
+    //       const path =
+    //         "/chats/" + domain + "/" + order.buyer + myUser + "/chat";
+    //       // console.log("path",path)
+    //       const profileImagePath =
+    //         "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg";
+    //       // console.log("profileImagePath",profileImagePath)
+
+    //       // await firebase.storage().ref().child(profileImagePath).getDownloadURL().then((foundURL) => {
+    //       //     this.setState({ profileImage: foundURL})
+    //       // })
+    //       console.log("order");
+    //       const promises = [];
+    //       const orderImages = firebase
+    //         .storage()
+    //         .ref("tempPhotos/" + domain + "/" + order.buyer);
+    //       for (var i = 0; i < notification.data.data.imageNames.length; i++) {
+    //         // console.log("length ",notification.data.data.imageNames.length)
+    //         // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
+    //         // console.log("befor",notification.data.data.imageNames[i] + ".jpg")
+    //         const name = notification.data.data.imageNames[i];
+    //         // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
+    //         const image = orderImages.child(
+    //           notification.data.data.imageNames[i] + ".jpg"
+    //         );
+    //         //console.log("BEFORE")
+    //         promises.push(
+    //           this.takePhotoFromTemp(
+    //             image,
+    //             path,
+    //             name,
+    //             notification.data.data.uid,
+    //             name
+    //           )
+    //         );
+    //       }
+
+    //       const responses = await Promise.all(promises);
+    //       console.log("NEDDD");
+    //     }
+    //   });
   };
+
 
   registerForPushNotificationsAsync = async () => {
     if (Platform.OS === "android") {
@@ -274,7 +267,7 @@ export default class HomeScreen extends React.Component {
         style={[
           styles.nextButton,
           {
-            backgroundColor: this.state.homepage == 1 ? "#FFE300" : "white",
+            backgroundColor: this.state.page == 1 ? "#FFE300" : "white",
             marginLeft: -5,
             width: windowWidth / 2 - 50,
           },
@@ -291,7 +284,7 @@ export default class HomeScreen extends React.Component {
         style={[
           styles.prevButton,
           {
-            backgroundColor: this.state.homepage == 0 ? "#FFE300" : "white",
+            backgroundColor: this.state.page == 0 ? "#FFE300" : "white",
             marginRight: -5,
             width: windowWidth / 2 - 60,
           },
@@ -302,13 +295,13 @@ export default class HomeScreen extends React.Component {
     );
   };
 
-  homepageIndexChanged = (index) => {
+  setPage = (index) => {
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const email = user.email.substring(0, end);
-    this.setState({ homepage: index });
+    this.setState({ page: index });
 
     firebase
       .database()
@@ -328,15 +321,12 @@ export default class HomeScreen extends React.Component {
   //     image.getDownloadURL().then((url) =>  this.setState({ avatar: url }));
   // }
 
-  setHomePage = (value) => {
-    this.setState({ homepage: value });
-  };
 
   render() {
     LayoutAnimation.easeInEaseOut();
     if (!this.state.rendered) {
       this.setState({ rendered: true });
-      if (this.state.homepage != 0) {
+      if (this.state.page != 0) {
         this._swiper.scrollBy(1);
       }
     }
@@ -345,8 +335,8 @@ export default class HomeScreen extends React.Component {
         <QuickOrder
           _swiper={this._swiper}
           blackBackground={true}
-          setHomePage={this.setHomePage}
-          homepage={this.state.homepage}
+          setPage={this.setPage}
+          page={this.state.page}
           togglePopupVisibility={this.togglePopupVisibility}
         />
 
@@ -355,10 +345,12 @@ export default class HomeScreen extends React.Component {
             this._swiper = swiper;
           }}
           loop={false}
-          onIndexChanged={this.homepageIndexChanged}
+          onIndexChanged={this.setPage}
         >
           <BuyerHomeScreen navigation={this.props.navigation} />
+          <View style={{marginTop:70}}>
           <SellerHomeScreen navigation={this.props.navigation} />
+          </View>
         </Swiper>
 
         <PopupOrder

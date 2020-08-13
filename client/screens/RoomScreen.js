@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   TouchableOpacity,
+  AsyncStorage,
   Text,
 } from "react-native";
 import firebase from "../../config";
@@ -19,6 +20,7 @@ import { Entypo, AntDesign } from "@expo/vector-icons";
 import UploadImages from "./UploadImages";
 import * as ImagePicker from "expo-image-picker";
 import ImageViewer from "react-native-image-zoom-viewer";
+import * as FileSystem from 'expo-file-system';
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 
@@ -34,16 +36,17 @@ export default class RoomScreen extends React.Component {
     this.earlierMessage = "";
     this.earlierMessagetext = "";
     this.historyObject = {
-      historyMessages : [],
-      snapshot : {},
+      historyMessages: [],
+      snapshot: {},
       startIndex: 0,
-      endIndex: 0
-    }
+      endIndex: 0,
+    };
     const path = "profilePics/" + domain + "/" + email + "/profilePic.jpg";
 
     this.state = {
+      allChats:{},
+      notificationsOn : true,
       messages: [],
-      title: "",
       thread: (this.props.navigation.state.params || {}).thread,
       domain: domain,
       refreshing: false,
@@ -53,11 +56,12 @@ export default class RoomScreen extends React.Component {
       hasSentMessage: false,
       read: false,
       text: "",
+      otherChatterToken: "",
       delivered: false,
       date: new Date(),
       uploadImagesVisible: false,
-      count: 5,
-      imageUrls: [],
+      count: 20,
+      imageUris: [],
       imageCount: 0,
       index: 0,
       showImageViewer: false,
@@ -68,7 +72,8 @@ export default class RoomScreen extends React.Component {
       user: {
         _id: firebase.auth().currentUser.uid,
       },
-      historyOrderKey: this.props.navigation.state.params.historyOrderKey || null,
+      historyOrderKey:
+        this.props.navigation.state.params.historyOrderKey || "",
     };
   }
 
@@ -298,6 +303,8 @@ export default class RoomScreen extends React.Component {
 
   renderComposer = (props) => {
     return (
+      <>
+      {this.state.historyOrderKey == "" && 
       <View
         style={{
           flexDirection: "row",
@@ -324,14 +331,16 @@ export default class RoomScreen extends React.Component {
           }}
         >
           <Composer {...props} />
+          {props.text.length != 0 && 
           <TouchableOpacity
             style={{ marginRight: 5, marginBottom: 10 }}
             onPress={() => this.send(props.user, props.text)}
           >
             <Text style={{ color: "#0A9CBF", fontSize: 20 }}>Send</Text>
-          </TouchableOpacity>
+          </TouchableOpacity>}
         </View>
-      </View>
+      </View>}
+      </>
     );
   };
 
@@ -360,8 +369,8 @@ export default class RoomScreen extends React.Component {
     var messageDate = new Date(timestamp);
     var hour, minute, seconds;
     hour = messageDate.getHours();
-    var afterNoon = hour % 12 > 0 ? "PM" : "AM";
-    hour = hour % 12;
+    var afterNoon = hour  > 11 ? "PM" : "AM";
+    hour = hour == 0 || hour == 12 ? "12" : (hour > 12 ? hour - 12 : hour)
 
     minute = "0" + messageDate.getMinutes();
     return hour + ":" + minute.substr(-2) + " " + afterNoon;
@@ -385,8 +394,9 @@ export default class RoomScreen extends React.Component {
     //console.log("getHours ",messageDate.getHours())
     var hour, minute, seconds;
     hour = messageDate.getHours();
-    var afterNoon = hour % 12 > 0 ? "PM" : "AM";
-    hour = hour % 12;
+
+    var afterNoon = hour  > 11 ? "PM" : "AM";
+    hour = hour == 0 || hour == 12 ? "12" : (hour > 12 ? hour - 12 : hour)
 
     minute = "0" + messageDate.getMinutes();
     const time = hour + ":" + minute.substr(-2) + " " + afterNoon;
@@ -424,7 +434,7 @@ export default class RoomScreen extends React.Component {
     const { key: _id } = snapshot;
     const centerTimestamp = this.worthPuttingCenterTimestamp(timestamp, text);
 
-    const message = {
+    var message = {
       _id,
       timestamp,
       text,
@@ -438,7 +448,7 @@ export default class RoomScreen extends React.Component {
       // console.log("readTime",readTime)
       // console.log("read", read)
       const readTimeStamp = readTime ? readTime : new Date().getTime();
-      console.log("readTimeStamp ", readTimeStamp)
+      console.log("readTimeStamp ", readTimeStamp);
       this.setState({
         read,
         lastMessageId: _id,
@@ -463,17 +473,17 @@ export default class RoomScreen extends React.Component {
       messagess[[_id]] = {
         confirmAnswer,
         centerTimestamp,
-        index: this.state.imageCount,
+        index: this.state.imageCount,//even if there is no image at
       };
       return { messagess };
     });
 
-    if (image != "") {
-      const imageUrls = this.state.imageUrls;
-      const imageCount = (this.state.imageCount += 1);
-      imageUrls.push({ url: image });
-      this.setState({ imageUrls, imageCount });
-    }
+    // if (image != "") {
+    //   const imageUris = this.state.imageUris;
+    //   const imageCount = (this.state.imageCount += 1);
+    //   imageUris.push({ url: image });
+    //   this.setState({ imageUris, imageCount });
+    // }
 
     // console.log("opacities1",this.state.messagess)
     return message;
@@ -482,24 +492,39 @@ export default class RoomScreen extends React.Component {
   historyFinder = () => {
     var count = 0;
     this.ref().once("value", (snapshot) => {
-      this.historyObject.historyMessages = snapshot.val() ? Object.keys(snapshot.val()) : [];
+      this.historyObject.historyMessages = snapshot.val()
+        ? Object.keys(snapshot.val())
+        : [];
       this.snapshot = snapshot;
-      for(; count < this.historyObject.historyMessages.length;count++){
-        if(this.historyObject.historyMessages[count] == this.state.historyOrderKey){
-          this.historyObject.endIndex = count
+      for (; count < this.historyObject.historyMessages.length; count++) {
+        if (
+          this.historyObject.historyMessages[count] ==
+          this.state.historyOrderKey
+        ) {
+          this.historyObject.endIndex = count;
           break;
         }
       }
-      this.historyObject.startIndex =  count < 2 ? this.historyObject.endIndex - count : this.historyObject.endIndex - 1
-      console.log(this.historyObject.startIndex)
-      console.log("endIndex ",this.historyObject.endIndex)
-      for(var i = this.historyObject.startIndex; i <= this.historyObject.endIndex; i++){
-       this.historyObject.historyMessages[i] = this.parse(snapshot.child(this.historyObject.historyMessages[i]))
+      this.historyObject.startIndex =
+        count < 20
+          ? this.historyObject.endIndex - count
+          : this.historyObject.endIndex - 1;
+      console.log(this.historyObject.startIndex);
+      console.log("endIndex ", this.historyObject.endIndex);
+      for (
+        var i = this.historyObject.startIndex;
+        i <= this.historyObject.endIndex;
+        i++
+      ) {
+        this.historyObject.historyMessages[i] = this.parse(
+          snapshot.child(this.historyObject.historyMessages[i])
+        );
       }
       this.setState((previousState) => ({
-        messages: this.historyObject.historyMessages.slice(this.historyObject.startIndex,this.historyObject.endIndex + 1).reverse()
+        messages: this.historyObject.historyMessages
+          .slice(this.historyObject.startIndex, this.historyObject.endIndex + 1)
+          .reverse(),
       }));
-
     });
   };
 
@@ -550,10 +575,52 @@ export default class RoomScreen extends React.Component {
     this.append(message);
   };
 
+  sendSingleNotification = async ( text) => {
+    console.log("sendSingle")
+    const message = {
+      to: this.state.otherChatterToken,
+      sound: "default",
+      title: this.state.chattingUser,
+      body: text,
+      data: {
+        data: {
+          thread : this.state.thread,
+          name : this.state.chattingUser,
+          otherChatterEmail : this.state.otherChatterEmail,
+        },
+      },
+      _displayInForeground: true,
+    };
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    });
+  };
+
+  whatIsMessage(image, text) {
+    if (text == undefined || text == "") {
+      if (image == undefined || image == "") {
+        return "Order Confirmation";
+      } else {
+        return "Image";
+      }
+    }
+    return text;
+  }
+
   append = (message) => {
     const user = firebase.auth().currentUser;
     const end = user.email.indexOf(".com");
-    const hasSentMessage = user.email.substring(0, end) + "_hasSentMessage";
+    const email = user.email.substring(0, end);
+    const hasSentMessage = email + "_hasSentMessage";
+    const isBuyer =
+      this.state.thread.substring(0, email.length) == email ? true : false;
+
     this.setState({ delivered: false, read: false, hasSentMessage: true });
     this.refCheckChatter()
       .child(user.email.substring(0, end))
@@ -565,6 +632,43 @@ export default class RoomScreen extends React.Component {
           delivered: true,
           deliveredTime: this.displayTime(new Date().getTime()),
         });
+        if(this.state.notificationsOn && this.state.otherChatterToken != ""){
+          this.sendSingleNotification(this.whatIsMessage(message.image,message.text))
+        }
+        firebase
+          .database()
+          .ref(
+            "users/" +
+              this.state.domain +
+              "/" +
+              email +
+              "/chats/" +
+              (isBuyer ? "buyer" : "seller") +
+              "/" +
+              this.state.thread
+          )
+          .update({
+            text: this.whatIsMessage(message.image, message.text),
+            timestamp: message.timestamp,
+            read: true,
+          });
+        firebase
+          .database()
+          .ref(
+            "users/" +
+              this.state.domain +
+              "/" +
+              this.state.otherChatterEmail +
+              "/chats/" +
+              (!isBuyer ? "buyer" : "seller") +
+              "/" +
+              this.state.thread
+          )
+          .update({
+            text: this.whatIsMessage(message.image, message.text),
+            timestamp: message.timestamp,
+            read: this.state.otherChatterOnline,
+          });
         setTimeout(() => {
           this.setState({ read: this.state.otherChatterOnline });
         }, 500);
@@ -575,19 +679,22 @@ export default class RoomScreen extends React.Component {
     const user = firebase.auth().currentUser;
     const end = user.email.indexOf(".com");
     const email = user.email.substring(0, end);
-    const path =
-      "profilePics/" + this.state.domain + "/" + email + "/profilePic.jpg";
-    console.log("path", path);
+    const isBuyer =
+      this.state.thread.substring(0, email.length) == email ? "buyer" : "seller"
 
-    this.refCheckChatter()
-      .child(email + "/" + email + "_hasSentMessage")
-      .once("value", (snapshot) => {
-        this.setState({ hasSentMessage: snapshot.val() });
-      });
+    let allChats = await AsyncStorage.getItem('allChats')
+    allChats = JSON.parse(allChats);
+    if(!allChats){
+      allChats = {[[isBuyer]] : {[[this.state.thread]] : {}}}
+    }else if(!allChats[[isBuyer]]){
+      let newObject  = {[[isBuyer]] : {[[this.state.thread]] : {}}}
+      allChats = {...allChats,...newObject}
+    }else if(!allChats[[isBuyer]][[this.state.thread]]){
+      allChats[[isBuyer]] = {[[this.state.thread]] : {}}
+    }
+    console.log("allChats ",allChats)
+    await this.setState({allChats,isBuyer})
 
-    this.refCheckChatter()
-      .child(email)
-      .update({ [email]: true });
     // firebase.storage().ref("/chats/@gmail/fakedafi2@gmailfakedafi@gmail/0405095287031324.jpg").getDownloadURL().then(() => {
     //   this.setState({profileImage : foundURL})
     //   console.log("found profile image")
@@ -599,29 +706,164 @@ export default class RoomScreen extends React.Component {
     //   console.log("found profile image")
     // }).catch((error) => {console.log("no profile image")})
 
-    // // if(this.props.historyKey == )
-    // this.historyFinder();
+    if(this.state.historyOrderKey != ""){
+      this.historyFinder();
+    }else{
 
-    this.on((message) => {
-      this.setState((previousState) => ({
-        messages: GiftedChat.append(previousState.messages, message),
-      }));
-    });
-
-    this.onCheckOtherChatter((otherChatterOnline) => {
-      this.setState({
-        read: otherChatterOnline[[this.state.otherChatterEmail]],
+          this.refCheckChatter()
+      .child(email + "/" + email + "/_hasSentMessage")
+      .once("value", (snapshot) => {
+        this.setState({ hasSentMessage: snapshot.val() });
       });
-      if (otherChatterOnline && !this.state.read) {
-        console.log("NOOOO");
-        this.ref()
-          .child(key)
-          .update({
-            read: otherChatterOnline[[this.state.otherChatterEmail]],
-            readTime: timestamp,
-          });
-      }
-    });
+
+    this.refCheckChatter()
+      .child(email)
+      .update({ [email]: true });
+
+    firebase
+      .database()
+      .ref(
+        "users/" +
+          this.state.domain +
+          "/" +
+          email +
+          "/chats/" +
+          isBuyer +
+          "/" +
+          this.state.thread
+      )
+      .update({
+        read: true,
+      });
+
+    firebase
+      .database()
+      .ref("users/" + this.state.domain + "/" + this.state.otherChatterEmail)
+      .once("value", (snapshot) => {
+        this.setState({ otherChatterToken: snapshot.val().expoToken, notificationsOn : snapshot.val()["notifications"].newMessages });
+      });
+
+
+      this.on(async (message) => {
+        const allChats = this.state.allChats
+        if (message.image != undefined) {
+          console.log("there is image ", message.image)
+          if(!allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] || !allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri){
+            const uri = await this.downloadUrl(message.image,message._id)
+            console.log("uri ",uri)
+            if(!allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]]){
+              console.log("doesn't exist message ")
+              allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {uri}
+            }else{
+              allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri = uri
+            }
+            console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]])
+            message.image = allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
+            const promises = []
+            promises.push(
+              this.setState({allChats})
+            )
+            promises.push(
+              AsyncStorage.setItem('allChats',JSON.stringify(allChats))
+            )
+            await Promise.all(promises)
+          }
+          const imageUris = this.state.imageUris;
+          const messagess = this.state.messagess
+          messagess[[message._id]].index = this.state.imageCount
+          const imageCount = (this.state.imageCount += 1);
+          const uri = allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
+          console.log("uri ", uri)
+          imageUris.push({ url: uri});
+          this.setState({ imageUris, imageCount,messagess });
+        }
+        this.setState((previousState) => ({
+          messages: GiftedChat.append(previousState.messages, message),
+        }));
+      });
+
+      this.onCheckOtherChatter((otherChatterOnline) => {
+        this.setState({
+          read: otherChatterOnline[[this.state.otherChatterEmail]],
+        });
+        if (otherChatterOnline && !this.state.read) {
+          console.log("NOOOO");
+          this.ref()
+            .child(key)
+            .update({
+              read: otherChatterOnline[[this.state.otherChatterEmail]],
+              readTime: timestamp,
+            });
+        }
+      });
+    }
+  }
+  downloadUrl = async (url,messageId) => {
+    // return new Promise(async() => {
+    const callback = downloadProgress => {
+    const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+    // this.setState({
+    //   downloadProgress: progress,
+    // });
+    }
+     
+
+    console.log("url ", url)
+    await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +this.state.thread +"/",{intermediates:true})
+    // const downloadResumable = FileSystem.createDownloadResumable(
+    //     url,
+    //     FileSystem.documentDirectory  + name + ".png",
+    //     {},
+    //     callback
+    //   )
+
+    try {
+      const { uri } = await FileSystem.downloadAsync(
+              url,
+      FileSystem.documentDirectory  + this.state.thread +"/" + messageId + ".png",
+      {},
+      callback
+      );
+      console.log('Finished downloading to ', uri);
+      return uri
+    } catch (e) {
+      console.error(e);
+    }
+    // })
+
+    // try {
+    //   await downloadResumable.pauseAsync();
+    //   console.log('Paused download operation, saving for future retrieval');
+    //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    //   this.setState({imageUrl :uri})
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    //To resume a download across app restarts, assuming the the DownloadResumable.savable() object was stored:
+    // const downloadSnapshotJson = await AsyncStorage.getItem('pausedDownload');
+    // const downloadSnapshot = JSON.parse(downloadSnapshotJson);
+    // const downloadResumable = new FileSystem.DownloadResumable(
+    //   downloadSnapshot.url,
+    //   downloadSnapshot.fileUri,
+    //   downloadSnapshot.options,
+    //   callback,
+    //   downloadSnapshot.resumeData
+    // );
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    // } catch (e) {
+    //   console.error(e);
+    // }
   }
 
   componentWillUnmount() {
@@ -833,14 +1075,14 @@ export default class RoomScreen extends React.Component {
   renderDelivered = () => {
     if (this.state.read && this.state.hasSentMessage) {
       return (
-        <View style={{ alignItems: "flex-end", marginRight: 10 }}>
-          <Text>Read {this.state.readTime}</Text>
+        <View style={{ alignItems: "flex-end", marginRight: 5 }}>
+          <Text style={{fontSize:10,color:"gray"}}><Text style={{fontWeight:"bold"}}>Read</Text> {this.state.readTime}</Text>
         </View>
       );
     } else if (this.state.delivered && this.state.hasSentMessage) {
       return (
-        <View style={{ alignItems: "flex-end", marginRight: 10 }}>
-          <Text>Delivered {this.state.deliveredTime}</Text>
+        <View style={{ alignItems: "flex-end", marginRight: 5 }}>
+          <Text style={{fontSize:10,color:"gray"}}><Text style={{fontWeight:"bold"}}>Delivered</Text> {this.state.deliveredTime}</Text>
         </View>
       );
     } else {
@@ -853,7 +1095,7 @@ export default class RoomScreen extends React.Component {
     console.log("------------------------------------");
     var originalCount = 1;
     await this.setState((previousState) => ({
-      count: previousState.count + 10,
+      count: previousState.count + 20,
     }));
     var possible = true;
     var newMessages = [];
@@ -866,19 +1108,19 @@ export default class RoomScreen extends React.Component {
         //console.log("lastMessage ", lastMessage)
         snapshot.forEach((premessage) => {
           // console.log("premessage ",premessage)
-          if (originalCount <= 10 && possible) {
+          if (originalCount <= 20 && possible) {
             const message = this.parse(premessage, true);
             console.log(message._id);
-            console.log("last ", lastMessage._id)
+            console.log("last ", lastMessage._id);
             if (message._id != lastMessage._id) {
-              console.log(this.state.messagess[[message._id]])
+              console.log(this.state.messagess[[message._id]]);
               if (this.state.messagess[[message._id]] != undefined) {
                 console.log("THERES ANOTHER");
                 console.log(message._id);
                 // setTimeout(() => {
-                  newMessages.push(message);
+                newMessages.push(message);
                 // }, 20000);
-              // } else {
+                // } else {
                 // newMessages.push(message);
               }
             } else {
@@ -891,9 +1133,12 @@ export default class RoomScreen extends React.Component {
       });
     if (newMessages.length != 0) {
       // await newMessages.reverse().forEach((element) => {
-        this.setState((previousState) => ({
-          messages: GiftedChat.prepend(previousState.messages, newMessages.reverse()),
-        }));
+      this.setState((previousState) => ({
+        messages: GiftedChat.prepend(
+          previousState.messages,
+          newMessages.reverse()
+        ),
+      }));
       // });
       // this.setState({
       //   messages:newMessages.reverse()
@@ -903,45 +1148,73 @@ export default class RoomScreen extends React.Component {
   };
 
   onLoadHistory = (earlier) => {
-    const amount = 20
-    if(earlier){
-      const newStart = this.historyObject.startIndex - amount >= 0 ? this.historyObject.startIndex - amount : 0
-      if(newStart != this.historyObject.startIndex){
-        console.log()
-        for(var i = newStart; i < this.historyObject.startIndex; i++){
-          this.historyObject.historyMessages[i] = this.parse(this.snapshot.child(this.historyObject.historyMessages[i]),true)
+    const amount = 20;
+    if (earlier) {
+      const newStart =
+        this.historyObject.startIndex - amount >= 0
+          ? this.historyObject.startIndex - amount
+          : 0;
+      if (newStart != this.historyObject.startIndex) {
+        console.log();
+        for (var i = newStart; i < this.historyObject.startIndex; i++) {
+          this.historyObject.historyMessages[i] = this.parse(
+            this.snapshot.child(this.historyObject.historyMessages[i]),
+            true
+          );
         }
         this.setState((previousState) => ({
-          messages: GiftedChat.prepend(previousState.messages, this.historyObject.historyMessages.slice(newStart,this.historyObject.startIndex).reverse()),
+          messages: GiftedChat.prepend(
+            previousState.messages,
+            this.historyObject.historyMessages
+              .slice(newStart, this.historyObject.startIndex)
+              .reverse()
+          ),
         }));
 
-        this.historyObject.startIndex = newStart
-
+        this.historyObject.startIndex = newStart;
       }
-
-    }else{
-      const newEnd = this.historyObject.endIndex + amount < this.historyObject.historyMessages.length ? this.historyObject.endIndex + amount : this.historyObject.historyMessages.length - 1 
-      console.log("not earlier")
-      if(newEnd != this.historyObject.endIndex){
-        for(var i = this.historyObject.endIndex + 1; i < newEnd; i++){
-          console.log("in loop",this.historyObject.historyMessages[i])
-          this.historyObject.historyMessages[i] = this.parse(this.snapshot.child(this.historyObject.historyMessages[i]),false)
+    } else {
+      const newEnd =
+        this.historyObject.endIndex + amount <
+        this.historyObject.historyMessages.length
+          ? this.historyObject.endIndex + amount
+          : this.historyObject.historyMessages.length - 1;
+      console.log("not earlier");
+      if (newEnd != this.historyObject.endIndex) {
+        for (var i = this.historyObject.endIndex + 1; i < newEnd; i++) {
+          console.log("in loop", this.historyObject.historyMessages[i]);
+          this.historyObject.historyMessages[i] = this.parse(
+            this.snapshot.child(this.historyObject.historyMessages[i]),
+            false
+          );
         }
-        console.log("sliced ", this.historyObject.historyMessages.slice(this.historyObject.endIndex + 1,newEnd).reverse())
+        console.log(
+          "sliced ",
+          this.historyObject.historyMessages
+            .slice(this.historyObject.endIndex + 1, newEnd)
+            .reverse()
+        );
         this.setState((previousState) => ({
-          messages: this.historyObject.historyMessages.slice(this.historyObject.startIndex,newEnd).reverse()
+          messages: this.historyObject.historyMessages
+            .slice(this.historyObject.startIndex, newEnd)
+            .reverse(),
         }));
-        this.historyObject.endIndex = newEnd
+        this.historyObject.endIndex = newEnd;
       }
     }
-  }
+  };
 
   isCloseToTop({ layoutMeasurement, contentOffset, contentSize }) {
-    if(contentOffset.y < 10){return false;}
+    if (contentOffset.y < 10) {
+      return false;
+    }
     console.log(contentOffset);
     const paddingToTop = 80;
-    console.log("calculation ",contentSize.height - layoutMeasurement.height - paddingToTop )
-    console.log("offset.y ",       contentOffset.y)
+    console.log(
+      "calculation ",
+      contentSize.height - layoutMeasurement.height - paddingToTop
+    );
+    console.log("offset.y ", contentOffset.y);
     return (
       contentSize.height - layoutMeasurement.height - paddingToTop <=
       contentOffset.y
@@ -994,6 +1267,8 @@ export default class RoomScreen extends React.Component {
   }
 
   render() {
+    // console.log("imageUris ",this.state.imageUris)
+    // console.log("this.state.index ", this.state.index)
     const thisClass = this;
     const mainContent = (
       <GiftedChat
@@ -1022,22 +1297,26 @@ export default class RoomScreen extends React.Component {
           onScroll: async ({ nativeEvent }) => {
             if (this.isCloseToTop(nativeEvent)) {
               await this.setState({ refreshing: true });
-              if(this.state.historyOrderKey){
-                await this.onLoadHistory(true)
-              }else{
+              if (this.state.historyOrderKey != "") {
+                await this.onLoadHistory(true);
+              } else {
                 await this.onLoadingEarlier();
               }
               setTimeout(() => {
                 this.setState({ refreshing: false });
               }, 1000);
-            }else if(this.state.historyOrderKey && this.isCloseToBottom(nativeEvent)){
-              console.log("SCROLLED DOWN")
-              await this.onLoadHistory(false)
+            } else if (
+              this.state.historyOrderKey != "" &&
+              this.isCloseToBottom(nativeEvent)
+            ) {
+              console.log("SCROLLED DOWN");
+              await this.onLoadHistory(false);
             }
           },
         }}
       />
     );
+
     const model = (
       <Modal
         testID={"modal"}
@@ -1049,7 +1328,13 @@ export default class RoomScreen extends React.Component {
       >
         <ImageViewer
           index={this.state.index}
-          imageUrls={this.state.imageUrls}
+          enablePreload
+          imageUrls={this.state.imageUris}
+          renderImage={(props) => (
+            <Image
+              {...props}/>
+        
+            )}
           enableSwipeDown
           onSwipeDown={() => this.handleImageViewer(0, true)}
         />

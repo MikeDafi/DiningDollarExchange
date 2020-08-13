@@ -9,12 +9,12 @@ import {
   LayoutAnimation,
   Dimensions,
   TouchableWithoutFeedback,
+  AsyncStorage
 } from "react-native";
 import { Ionicons, FontAwesome5, FontAwesome,AntDesign } from "@expo/vector-icons";
 import { List, Divider } from "react-native-paper";
 import firebase from "../../config";
 import Loading from "./LoadingScreen";
-import HistoryModal from "./HistoryModal";
 import Swiper from "react-native-swiper/src";
 import RatingUser from "./RatingUser"
 import QuickOrder from "./QuickOrder";
@@ -22,6 +22,7 @@ const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 import { Col, Row, Grid } from "react-native-easy-grid";
 import DropDownPicker from 'react-native-dropdown-picker';
+import * as FileSystem from 'expo-file-system';
 export default class MessageScreen extends React.Component {
   state = {
     threadsBuyer: [],
@@ -29,7 +30,6 @@ export default class MessageScreen extends React.Component {
     loading: true,
     page: 0,
     domain: "",
-    homepage: 0,
     date: new Date(),
     popupVisible: false,
     clickedBuyer: [],
@@ -38,13 +38,13 @@ export default class MessageScreen extends React.Component {
     ascending: false,
   };
 
-  homepageIndexChanged = (index) => {
+  setPage = (index) => {
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const email = user.email.substring(0, end);
-    this.setState({ homepage: index });
+    this.setState({ page: index });
 
     firebase
       .database()
@@ -54,10 +54,6 @@ export default class MessageScreen extends React.Component {
 
   togglePopupVisibility = (value) => {
     this.setState({ popupVisible: value });
-  };
-
-  setHomePage = (value) => {
-    this.setState({ homepage: value });
   };
 
   ref = () => {
@@ -127,7 +123,12 @@ export default class MessageScreen extends React.Component {
     const domain = user.email.substring(start, end);
     const email = user.email.substring(0, end);
 
-
+    let historyOrders = await AsyncStorage.getItem('otherChattersProfileImages')
+    historyOrders = JSON.parse(historyOrders);
+    console.log("before history ", historyOrders)
+    if(!historyOrders){
+      historyOrders = {}
+    }
     await this.ref()
       .child(buyer)
       .on("value", async (ordersSnapshot) => {
@@ -148,38 +149,42 @@ export default class MessageScreen extends React.Component {
               .chatId.substring(0, chat.val().chatId.length - email.length);
           }
           console.log("otherChatterEmail", otherChatterEmail);
-          const image = firebase
-            .storage()
-            .ref()
-            .child(
-              "profilePics/" +
-                domain +
-                "/" +
-                otherChatterEmail +
-                "/profilePic.jpg"
-            );
+
           const realCount = count;
           promises.push(
-            image
-              .getDownloadURL()
-              .then((foundURL) => {
-                threadss[realCount].avatar = foundURL;
-              })
-              .catch((error) => {
-                console.log(error);
-              })
+            firebase.database().ref("users/" + domain + "/" + otherChatterEmail).once("value",async (snapshot) => {
+            threadss[realCount].name = snapshot.val().name
+             console.log("historyOrders",historyOrders)
+             console.log("otherChatterEmail ", otherChatterEmail)
+             console.log("profileImageUrl ",snapshot.val().profileImageUrl)
+              if(snapshot.val().profileImageUrl){
+                if(historyOrders[[otherChatterEmail]] == undefined || !historyOrders[[otherChatterEmail]].uri || historyOrders[[otherChatterEmail]].url != snapshot.val().profileImageUrl){
+                  console.log("trying to download")
+                    if(!historyOrders[[otherChatterEmail]] && !historyOrders[[otherChatterEmail]].uri){
+                      console.log("delete")
+                      this.deleteUri(historyOrders[[otherChatterEmail]].uri)
+                    }
+                  try{
+                    console.log("start downloading")
+                    const uri = await this.downloadUrl(snapshot.val().profileImageUrl,otherChatterEmail)
+                    const newProfileObject = {uri,url : snapshot.val().profileImageUrl}
+                    historyOrders[[otherChatterEmail]] = newProfileObject
+                    console.log("WOOOHOOO",historyOrders[[otherChatterEmail]])
+                    console.log("uri ", uri)
+                    threadss[realCount].avatar = historyOrders[[otherChatterEmail]].uri
+                    AsyncStorage.setItem("otherChattersProfileImages", JSON.stringify(historyOrders))
+                  }catch(e){
+                      console.log(e)
+                  }
+                }else{
+                  console.log("already defined")
+                  console.log(historyOrders[[otherChatterEmail]])
+                  threadss[realCount].avatar = historyOrders[[otherChatterEmail]].uri
+                }
+              }
+            })
           );
 
-          var name = "";
-          promises.push(
-            firebase
-              .database()
-              .ref("users/" + domain + "/" + otherChatterEmail)
-              .once("value", (snapshot) => {
-                console.log("snapshot.val()", snapshot.val().name);
-                threadss[realCount].name = snapshot.val().name;
-              })
-          );
           const chatPath = "chats/" + domain + "/" + chat.chatId + "/chat";
 
           thread.otherChatterEmail = otherChatterEmail;
@@ -193,7 +198,7 @@ export default class MessageScreen extends React.Component {
             thread.daysLeftToReview = this.daysLeftToReview(thread.date)
           }
           this.displayTime(thread);
-
+          console.log("thread ",thread)
           threadss.push(thread);
           thread = {};
           // this.sortThreads(threadss)
@@ -211,6 +216,7 @@ export default class MessageScreen extends React.Component {
         threadss = this.mergeSort(threadss,"price",true)
 
         const responses = await Promise.all(promises);
+        console.log("threadssss",threadss)
         if (isBuyer) {
           this.setState({
             threadsBuyer: threadss.reverse(),
@@ -222,6 +228,82 @@ export default class MessageScreen extends React.Component {
         }
       });
   };
+
+  deleteUri = async(path) => {
+    try{
+      await FileSystem.deleteAsync(path, {})
+    }catch(e){
+      console.log("ERROR deleting profile image in profile screen")
+    }
+    
+  }
+
+  downloadUrl = async (url,name) => {
+    console.log("in download url")
+    const callback = downloadProgress => {
+    const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+    // this.setState({
+    //   downloadProgress: progress,
+    // });
+  }
+
+   console.log("url ", url)
+  await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"historyOrders/",{intermediates:true})
+  // const downloadResumable = FileSystem.createDownloadResumable(
+  //     url,
+  //     FileSystem.documentDirectory  + name + ".png",
+  //     {},
+  //     callback
+  //   )
+
+    try {
+      const { uri } = await FileSystem.downloadAsync(
+              url,
+      FileSystem.documentDirectory  + "historyOrders/" + name + ".png",
+      {},
+      callback
+      );
+      console.log('Finished downloading to ', uri);
+      return uri;
+    } catch (e) {
+      console.error(e);
+    }
+
+
+    // try {
+    //   await downloadResumable.pauseAsync();
+    //   console.log('Paused download operation, saving for future retrieval');
+    //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    //   this.setState({imageUrl :uri})
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    //To resume a download across app restarts, assuming the the DownloadResumable.savable() object was stored:
+    // const downloadSnapshotJson = await AsyncStorage.getItem('pausedDownload');
+    // const downloadSnapshot = JSON.parse(downloadSnapshotJson);
+    // const downloadResumable = new FileSystem.DownloadResumable(
+    //   downloadSnapshot.url,
+    //   downloadSnapshot.fileUri,
+    //   downloadSnapshot.options,
+    //   callback,
+    //   downloadSnapshot.resumeData
+    // );
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    // } catch (e) {
+    //   console.error(e);
+    // }
+  }
 
   async componentDidMount() {
     this.keepUpdatedList(true);
@@ -235,14 +317,12 @@ export default class MessageScreen extends React.Component {
     firebase
       .database()
       .ref("/users/" + domain + "/" + realEmail + "/page")
-      .once("value", (homepageSnapshot) => {
-        // console.log(homepageSnapshot.val())
+      .once("value", (pageSnapshot) => {
         this.setState({
-          homepage: homepageSnapshot.val(),
+          page: pageSnapshot.val(),
           loading: false,
           rendered: true,
         });
-        // console.log("in component mount ", this.state.homepage)
       });
   }
 
@@ -289,8 +369,8 @@ export default class MessageScreen extends React.Component {
         if (difference < 7) {
           if (difference == 0) {
             hour = messageDate.getHours();
-            var afterNoon = hour % 12 > 0 ? "PM" : "AM";
-            hour = hour % 12;
+            var afterNoon = hour  > 11 ? "PM" : "AM";
+            hour = hour == 0 || hour == 12 ? "12" : (hour > 12 ? hour - 12 : hour)
 
             minute = "0" + messageDate.getMinutes();
             var formattedTime =
@@ -370,7 +450,7 @@ export default class MessageScreen extends React.Component {
         clickedBuyer: Array(this.state.threadsBuyer.length).fill(false),
         clickedSeller: Array(this.state.threadsSeller.length).fill(false),
       });
-      if (this.state.homepage != 0) {
+      if (this.state.page != 0) {
         setTimeout(() => {
           this._swiper.scrollBy(1);
         }, 100);
@@ -381,8 +461,8 @@ export default class MessageScreen extends React.Component {
         <QuickOrder
           _swiper={this._swiper}
           blackBackground={false}
-          setHomePage={this.setHomePage}
-          homepage={this.state.homepage}
+          setPage={this.setPage}
+          page={this.state.page}
           togglePopupVisibility={this.togglePopupVisibility}
         />
         <View style={{marginTop:50,marginHorizontal:10,height:20,alignItems:"center",flexDirection:"row",justifyContent:"space-between"}}>
@@ -474,7 +554,7 @@ export default class MessageScreen extends React.Component {
             this._swiper = swiper;
           }}
           loop={false}
-          onIndexChanged={this.homepageIndexChanged}
+          onIndexChanged={this.setPage}
         >
           <View style={{ height: windowHeight - 300 }}>
             <Divider />
@@ -577,9 +657,14 @@ export default class MessageScreen extends React.Component {
                 }}
               />
             ) : (
-              <Text>No History</Text>
+              <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
+                <Text style={{color:"gray",fontSize:20}}>
+                  No Buyer History
+                </Text>
+              </View>
             )}
           </View>
+          {this.state.threadsSeller.length > 0 ? (
           <View style={{ height: windowHeight - 300 }}>
             <Divider />
             <FlatList
@@ -648,7 +733,14 @@ export default class MessageScreen extends React.Component {
                 );
               }}
             />
-          </View>
+            </View>
+            ) : (
+              <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
+                <Text style={{color:"gray",fontSize:20}}>
+                  No Seller History
+                </Text>
+              </View>
+            )}
         </Swiper>
         {/* <View style={{marginTop:40,position:"absolute",top:60,right:5}}>
           <View style={{flexDirection:"column",alignItems:"flex-end"}}>
@@ -692,11 +784,6 @@ export default class MessageScreen extends React.Component {
             />
           </View>
         </View> */}
-        <HistoryModal
-          navigation={this.props.navigation}
-          popupVisible={this.state.popupVisible}
-          togglePopupVisibility={this.togglePopupVisibility}
-        />
       </View>
     );
   }

@@ -15,7 +15,8 @@ import BuyModalScreen from "./client/screens/BuyModalScreen"
 import RoomScreen from "./client/screens/RoomScreen";
 import VerifyScreen from "./client/screens/VerifyScreen";
 import UploadImages from './client/screens/UploadImages'
-import HistoryPage from "./client/screens/HistoryPage"
+import HistoryPage from './client/screens/HistoryPage'
+import SelectedOrderModal from "./client/screens/SelectedOrderModal";
 import firebase from "./config"
 
 const AppContainer = createStackNavigator(
@@ -85,6 +86,9 @@ const AppContainer = createStackNavigator(
         },
         Room:{
             screen: RoomScreen,
+        },
+        SelectedOrderModal:{
+            screen:SelectedOrderModal,
         },
         UploadImages:{
             screen: UploadImages,

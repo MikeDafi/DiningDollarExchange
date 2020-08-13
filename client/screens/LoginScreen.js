@@ -5,6 +5,7 @@ import { Notifications } from 'expo';
 import * as Permissions from 'expo-permissions';
 import Constants from 'expo-constants';
 import UserPermissions from "../../utilities/UserPermissions"
+import * as FileSystem from 'expo-file-system';
 export default class LoginScreen extends React.Component{
 
     state = {
@@ -22,6 +23,8 @@ export default class LoginScreen extends React.Component{
         console.log("woohoo")
         firebase.auth().signInWithEmailAndPassword(email,password).then( async usercredentials =>{
             if(firebase.auth().currentUser.emailVerified){
+                await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"accountObject/",{intermediates:true})
+                await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"profileImage/",{intermediates:true})
                 const user = firebase.auth().currentUser;
                                 const start = user.email.indexOf("@")
                 const end = user.email.indexOf(".com")

@@ -535,7 +535,7 @@ export default class ProfileScreenModal extends React.Component {
                           ? "Delete"
                           : this.props.modal.title == "Sign Out"
                           ? "Sign Out"
-                          : "Save"}
+                          : "Ok"}
                       </Text>
                     </Col>
                   </TouchableWithoutFeedback>

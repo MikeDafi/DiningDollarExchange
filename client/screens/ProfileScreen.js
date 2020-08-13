@@ -1,21 +1,34 @@
-import React from "react"
-import {Animated,View,Text,StyleSheet,TouchableOpacity,ScrollView,Dimensions,TouchableWithoutFeedback,Switch} from "react-native"
-const windowWidth = Dimensions.get('window').width;
-const windowHeight = Dimensions.get('window').height;
-import {FontAwesome,AntDesign} from "@expo/vector-icons"
-import RatingUser from './RatingUser'
-import * as firebase from 'firebase'
-import Modal from 'react-native-modal';
-import Image from 'react-native-image-progress';
-import DropDownPicker from 'react-native-dropdown-picker';
-import ProfileScreenModal from "./ProfileScreenModal"
-import Loading from "./LoadingScreen"
-import UserPermissions from "../../utilities/UserPermissions"
-import * as ImagePicker from "expo-image-picker"
-const clone = require('rfdc')()
+import React from "react";
+import {
+  Animated,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+  TouchableWithoutFeedback,
+  Switch,
+  AsyncStorage,
+} from "react-native";
+const windowWidth = Dimensions.get("window").width;
+const windowHeight = Dimensions.get("window").height;
+import { FontAwesome, AntDesign } from "@expo/vector-icons";
+import RatingUser from "./RatingUser";
+import * as firebase from "firebase";
+import Modal from "react-native-modal";
+import Image from "react-native-image-progress";
+import DropDownPicker from "react-native-dropdown-picker";
+import ProfileScreenModal from "./ProfileScreenModal";
+import Loading from "./LoadingScreen";
+import UserPermissions from "../../utilities/UserPermissions";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from 'expo-file-system';
+const clone = require("rfdc")();
 export default class ProfileScreen extends React.Component {
   state = {
-    imageUrl: "",
+    imageUri:"",
+    changedUrl: false,
     generalCategory: [],
     accountCategory: [],
     buyerDropdown: new Animated.Value(0),
@@ -53,18 +66,24 @@ export default class ProfileScreen extends React.Component {
     }).start();
   };
 
-    handlePickAvatar = async () =>{
-      UserPermissions.getCameraPermission()
+  handlePickAvatar = async () => {
+    UserPermissions.getCameraPermission();
+    try {
       let result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          // allowEditing:true,
-          // aspect:[4,3]
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
       });
-
-      if(!result.cancelled){
-          this.setState({imageUrl:result.uri})
+      if (!result.cancelled) {
+        this.setState({ imageUri: result.uri, changedUrl: true });
       }
+
+      console.log(result);
+    } catch (E) {
+      console.log(E);
     }
+  };
 
   async componentDidMount() {
     var email = firebase.auth().currentUser.email;
@@ -121,22 +140,15 @@ export default class ProfileScreen extends React.Component {
     };
 
     this.setState({ accountCategory, notificationCategory });
-    var imageUrl = "";
     const image = firebase
       .storage()
       .ref()
       .child("profilePics/" + realDomain + "/" + email + "/profilePic.jpg");
     const promises = [];
-    promises.push(
-      image
-        .getDownloadURL()
-        .then((foundURL) => {
-          this.setState({ imageUrl: foundURL });
-        })
-        .catch((error) => {
-          console.log(error);
-        })
-    );
+    var profileImageUrl = ""
+    let profileObject = await AsyncStorage.getItem('profileObject')
+    profileObject = JSON.parse(profileObject);
+
 
     promises.push(
       firebase
@@ -145,12 +157,30 @@ export default class ProfileScreen extends React.Component {
         .once("value", (snapshot) => {
           const accountCategory = this.state.accountCategory;
           accountCategory[1].isBuyer = snapshot.val().isBuyer;
-          console.log(snapshot.val());
+          // console.log(snapshot.val());
           accountCategory[2].isSeller = {
             searching: snapshot.val().isSeller.searching,
             ranges: this.convertToArray(snapshot.val().isSeller.ranges),
           };
+          if(snapshot.val().profileImageUrl){
+            profileImageUrl = snapshot.val().profileImageUrl
+          }else{
+            promises.push(
+              image
+                .getDownloadURL()
+                .then((foundURL) => {
+                                  profileImageUrl = foundURL
+                  firebase
+                    .database()
+                    .ref("users/" + realDomain + "/" + email).update({profileImageUrl: foundURL})
+                                console.log("done finding")
+                })
+                .catch((error) => {
+                  console.log(error);
+                })
 
+            );
+          }
           const notifications = snapshot.val().notifications;
           notificationCategory.buyer = notifications.buyer;
           notificationCategory.seller = notifications.seller;
@@ -162,7 +192,7 @@ export default class ProfileScreen extends React.Component {
             rating: snapshot.val().starRating,
           });
 
-          console.log("notification ", accountCategory);
+          // console.log("notification ", accountCategory);
         })
     );
 
@@ -175,6 +205,33 @@ export default class ProfileScreen extends React.Component {
       ]),
       loading: false,
     });
+    console.log("profileImageUrl ", profileImageUrl)
+    console.log("profileObject" , profileObject)
+
+    if(!profileObject || profileImageUrl != profileObject.url || profileObject.uri == undefined){//compare urls
+      console.log("trying to download")
+      if(!profileObject && !profileObject.uri){
+        console.log("delete")
+        await this.deleteUri(profileObject.uri)
+      }
+      try{
+      const uri = profileImageUrl == "" ? "" : await this.downloadUrl(profileImageUrl,"profileImage")
+      const newProfileObject = {uri,url : profileImageUrl}
+      await AsyncStorage.setItem("profileObject", JSON.stringify(newProfileObject))
+        .then( ()=>{
+        console.log("It was saved successfully")
+        } )
+        .catch( ()=>{
+        console.log("There was an error saving the product")
+        } )
+      this.setState({imageUri : uri})
+      }catch(e){
+        console.log("big error")
+      }
+    }else{
+      console.log("the same url",profileObject.uri)
+      this.setState({imageUri : profileObject.uri})
+    }
   }
 
   updatingFields = () => {
@@ -238,11 +295,20 @@ export default class ProfileScreen extends React.Component {
         name: this.state.generalCategory[0].field,
       });
 
+    if (this.state.changedUrl) {
+      console.log("changed url")
+      this.uriToBlob(this.state.imageUri).then((blob) => {
+        console.log("this.state.imageUri ", this.state.imageUri)
+        this.uploadToFirebase(blob)
+      })
+    }
+
     user.updateProfile({
       displayName: this.state.generalCategory[0].field,
     });
 
     this.setState({
+      changedUrl: false,
       beforeChanges: clone([
         this.state.generalCategory,
         this.state.accountCategory,
@@ -251,35 +317,123 @@ export default class ProfileScreen extends React.Component {
     });
   };
 
+  uriToBlob = (uri) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        // return the blob
+        resolve(xhr.response);
+      };
+
+      xhr.onerror = function () {
+        // something went wrong
+        reject(new Error("uriToBlob failed"));
+      };
+      // this helps us get a blob
+      xhr.responseType = "blob";
+      xhr.open("GET", uri, true);
+
+      xhr.send(null);
+    });
+  };
+
+  uploadToFirebase = (blob) => {
+    return new Promise((resolve, reject) => {
+      var storageRef = firebase.storage().ref();
+      const user = firebase.auth().currentUser;
+      const start = user.email.indexOf("@");
+      const end = user.email.indexOf(".com");
+      const domain = user.email.substring(start, end);
+      const email = user.email.substring(0, end);
+      storageRef
+        .child(`/profilePics/${domain}/${email}/profilePic.jpg`)
+        .put(blob, {
+          contentType: "image/jpeg",
+        }).then(() => {
+          console.log("image")
+ const image = firebase
+          .storage()
+          .ref()
+          .child("profilePics/" + domain + "/" + email + "/profilePic.jpg");
+          image
+            .getDownloadURL()
+            .then((foundURL) => {
+              console.log("foundUrl")
+              firebase
+                .database()
+                .ref("users/" + domain + "/" + email).update({profileImageUrl: foundURL})
+        })
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
+  };
+
   uploadAndStars = () => {
     return (
       <View style={styles.uploadAndStars}>
+        <View
+          style={{
+            width: windowWidth,
+            paddingTop: 10,
+            paddingHorizontal: 25,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() =>
+              this.setState({
+                changedUrl: false,
+                generalCategory: this.state.beforeChanges[
+                  this.state.generalCategoryIndex
+                ],
+                accountCategory: this.state.beforeChanges[
+                  this.state.accountCategoryIndex
+                ],
+                notificationCategory: this.state.beforeChanges[
+                  this.state.notificationCategoryIndex
+                ],
+              })
+            }
+          >
+            <Text style={{ color: "white", fontSize: 18 }}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={{ color: "white", fontSize: 18 }}>Edit Profile</Text>
+          <TouchableOpacity onPress={() => this.saveToFirebase()}>
+            <Text style={{ color: "white", fontSize: 18 }}>Save</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.profileImage}>
-        <TouchableOpacity activeOpacity={0.7}
-        onPress={() => this.handlePickAvatar()}>
-          {this.state.imageUrl ? (
-            <Image
-              source={{ url: this.state.imageUrl }}
-              threshold={0}
-              style={{
-                width: 120,
-                height: 120,
-                margin: 0,
-                padding: 0,
-              }}
-              imageStyle={{ borderRadius: 120 }}
-            />
-          ) : (
-            <View style={{ justifyContent: "center", alignItems: "center" }}>
-              <FontAwesome
-                style={{ marginTop: -10 }}
-                name="user"
-                size={80}
-                color="black"
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => this.handlePickAvatar()}
+          >
+            {this.state.imageUri ? (
+              <Image
+                source={{ url: this.state.imageUri }}
+                threshold={0}
+                style={{
+                  width: 120,
+                  height: 120,
+                  margin: 0,
+                  padding: 0,
+                }}
+                imageStyle={{ borderRadius: 120 }}
               />
-              <Text>Upload Photo</Text>
-            </View>
-          )}
+            ) : (
+              <View style={{ justifyContent: "center", alignItems: "center" }}>
+                <FontAwesome
+                  style={{ marginTop: -10 }}
+                  name="user"
+                  size={80}
+                  color="black"
+                />
+                <Text>Upload Photo</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
         <RatingUser
@@ -601,7 +755,7 @@ export default class ProfileScreen extends React.Component {
                         this._close(this.state.sellerDropdown);
                       }}
                       items={[
-                        { label: "0 to 5", value: 8 },
+                        { label: "1 to 5", value: 8 },
                         { label: "5 to 10", value: 4 },
                         { label: "10 to 15", value: 2 },
                         { label: "15+", value: 1 },
@@ -957,41 +1111,145 @@ export default class ProfileScreen extends React.Component {
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const realEmail = user.email.substring(0, end);
-    this.setLoading(true)
-    firebase.database().ref('users/' + domain +'/' + realEmail).update({
-      expoToken : null,
-      active : false,
-    })
-    firebase.auth().signOut(); 
-  }
+    this.setLoading(true);
+    firebase
+      .database()
+      .ref("users/" + domain + "/" + realEmail)
+      .update({
+        expoToken: null,
+        active: false,
+      });
+    firebase.auth().signOut();
+  };
 
   deleteAndSignOut = () => {
-    return(
-    <View style={{flexDirection:"row",marginHorizontal:35,alignItems:"center",justifyContent:"space-between",height:50}}>
-              <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => this.setModal("Delete Account", "", true)}
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          marginHorizontal: 35,
+          alignItems: "center",
+          justifyContent: "space-between",
+          height: 50,
+        }}
+      >
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => this.setModal("Delete Account", "", true)}
         >
-      <View style={{ flexDirection:"row",borderRadius: 10, height: 50,width:(windowWidth/2) - 37,alignItems:"center",justifyContent:"center",backgroundColor: "#FF7376" }}>
-        <Text style={{fontWeight:"bold",fontSize:18,color:"#3A3535"}}>Delete Account</Text>
-
-      </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() =>  this.signOutHelper()}
+          <View
+            style={{
+              flexDirection: "row",
+              borderRadius: 10,
+              height: 50,
+              width: windowWidth / 2 - 37,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#FF7376",
+            }}
+          >
+            <Text
+              style={{ fontWeight: "bold", fontSize: 18, color: "#3A3535" }}
+            >
+              Delete Account
+            </Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => this.signOutHelper()}
         >
-      <View style={{ flexDirection:"row",borderRadius: 10, height: 50,width:(windowWidth/2) - 37,alignItems:"center",justifyContent:"center",backgroundColor: "#DADADA" }}>
-        <Text style={{fontWeight:"bold",fontSize:20,color:"white"}}>Sign Out</Text>
-
+          <View
+            style={{
+              flexDirection: "row",
+              borderRadius: 10,
+              height: 50,
+              width: windowWidth / 2 - 37,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#DADADA",
+            }}
+          >
+            <Text style={{ fontWeight: "bold", fontSize: 20, color: "white" }}>
+              Sign Out
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
-              </TouchableOpacity>
-    </View>
-    )
+    );
   };
 
   setLoading = (value) => {
-    this.setState({loading : value})
+    this.setState({ loading: value });
+  };
+
+  deleteUri = async(path) => {
+    try{
+      await FileSystem.deleteAsync(path, {})
+    }catch(e){
+      console.log("ERROR deleting profile image in profile screen")
+    }
+  }
+
+  downloadUrl = async (url,name) => {
+    const callback = downloadProgress => {
+    const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+    // this.setState({
+    //   downloadProgress: progress,
+    // });
+  }
+
+  console.log("url ", url)
+  await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"profileImage/",{intermediates:true})
+  const downloadResumable = FileSystem.createDownloadResumable(
+      url,
+      FileSystem.documentDirectory  + "profileImage/" + name + ".png",
+      {},
+      callback
+    )
+
+    try {
+      const { uri } = await downloadResumable.downloadAsync();
+      console.log('Finished downloading to ', uri);
+      return uri;
+    } catch (e) {
+      console.error(e);
+    }
+
+
+    // try {
+    //   await downloadResumable.pauseAsync();
+    //   console.log('Paused download operation, saving for future retrieval');
+    //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    //   this.setState({imageUrl :uri})
+    // } catch (e) {
+    //   console.error(e);
+    // }
+
+    //To resume a download across app restarts, assuming the the DownloadResumable.savable() object was stored:
+    // const downloadSnapshotJson = await AsyncStorage.getItem('pausedDownload');
+    // const downloadSnapshot = JSON.parse(downloadSnapshotJson);
+    // const downloadResumable = new FileSystem.DownloadResumable(
+    //   downloadSnapshot.url,
+    //   downloadSnapshot.fileUri,
+    //   downloadSnapshot.options,
+    //   callback,
+    //   downloadSnapshot.resumeData
+    // );
+
+    // try {
+    //   const { uri } = await downloadResumable.resumeAsync();
+    //   console.log('Finished downloading to ', uri);
+    // } catch (e) {
+    //   console.error(e);
+    // }
   }
 
   render() {
@@ -1001,13 +1259,14 @@ export default class ProfileScreen extends React.Component {
     return (
       <View style={styles.container}>
         <ScrollView>
+
           {this.uploadAndStars()}
           {this.general()}
           {this.account()}
           {this.notifications()}
           {this.deleteAndSignOut()}
         </ScrollView>
-        {this.updatingFields()}
+        {/* {this.updatingFields()} */}
         <ProfileScreenModal
           submitModal={this.submitModal}
           modal={this.state.modal}
@@ -1019,27 +1278,27 @@ export default class ProfileScreen extends React.Component {
   }
 }
 
-const styles= StyleSheet.create({
-    container:{
-        flex:1,
-        alignItems:"center",
-        justifyContent:"center",
-        backgroundColor:"white",
-    },
-    uploadAndStars:{
-        justifyContent:"flex-end", 
-        alignItems:"center",
-        width:windowWidth,
-        height:windowHeight/3,
-        paddingBottom:20,
-        backgroundColor:"black"
-    },
-    profileImage:{
-        justifyContent:"center", 
-        alignItems:"center",
-        width:130,
-        height:130,
-        borderRadius:130,
-        backgroundColor:"white"
-    }
-})
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+  },
+  uploadAndStars: {
+    justifyContent: "flex-end",
+    alignItems: "center",
+    width: windowWidth,
+    height: windowHeight / 3,
+    paddingBottom: 20,
+    backgroundColor: "black",
+  },
+  profileImage: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: 130,
+    height: 130,
+    borderRadius: 130,
+    backgroundColor: "white",
+  },
+});
