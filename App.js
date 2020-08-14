@@ -17,6 +17,7 @@ import VerifyScreen from "./client/screens/VerifyScreen";
 import UploadImages from './client/screens/UploadImages'
 import HistoryPage from './client/screens/HistoryPage'
 import SelectedOrderModal from "./client/screens/SelectedOrderModal";
+import Statistics from "./client/screens/Statistics"
 import firebase from "./config"
 
 const AppContainer = createStackNavigator(
@@ -92,6 +93,9 @@ const AppContainer = createStackNavigator(
         },
         UploadImages:{
             screen: UploadImages,
+        },
+        Statistics:{
+            screen: Statistics,
         }
     },
     {

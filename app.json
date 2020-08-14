@@ -4,6 +4,8 @@
   "expo": {
     "name": "DDE",
     "slug": "DDE",
+    "orientation": "portrait",
+    "icon" : "./client/assets/AppIconSquare.png",
     "version": "1.0.0",
     "platforms": [
       "ios",

@@ -51,14 +51,14 @@ export default class MessageScreen extends React.Component {
     loadingSeller : true,
   }
 
-  setPage = (index) => {
+  setPage = async(index) => {
     const user = firebase.auth().currentUser || {};
     const start = (user.email || "").indexOf("@");
     const end = (user.email || "").indexOf(".com");
     const domain = (user.email || "").substring(start, end);
     const email = (user.email || "").substring(0, end);
+    await this.setState({ page: index });
     this.getUpdatedList(this.state.textSearchInput)
-    this.setState({ page: index });
 
     firebase
       .database()
@@ -142,7 +142,7 @@ export default class MessageScreen extends React.Component {
               if(snapshot.val().profileImageUrl){
                 if(otherChattersObject[[otherChatterEmail]] == undefined || !otherChattersObject[[otherChatterEmail]].uri || otherChattersObject[[otherChatterEmail]].url != snapshot.val().profileImageUrl){
                   console.log("trying to download")
-                    if(!otherChattersObject[[otherChatterEmail]] && !otherChattersObject[[otherChatterEmail]].uri){
+                    if(otherChattersObject[[otherChatterEmail]] && !otherChattersObject[[otherChatterEmail]].uri){
                       console.log("delete")
                       this.deleteUri(otherChattersObject[[otherChatterEmail]].uri)
                     }
@@ -387,13 +387,16 @@ export default class MessageScreen extends React.Component {
     const end = (user.email || "").indexOf(".com");
     const domain = (user.email || "").substring(start, end);
     const email = (user.email || "").substring(0, end);
-    
+    if(this.state.page == 0){
+      this.setState({loadingBuyer : true})
+    }else{
+      this.setState({loadingSeller : true})
+    }
     setTimeout(async () => {
 
       if(this.state.textSearchInput == textUnedited){
         const text = textUnedited.toLowerCase();
         if(this.state.page == 0){
-          this.setState({loadingBuyer : true})
           // console.log("page 0",text.length)
           if(this.state.beforeBuyerSearchList == undefined){
             await this.setState({beforeBuyerSearchList : this.state.threadsBuyer})
@@ -403,7 +406,6 @@ export default class MessageScreen extends React.Component {
             return;
           }
         }else{
-          this.setState({loadingSeller : true})
           if(this.state.beforeSellerSearchList == undefined){
             await this.setState({beforeSellerSearchList : this.state.threadsSeller})
           }else if(text.length == 0){
@@ -705,11 +707,19 @@ export default class MessageScreen extends React.Component {
               }}
             />}
           </View> ) : (
+              this.state.textSearchInput.length > 0 ?(
+                            
+              <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
+                <Text style={{color:"gray",fontSize:20}}>
+                  Found 0 Texts with "{this.state.textSearchInput}"
+                </Text>
+              </View> ) :(
               <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
                 <Text style={{color:"gray",fontSize:20}}>
                   No Buyer Messages
                 </Text>
               </View>
+              )
           )}
           {this.state.threadsSeller.length > 0 ? (
           <View style={{ height: windowHeight - 300 }}>
@@ -734,13 +744,21 @@ export default class MessageScreen extends React.Component {
                       clickedSeller[index] = false;
                       this.setState({ clickedSeller });
                     }}
-                    onPress={() =>
+                    onPress={() =>{
+                      if(this.state.textSearchInput != ""){
+                        this.props.navigation.navigate("Room", {
+                          thread: item.chatId,
+                          chattingUser: item.title,
+                          otherChatterEmail: item.otherChatterEmail,
+                          historyOrderKey: item.key
+                        })
+                      }
                       this.props.navigation.navigate("Room", {
                         thread: item.chatId,
                         chattingUser: item.title,
                         otherChatterEmail: item.otherChatterEmail,
                       })
-                    }
+                    }}
                   >
                     <View
                       style={[
@@ -798,11 +816,19 @@ export default class MessageScreen extends React.Component {
               }}
             />}
           </View> ) : (
+              this.state.textSearchInput.length > 0 ?(
+                            
               <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
                 <Text style={{color:"gray",fontSize:20}}>
-                  No Seller Messages
+                  Found 0 Texts with "{this.state.textSearchInput}"
+                </Text>
+              </View> ) :(
+              <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
+                <Text style={{color:"gray",fontSize:20}}>
+                  No Buyer Messages
                 </Text>
               </View>
+              )
           )}
         </Swiper>
         <PopupOrder

@@ -240,13 +240,13 @@ export default class ProfileScreenModal extends React.Component {
       <Row style={{ justifyContent: "center", alignItems: "flex-end" }}>
         {this.state.password.changed ? (
           <LottieView
-            source={require("./checkMarkAnimation.json")}
+            source={require("../assets/checkMarkAnimation.json")}
             autoPlay
             loop={false}
           />
         ) : (
           <LottieView
-            source={require("./xMarkAnimation.json")}
+            source={require("../assets/xMarkAnimation.json")}
             autoPlay
             loop={false}
           />
@@ -322,7 +322,7 @@ export default class ProfileScreenModal extends React.Component {
         </Row> */}
         <Row>
           <LottieView
-            source={require("./warningAnimation.json")}
+            source={require("../assets/warningAnimation.json")}
             autoPlay
             loop
           />

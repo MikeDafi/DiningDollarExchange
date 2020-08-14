@@ -62,7 +62,7 @@ export default class LoginScreen extends React.Component{
         return(
             <View style={styles.container}>
                   <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <ImageBackground source={require('./StartPage.png')} style={styles.image}>
+                <ImageBackground source={require('../assets/StartPage.png')} style={styles.image}>
                     <KeyboardAvoidingView
                         behavior={Platform.OS == "ios" ? "padding" : "height"}
                         style={{flex : 1}}

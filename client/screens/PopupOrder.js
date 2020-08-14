@@ -26,7 +26,7 @@ import { Col, Row, Grid } from "react-native-easy-grid";
 import * as firebase from "firebase";
 import Image from "react-native-image-progress";
 import SwipeButton from "rn-swipe-button";
-import arrowRight from "./arrowRight.png";
+import arrowRight from "../assets/arrowRight.png";
 import DatePicker from "react-native-datepicker";
 
 // import * as admin from 'firebase-admin';

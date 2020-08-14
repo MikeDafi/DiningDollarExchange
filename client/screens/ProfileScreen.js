@@ -208,9 +208,9 @@ export default class ProfileScreen extends React.Component {
     console.log("profileImageUrl ", profileImageUrl)
     console.log("profileObject" , profileObject)
 
-    if(!profileObject || profileImageUrl != profileObject.url || profileObject.uri == undefined){//compare urls
+    if(!profileObject || profileObject.uri == undefined || profileImageUrl != profileObject.url ){//compare urls
       console.log("trying to download")
-      if(!profileObject && !profileObject.uri){
+      if(profileObject && !profileObject.uri){
         console.log("delete")
         await this.deleteUri(profileObject.uri)
       }
@@ -373,10 +373,9 @@ export default class ProfileScreen extends React.Component {
   uploadAndStars = () => {
     return (
       <View style={styles.uploadAndStars}>
-        <View
+        {/* <View
           style={{
             width: windowWidth,
-            paddingTop: 10,
             paddingHorizontal: 25,
             flexDirection: "row",
             justifyContent: "space-between",
@@ -405,7 +404,26 @@ export default class ProfileScreen extends React.Component {
           <TouchableOpacity onPress={() => this.saveToFirebase()}>
             <Text style={{ color: "white", fontSize: 18 }}>Save</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
+        <View style={{justifyContent:"space-around",width:windowWidth,marginHorizontal:20,flexDirection:"row"}}>
+          <TouchableOpacity
+            onPress={() =>
+              this.setState({
+                changedUrl: false,
+                generalCategory: this.state.beforeChanges[
+                  this.state.generalCategoryIndex
+                ],
+                accountCategory: this.state.beforeChanges[
+                  this.state.accountCategoryIndex
+                ],
+                notificationCategory: this.state.beforeChanges[
+                  this.state.notificationCategoryIndex
+                ],
+              })
+            }
+          >
+            <Text style={{ color: "white", fontSize: 18 }}>Cancel</Text>
+          </TouchableOpacity>
         <View style={styles.profileImage}>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -435,7 +453,12 @@ export default class ProfileScreen extends React.Component {
               </View>
             )}
           </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => this.saveToFirebase()}>
+            <Text style={{ color: "white", fontSize: 18 }}>Save</Text>
+          </TouchableOpacity>
         </View>
+
         <RatingUser
           starSize={45}
           starCount={this.state.rating}
@@ -1289,7 +1312,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     alignItems: "center",
     width: windowWidth,
-    height: windowHeight / 3,
+    height: 250,
     paddingBottom: 20,
     backgroundColor: "black",
   },

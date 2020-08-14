@@ -151,7 +151,7 @@ export default class SellerHomeScreen extends React.Component {
         }}
         style={styles.container}>
         <ImageBackground
-          source={require("./SellerHomeScreenBackground.png")}
+          source={require("../assets/SellerHomeScreenBackground.png")}
           style={[styles.image]}
         >
           {/* <View style={{position:"absolute",left:100,top:100,width:75,height:75,backgroundColor:"red"}}> */}
@@ -173,7 +173,7 @@ export default class SellerHomeScreen extends React.Component {
             }}
           >
             <LottieView
-              source={require("./orderCoin.json")}
+              source={require("../assets/orderCoin.json")}
               autoPlay
               resizeMode="cover"
               style={{

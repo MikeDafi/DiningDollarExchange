@@ -9,7 +9,7 @@ import RatingUser from "./RatingUser"
 import Dialog, { DialogFooter, DialogButton, DialogContent } from 'react-native-popup-dialog';
 import Swiper from "react-native-swiper/src";
 import SwipeButton from 'rn-swipe-button';
-import arrowRight from './arrowRight.png';
+import arrowRight from '../assets/arrowRight.png';
 import ImageViewer from "react-native-image-zoom-viewer";
 import * as FileSystem from 'expo-file-system';
 import {
@@ -641,7 +641,7 @@ export default class SelectedOrderModal extends React.Component {
             <Col style={{justifyContent:"flex-start",alignItems:"center"}}>
               <LottieView
               style={{width:65,height:65,position:"absolute",marginTop:-3}}
-                source={require("./yellowCircle.json")}
+                source={require("../assets/yellowCircle.json")}
                 autoPlay
               />
               
