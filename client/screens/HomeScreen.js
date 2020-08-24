@@ -330,6 +330,10 @@ export default class HomeScreen extends React.Component {
         this._swiper.scrollBy(1);
       }
     }
+    const array = [1,2,3].map((element) => {
+                return(
+                  <View style={{flex:1,flexDirection:"row",width:200,height:200,backgroundColor:element== 2 ? "blue" : "red"}}/>
+              )})
     return (
       <View style={styles.container}>
         <QuickOrder
@@ -345,7 +349,11 @@ export default class HomeScreen extends React.Component {
             this._swiper = swiper;
           }}
           loop={false}
+          bounces
+          horizontal
           onIndexChanged={this.setPage}
+          containerStyle={{flexDirection:"row"}}
+          style={{flexDirection:"row"}}
         >
           <BuyerHomeScreen navigation={this.props.navigation} />
           <View style={{marginTop:70}}>

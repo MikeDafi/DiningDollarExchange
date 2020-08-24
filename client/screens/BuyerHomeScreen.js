@@ -86,10 +86,10 @@ export default class BuyerHomeScreen extends React.Component {
         ]}
       >
         <TouchableOpacity onPress={() => {
-            this.props.navigation.navigate("Statistics", {
+            this.props.navigation.navigate("SavedOrders", {
             })
         }}>
-        <Text>Statistics</Text>
+        <Text>Saved Orders</Text>
         </TouchableOpacity>
       </View>
     );

@@ -242,8 +242,8 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   image: {
-    resizeMode: "contain",
-    width: "100%",
-    height: "100%",
+    resizeMode: "cover",
+    width:"100%",
+    height:"100%"
   },
 });

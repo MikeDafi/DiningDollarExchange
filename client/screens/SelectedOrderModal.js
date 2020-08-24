@@ -178,10 +178,10 @@ export default class SelectedOrderModal extends React.Component {
             <Modal
         testID={"modal"}
         isVisible={this.state.showImageViewer}
-        // onBackdropPress={() => {this.props.togglePopupVisibility(false);}}
+        onBackdropPress={() => {this.setState({showImageViewer:false})}}
         animationIn="slideInUp"
         animationInTiming={500}
-        style={{ width: windowWidth, height: windowHeight, margin: 0 }}
+        style={{ overflow:"visible",width: windowWidth, height: windowHeight, margin: 0 }}
       >
         <ImageViewer
           index={this.state.imageIndex}
@@ -298,7 +298,7 @@ export default class SelectedOrderModal extends React.Component {
                       viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]]= {url : foundURL,uri}
                     }
                     console.log("got uri")
-                    imageUrls.push({url : foundURL,uri : viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]].uri})
+                    imageUrls.push({url : viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]].uri})
                   })
               )
             })
@@ -700,7 +700,7 @@ export default class SelectedOrderModal extends React.Component {
                           // </View>
                   <View key={i}
                     style={[styles.view, {height:this.state.carouselHeight - 60,alignItems:"center",justifyContent:"center",width: modalWidth - 100,backgroundColor: 'rgba(252,220,0,1)'}]} >
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => {this.setState({showImageViewer : true})}}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => {this.setState({showImageViewer : true,imageIndex:i})}}>
                       
                       <Image key={i} style={{resizeMode:"contain",width:modalWidth-100,height:this.state.carouselHeight-100}} source={{ uri: x.uri }}/>
                     </TouchableOpacity>
@@ -731,7 +731,7 @@ export default class SelectedOrderModal extends React.Component {
                   alignItems: "center",
                 }}
               >
-                <Text style={{ fontSize: 20,color:"#FD7070" }}>
+                <Text style={{ fontSize: 20,textDecorationLine: 'underline',color:"#FD7070" }}>
                   Reject
                 </Text>
               </Col>
@@ -754,6 +754,16 @@ export default class SelectedOrderModal extends React.Component {
           </Row>
 
         </Grid>}
+        <View style={{top:-50,right:0,position:"absolute"}}>
+          <TouchableOpacity onPress={() => {
+                      this.setState({modalOn : false})
+          this._close(this.state.animatedWidth); 
+          this._close(this.state.animatedHeight)
+          this.props.navigation.goBack();
+          }}>
+            <AntDesign name="close" size={50} color="white" />
+          </TouchableOpacity>
+        </View>
         {this.state.acceptedOrderVisible != undefined && (this.state.acceptedOrderVisible ?
           <ActivityIndicator size="large"></ActivityIndicator>
         :
