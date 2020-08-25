@@ -51,33 +51,34 @@ const clone = require("rfdc")();
 export default class SpecificSavedOrder extends React.Component {
   state = {
     searching: true,
-    uploadImagesVisible : false,
+    uploadImagesVisible: false,
     deleteHighlight: new Animated.Value(0),
-    isDeleting:false,
+    isDeleting: false,
     saveHighlight: new Animated.Value(0),
     rangeSelected: this.props.rangeSelected || "",
     timePreference: "",
     amOrPm: "",
-    dateTimeStamp: "",
+    dateTimeStamp: this.props.timestamp || "",
     newThumbnail: false,
-    invalidTime: false,
     orderTitle: this.props.orderTitle || "",
-    editing: this.props.newOrder ,
+    editing: this.props.newOrder,
     imageNames: [],
     thumbnail: this.props.thumbnail || "",
-    imageUrls : Object.values(this.props.imageUrls || []).map(x => {return {url : x}}) ,
-    beforeEditing : {},
+    imageUrls: Object.values(this.props.imageUrls || []).map((x) => {
+      return { url: x };
+    }),
+    beforeEditing: {},
     possibleProfitVisible: false,
     carouselHeight: 0,
     cancelHighlight: false,
-    toDeleteImages : [],
-    toAddImages : [],
+    toDeleteImages: [],
+    toAddImages: [],
     modalOn: true,
     imageIndex: 0,
     showImageViewer: false,
-    newOrder : this.props.newOrder,
+    hasSaved: true,
+    newOrder: this.props.newOrder,
   };
-
 
   handlePickAvatar = async () => {
     UserPermissions.getCameraPermission();
@@ -88,11 +89,21 @@ export default class SpecificSavedOrder extends React.Component {
         aspect: [4, 3],
       });
       if (!result.cancelled) {
-        const toDeleteImages = this.state.toDeleteImages
-        if(this.state.thumbnail && this.state.thumbnail.length > 1){
-          toDeleteImages.push(this.state.thumbnail)
+        const toDeleteImages = this.state.toDeleteImages;
+        if (
+          this.state.thumbnail &&
+          this.state.thumbnail.length > 1 &&
+          hasSaved &&
+          !this.state.newOrder
+        ) {
+          toDeleteImages.push(this.state.thumbnail);
         }
-        this.setState({ thumbnail: result.uri,newThumbnail:true,toDeleteImages });
+        this.setState({
+          thumbnail: result.uri,
+          newThumbnail: true,
+          hasSaved: false,
+          toDeleteImages,
+        });
       }
 
       console.log(result);
@@ -108,14 +119,12 @@ export default class SpecificSavedOrder extends React.Component {
       return;
     }
     console.log("here ");
-    const imageUrls = this.state.imageUrls
-    const toAddImages = this.state.toAddImages
+    const imageUrls = this.state.imageUrls;
+    const toAddImages = this.state.toAddImages;
     await params.then(async (images) => {
       for (var i = 0; i < images.length; i++) {
-        console.log("imageHappened");
-        let name = this.generateRandomString();
-        imageUrls.push({url : images[i].uri});
-        toAddImages.push(images[i].uri)
+        imageUrls.push({ url: images[i].uri });
+        toAddImages.push(images[i].uri);
       }
     });
     this.setState({
@@ -123,7 +132,6 @@ export default class SpecificSavedOrder extends React.Component {
       toAddImages,
     });
   };
-
 
   timestamp = () => {
     return firebase.database.ServerValue.TIMESTAMP;
@@ -150,7 +158,7 @@ export default class SpecificSavedOrder extends React.Component {
         isVisible={this.state.showImageViewer}
         onBackdropPress={() => {
           this.setState({ showImageViewer: false });
-          this.props.toggleShowSwiperButtons(true)
+          this.props.toggleShowSwiperButtons(true);
         }}
         animationIn="slideInUp"
         animationInTiming={500}
@@ -161,15 +169,16 @@ export default class SpecificSavedOrder extends React.Component {
           imageUrls={this.state.imageUrls}
           enableSwipeDown
           onSwipeDown={() => {
-            this.setState({ showImageViewer: false })
-            this.props.toggleShowSwiperButtons(true)
-            }}
+            this.setState({ showImageViewer: false });
+            this.props.toggleShowSwiperButtons(true);
+          }}
         />
         <View style={{ position: "absolute", left: windowWidth - 50, top: 30 }}>
           <TouchableOpacity
-            onPress={() => {this.setState({ showImageViewer: false })
-            
-                      this.props.toggleShowSwiperButtons(true)
+            onPress={() => {
+              this.setState({ showImageViewer: false });
+
+              this.props.toggleShowSwiperButtons(true);
             }}
           >
             <AntDesign name="close" size={35} color="white" />
@@ -184,19 +193,22 @@ export default class SpecificSavedOrder extends React.Component {
   }
 
   formatTime = (timestamp) => {
-    if(timestamp && timestamp > 1){
-    const orderDate = new Date(parseInt(timestamp));
+    if (timestamp && timestamp > 1) {
+      const orderDate = new Date(parseInt(timestamp));
 
-    const AM = orderDate.getHours() < 12 ? true : false;
-    const hour = AM ? orderDate.getHours() : orderDate.getHours() - 12;
-    const minute = "0" + orderDate.getMinutes();
-    const time = hour + ":" + minute.substr(-2);
-    // const date = orderDate.getDay() + '/' + (orderDate.getMonth() + 1)
-    this.setState({ timePreference: time, amOrPm: AM ? "am" : "pm" });
-    }else{
-      this.setState({timePreference:"N/A",amOrPm:null})
+      const AM = orderDate.getHours() < 12 ? true : false;
+      const hour = AM ? orderDate.getHours() : orderDate.getHours() - 12;
+      const minute = "0" + orderDate.getMinutes();
+      const time = hour + ":" + minute.substr(-2);
+      // const date = orderDate.getDay() + '/' + (orderDate.getMonth() + 1)
+      this.setState({
+        timePreference: time,
+        timestamp,
+        amOrPm: AM ? "am" : "pm",
+      });
+    } else {
+      this.setState({ timePreference: "N/A", amOrPm: null });
     }
-
   };
 
   acceptedOrderError = () => {
@@ -267,7 +279,7 @@ export default class SpecificSavedOrder extends React.Component {
     );
   };
 
-      generateRandomString = () => {
+  generateRandomString = () => {
     return Math.random().toString().substr(2, 20);
   };
 
@@ -311,28 +323,28 @@ export default class SpecificSavedOrder extends React.Component {
             }}
           >
             <Text style={{ fontSize: 15 }}>
-              <Text>You Make </Text>
+              <Text>You Pay </Text>
               <Text style={{ fontWeight: "700" }}>80%</Text>
               <Text> in </Text>
               <Text style={{ color: "green" }}>Cash</Text>
               {this.state.rangeSelected.includes("to") ? (
                 <Text>
                   <Text>. For a "{this.state.rangeSelected}" range, the </Text>
-                  <Text style={{ fontWeight: "bold" }}> maximum </Text>
-                  <Text> profit is </Text>
+                  <Text style={{ fontWeight: "bold" }}> minimum </Text>
+                  <Text> price you will pay is </Text>
                 </Text>
               ) : this.state.rangeSelected.includes("+") ? (
                 <Text>
                   <Text>. For a "{this.state.rangeSelected}" range, the </Text>
                   <Text style={{ fontWeight: "bold" }}> minimum </Text>
-                  <Text> profit is </Text>
+                  <Text> price you will pay is </Text>
                 </Text>
               ) : (
                 <Text>
                   <Text>
                     . For a price of ${this.state.rangeSelected}, the{" "}
                   </Text>
-                  <Text> profit is </Text>
+                  <Text> price to pay is </Text>
                 </Text>
               )}
             </Text>
@@ -341,10 +353,7 @@ export default class SpecificSavedOrder extends React.Component {
                 style={{ fontWeight: "700", color: "#4CBB17", fontSize: 18 }}
               >
                 {parseInt(
-                  this.state.rangeSelected
-                    .substring(this.state.rangeSelected.length - 2)
-                    .split(" ")
-                    .join("")
+                  this.state.rangeSelected.substring(0, 2).split(" ").join("")
                 ) * 0.8}{" "}
                 Dollars
               </Text>
@@ -358,7 +367,10 @@ export default class SpecificSavedOrder extends React.Component {
               <Text
                 style={{ fontWeight: "700", color: "#4CBB17", fontSize: 18 }}
               >
-                {Math.ceil(parseInt(this.state.rangeSelected) * 0.8)} Dollars
+                {isNaN(this.state.rangeSelected)
+                  ? "N/A"
+                  : Math.ceil(parseInt(this.state.rangeSelected) * 0.8)}{" "}
+                Dollars
               </Text>
             )}
           </View>
@@ -382,7 +394,7 @@ export default class SpecificSavedOrder extends React.Component {
     );
   };
 
- deleteConfirmation = () => {
+  deleteConfirmation = () => {
     return (
       <View
         style={{
@@ -426,43 +438,48 @@ export default class SpecificSavedOrder extends React.Component {
               Are you sure you want to Delete this order?
             </Text>
           </View>
-          <View style={{flexDirection:"row"}}>
-          <TouchableOpacity
-            onPress={() => 
-              this.setState({ 
-              isDeleting: true })}
-
-          >
-            <View
-              style={{
-                alignItems: "center",
-                justifyContent: "center",
-                borderTopWidth: 0.3,
-                borderRightWidth:0.2,
-                height: 50,
-                width: 125,
-                borderColor: "gray",
+          <View style={{ flexDirection: "row" }}>
+            <TouchableOpacity
+              onPress={() =>
+                this.setState({
+                  isDeleting: true,
+                })
+              }
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderTopWidth: 0.3,
+                  borderRightWidth: 0.2,
+                  height: 50,
+                  width: 125,
+                  borderColor: "gray",
+                }}
+              >
+                <Text>Cancel</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                this.setState({ isDeleting: false });
+                this.props.deleteSavedOrder(this.props.index);
+                this.props.exitSelectedOrderModal();
               }}
             >
-              <Text>Cancel</Text>
-            </View>
-          </TouchableOpacity>
-                    <TouchableOpacity
-            onPress={() => this.setState({ isDeleting: false })}
-          >
-            <View
-              style={{
-                alignItems: "center",
-                justifyContent: "center",
-                borderTopWidth: 0.3,
-                height: 50,
-                width: 125,
-                borderColor: "gray",
-              }}
-            >
-              <Text style={{color:"red"}}>Delete</Text>
-            </View>
-          </TouchableOpacity>
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderTopWidth: 0.3,
+                  height: 50,
+                  width: 125,
+                  borderColor: "gray",
+                }}
+              >
+                <Text style={{ color: "red" }}>Delete</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -562,62 +579,85 @@ export default class SpecificSavedOrder extends React.Component {
                 >
                   <Col style={{ width: firstRowHeight - firstRowPadding }}>
                     <TouchableOpacity
-                    disabled={!this.state.editing}
-                    onPress={() => this.handlePickAvatar()}>
-                    <View
-                      style={[{
-                        borderRadius: firstRowHeight - firstRowPadding,
-                        height: firstRowHeight - firstRowPadding,
-                        borderColor: "black",
-                        borderWidth: 1,
-                        alignItems: "center",
-                        justifyContent: "center",
-
-                      },this.state.editing ? styles.glowBorder : null]}
+                      disabled={!this.state.editing}
+                      onPress={() => this.handlePickAvatar()}
                     >
-                      
-                      {this.state.thumbnail && this.state.thumbnail.length > 1 ? (
-                        <Image
-                          source={{ url: this.state.thumbnail }}
-                          style={{
+                      <View
+                        style={[
+                          {
                             borderRadius: firstRowHeight - firstRowPadding,
-                            width: firstRowHeight - firstRowPadding,
                             height: firstRowHeight - firstRowPadding,
                             borderColor: "black",
                             borderWidth: 1,
                             alignItems: "center",
                             justifyContent: "center",
-                          }}
-                        />
-                      ) : (
-                        <>
-                          <MaterialCommunityIcons
-                            name="food"
-                            size={40}
-                            color="black"
+                          },
+                          this.state.editing ? styles.glowBorder : null,
+                        ]}
+                      >
+                        {this.state.thumbnail &&
+                        this.state.thumbnail.length > 1 ? (
+                          <Image
+                            source={{ url: this.state.thumbnail }}
+                            style={{
+                              borderRadius: firstRowHeight - firstRowPadding,
+                              width: firstRowHeight - firstRowPadding,
+                              height: firstRowHeight - firstRowPadding,
+                              borderColor: "black",
+                              borderWidth: 1,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
                           />
-                          <Text>Thumbnail</Text>
-                        </>
-                      )}
-                    </View>
-                                        </TouchableOpacity>
-                    {this.state.editing &&
-                              <View style={{position:"absolute",backgroundColor:"white",borderRadius:90,right:0,bottom:0}}>
-                               <TouchableOpacity onPress={() => {
-                                const toDeleteImages = this.state.toDeleteImages
-                                if(this.state.thumbnail && this.state.thumbnail.length > 1){
-                                  toDeleteImages.push(this.state.thumbnail)
-                                }
-                                this.setState({newThumbnail : true,thumbnail : "",toDeleteImages})
-                              }}>
-                                <AntDesign
-                                  name="delete"
-                                  backgroundColor="blue"
-                                  size={20}
-                                  color="red"
-                                />
-                              </TouchableOpacity>
-                              </View>}
+                        ) : (
+                          <>
+                            <MaterialCommunityIcons
+                              name="food"
+                              size={40}
+                              color="black"
+                            />
+                            <Text>Thumbnail</Text>
+                          </>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                    {this.state.editing && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          backgroundColor: "white",
+                          borderRadius: 90,
+                          right: 0,
+                          bottom: 0,
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => {
+                            const toDeleteImages = this.state.toDeleteImages;
+                            if (
+                              this.state.thumbnail &&
+                              this.state.thumbnail.length > 1 &&
+                              !this.state.newThumbnail &&
+                              !newOrder
+                            ) {
+                              toDeleteImages.push(this.state.thumbnail);
+                            }
+                            this.setState({
+                              newThumbnail: true,
+                              thumbnail: "",
+                              toDeleteImages,
+                            });
+                          }}
+                        >
+                          <AntDesign
+                            name="delete"
+                            backgroundColor="blue"
+                            size={20}
+                            color="red"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </Col>
                   <Col
                     style={{
@@ -732,7 +772,12 @@ export default class SpecificSavedOrder extends React.Component {
                       ) : (
                         <Text
                           style={{
-                            fontSize: 27,
+                            fontSize:
+                              this.state.rangeSelected == "5 to 10"
+                                ? 22
+                                : this.state.rangeSelected == "10 to 15"
+                                ? 20
+                                : 27,
                             fontWeight: "600",
                             color: "#4cBB17",
                           }}
@@ -746,12 +791,14 @@ export default class SpecificSavedOrder extends React.Component {
                     </View>
                   </Col>
                   <Col
-                    style={[{
-                      alignItems: "center",
-                      justifyContent: "center",
-                      overflow: "hidden",
-                    },
-                    this.state.editing ? styles.glowBorder : null]}
+                    style={[
+                      {
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                      },
+                      this.state.editing ? styles.glowBorder : null,
+                    ]}
                   >
                     <View
                       style={{ flexDirection: "row", justifyContent: "center" }}
@@ -769,19 +816,34 @@ export default class SpecificSavedOrder extends React.Component {
                     <View style={{ position: "absolute" }}>
                       {this.state.editing && this.datePicker()}
                     </View>
-                            {this.state.editing &&
-                              <View style={{position:"absolute",backgroundColor:"white",borderRadius:90,right:0,bottom:0}}>
-                               <TouchableOpacity onPress={() => {
-                                this.setState({timePreference:"N/A",amOrPm:null,dateTimeStamp:""})
-                              }}>
-                                <AntDesign
-                                  name="delete"
-                                  backgroundColor="blue"
-                                  size={20}
-                                  color="red"
-                                />
-                              </TouchableOpacity>
-                              </View>}
+                    {this.state.editing && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          backgroundColor: "white",
+                          borderRadius: 90,
+                          right: 0,
+                          bottom: 0,
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => {
+                            this.setState({
+                              timePreference: "N/A",
+                              amOrPm: null,
+                              dateTimeStamp: "",
+                            });
+                          }}
+                        >
+                          <AntDesign
+                            name="delete"
+                            backgroundColor="blue"
+                            size={20}
+                            color="red"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </Col>
                   <Col
                     style={{
@@ -808,7 +870,7 @@ export default class SpecificSavedOrder extends React.Component {
                           : this.state.rangeSelected.includes("to")
                           ? parseInt(
                               this.state.rangeSelected
-                                .substring(this.state.rangeSelected.length - 2)
+                                .substring(0, 2)
                                 .split(" ")
                                 .join("")
                             ) * 0.8
@@ -891,7 +953,7 @@ export default class SpecificSavedOrder extends React.Component {
                           <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => {
-                              this.props.toggleShowSwiperButtons(false)
+                              this.props.toggleShowSwiperButtons(false);
                               this.setState({
                                 showImageViewer: true,
                                 imageIndex: i,
@@ -912,13 +974,26 @@ export default class SpecificSavedOrder extends React.Component {
                             style={{ position: "absolute", right: 5, top: 5 }}
                           >
                             {this.state.editing && (
-                              <TouchableOpacity onPress={() => {
-                                const imageUrls = this.state.imageUrls
-                                const toDeleteImages = this.state.toDeleteImages
-                                toDeleteImages.push(imageUrls[i].url)
-                                imageUrls.splice(i,1)
-                                this.setState({imageUrls,toDeleteImages})
-                              }}>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  const imageUrls = this.state.imageUrls;
+                                  const toDeleteImages = this.state
+                                    .toDeleteImages;
+                                  const toAddImages = this.state.toAddImages;
+                                  toDeleteImages.push(imageUrls[i].url);
+                                  imageUrls.splice(i, 1);
+                                  for (var j = 0; j < toAddImages.length; j++) {
+                                    if (toAddImages[j] == imageUrls[i].url) {
+                                      toAddImages.splice(j, 1);
+                                    }
+                                  }
+                                  this.setState({
+                                    imageUrls,
+                                    toDeleteImages,
+                                    toAddImages,
+                                  });
+                                }}
+                              >
                                 <AntDesign
                                   name="delete"
                                   size={30}
@@ -933,19 +1008,23 @@ export default class SpecificSavedOrder extends React.Component {
                   </View>
                   {this.state.editing && (
                     <View style={{ position: "absolute", left: 2, top: 2 }}>
-                      <TouchableOpacity onPress={() => {this.setState({uploadImagesVisible : true})}}>
-                      <MaterialIcons
-                        name="add-a-photo"
-                        size={30}
-                        color="black"
-                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          this.setState({ uploadImagesVisible: true });
+                        }}
+                      >
+                        <MaterialIcons
+                          name="add-a-photo"
+                          size={30}
+                          color="black"
+                        />
                       </TouchableOpacity>
                     </View>
                   )}
                 </Row>
                 <Row
                   style={{
-                    overflow:"hidden",
+                    overflow: "hidden",
                     height: 60,
                     borderTopWidth: 2,
                     borderBottomLeftRadius: 20,
@@ -954,38 +1033,38 @@ export default class SpecificSavedOrder extends React.Component {
                 >
                   {this.state.editing ? (
                     <>
-                      {!this.state.newOrder &&
-                      <TouchableWithoutFeedback
-                        onPressIn={() =>
-                          this._start(
-                            this.state.deleteHighlight,
-                            modalWidth / 3,
-                            800
-                          )
-                        }
-                        onPressOut={() => {
-                          if (
-                            modalWidth/3 -
-                              this.state.deleteHighlight.__getValue() <=
-                            10
-                          ) {
-                            this.setState({isDeleting:true})
-                            this.props.toggleShowSwiperButtons(false)
+                      {!this.state.newOrder && (
+                        <TouchableWithoutFeedback
+                          onPressIn={() =>
+                            this._start(
+                              this.state.deleteHighlight,
+                              modalWidth / 3,
+                              800
+                            )
                           }
-                          this._close(this.state.deleteHighlight, 0);
-                        }}
-                        // onPress={() => {
-                        //   this.setState({ editing: false });
-                        // }}
-                      >
+                          onPressOut={() => {
+                            if (
+                              modalWidth / 3 -
+                                this.state.deleteHighlight.__getValue() <=
+                              10
+                            ) {
+                              this.setState({ isDeleting: true });
+                              this.props.toggleShowSwiperButtons(false);
+                            }
+                            this._close(this.state.deleteHighlight, 0);
+                          }}
+                          // onPress={() => {
+                          //   this.setState({ editing: false });
+                          // }}
+                        >
                           <Col
                             style={{
                               backgroundColor: "white",
                               justifyContent: "center",
                               borderBottomLeftRadius: 20,
                               borderTopColor: "black",
-                              borderRightColor:"gray",
-                              borderRightWidth:1,
+                              borderRightColor: "gray",
+                              borderRightWidth: 1,
                               alignItems: "center",
                             }}
                           >
@@ -999,7 +1078,8 @@ export default class SpecificSavedOrder extends React.Component {
                               Delete
                             </Text>
                           </Col>
-                      </TouchableWithoutFeedback>}
+                        </TouchableWithoutFeedback>
+                      )}
                       <TouchableWithoutFeedback
                         onPressIn={() =>
                           this.setState({ cancelHighlight: true })
@@ -1008,18 +1088,32 @@ export default class SpecificSavedOrder extends React.Component {
                           this.setState({ cancelHighlight: false })
                         }
                         onPress={() => {
-              console.log("beforeEditing ", this.state.beforeEditing)
-              this.setState({ 
-              editing: false,
-              thumbnail : this.state.beforeEditing["thumbnail"],
-              timePreference : this.state.beforeEditing["timePreference"],
-              imageUrls : this.state.beforeEditing["imageUrls"],
-              rangeSelected : this.state.beforeEditing["rangeSelected"],
-              orderTitle : this.state.beforeEditing["orderTitle"],
-              toDeleteImages : [],
-              toAddImages :[],
-              newThumbnail : false,
-              beforeEditing:{}  })}}
+                          console.log(
+                            "beforeEditing ",
+                            this.state.beforeEditing
+                          );
+                          this.setState({
+                            editing: false,
+                            thumbnail: this.state.beforeEditing["thumbnail"],
+                            timePreference: this.state.beforeEditing[
+                              "timePreference"
+                            ],
+                            imageUrls: this.state.beforeEditing["imageUrls"],
+                            rangeSelected: this.state.beforeEditing[
+                              "rangeSelected"
+                            ],
+                            orderTitle: this.state.beforeEditing["orderTitle"],
+                            dateTimeStamp: this.state.beforeEditing[
+                              "dateTimeStamp"
+                            ],
+                            amOrPm: this.state.beforeEditing["amOrPm"],
+                            toDeleteImages: [],
+                            toAddImages: [],
+                            newThumbnail: false,
+                            beforeEditing: {},
+                            hasSaved: true,
+                          });
+                        }}
                       >
                         <Col
                           style={{
@@ -1027,9 +1121,9 @@ export default class SpecificSavedOrder extends React.Component {
                               ? "#C5C5C5"
                               : "white",
                             justifyContent: "center",
-                            borderRightColor:"gray",
+                            borderRightColor: "gray",
                             borderTopColor: "black",
-                            borderRightWidth:1,
+                            borderRightWidth: 1,
                             alignItems: "center",
                           }}
                         >
@@ -1047,51 +1141,82 @@ export default class SpecificSavedOrder extends React.Component {
                         onPressIn={() =>
                           this._start(
                             this.state.saveHighlight,
-                            this.state.newOrder ? modalWidth /2 : modalWidth / 3,
+                            this.state.newOrder
+                              ? modalWidth / 2
+                              : modalWidth / 3,
                             800
                           )
                         }
                         onPressOut={() => {
                           if (
-                            modalWidth/3 -
+                            modalWidth / 3 -
                               this.state.saveHighlight.__getValue() <=
                             10
                           ) {
-                            if(!this.state.newOrder){
-                            const toAddImages = this.state.toAddImages
-                            if(this.state.newThumbnail && this.state.thumbnail && this.state.thumbnail.length > 1){
-
-                              toAddImages.push(this.state.thumbnail)
-                            }
-                            const updatedOrder = {
-                              range : this.state.rangeSelected,
-                              thumbnail : {uri : this.state.thumbnail,url : ""},
-                              title : this.state.orderTitle,
-                              timestamp : this.state.dateTimeStamp
-                            }
-                            this.props.updateOrderFirebase(updatedOrder,this.state.toDeleteImages,toAddImages,this.props.elementKey,this.props.index)
-                            this.setState({editing:false,toDeleteImages : [],toAddImages : [],beforeEditing:{},newThumbnail : false})
-                            }else{
-                              console.log("new Order")
+                            if (!this.state.newOrder) {
+                              const toAddImages = this.state.toAddImages;
+                              if (
+                                this.state.newThumbnail &&
+                                this.state.thumbnail &&
+                                this.state.thumbnail.length > 1
+                              ) {
+                                toAddImages.push(this.state.thumbnail);
+                              }
+                              const updatedOrder = {
+                                range: this.state.rangeSelected,
+                                thumbnail: {
+                                  uri: this.state.thumbnail,
+                                  url: "",
+                                },
+                                title: this.state.orderTitle,
+                                timestamp: this.state.dateTimeStamp,
+                              };
+                              this.props.updateOrderFirebase(
+                                updatedOrder,
+                                this.state.toDeleteImages,
+                                toAddImages,
+                                this.props.elementKey,
+                                this.props.index
+                              );
+                              this.setState({
+                                editing: false,
+                                hasSaved: true,
+                                toDeleteImages: [],
+                                toAddImages: [],
+                                beforeEditing: {},
+                                newThumbnail: false,
+                              });
+                            } else {
+                              console.log("new Order");
                               const newOrderObject = {
-                                range : this.state.rangeSelected,
-                                thumbnail : {uri : this.state.thumbnail,url : ""},
-                                title : this.state.orderTitle,
-                                timestamp : this.state.dateTimeStamp
+                                range: this.state.rangeSelected,
+                                thumbnail: {
+                                  uri: this.state.thumbnail,
+                                  url: "",
+                                },
+                                title: this.state.orderTitle,
+                                timestamp: this.state.dateTimeStamp,
+                              };
+                              const imageUris = [];
+                              const imageUrls = this.state.imageUrls;
+                              console.log("imageUrls", imageUrls);
+                              for (var i = 0; i < imageUrls.length; i++) {
+                                console.log("iamge", imageUrls[i]);
+                                imageUris.push(imageUrls[i].url);
                               }
-                              const imageUris = []
-                              const imageUrls = this.state.imageUrls
-                              console.log("imageUrls",imageUrls)
-                              for(var i = 0; i  < imageUrls.length;i++){
-                                console.log("iamge", imageUrls[i])
-                                imageUris.push(imageUrls[i].url)
+                              if (
+                                this.state.thumbnail &&
+                                this.state.thumbnail.length > 1 &&
+                                this.state.newThumbnail
+                              ) {
+                                console.log("pushed ", this.state.thumbnail);
+                                imageUris.push(this.state.thumbnail);
                               }
-                              if(this.state.thumbnail && this.state.thumbnail.length > 1){
-                                console.log("pushed ",this.state.thumbnail)
-                                imageUris.push(this.state.thumbnail)
-                              }
-                              this.props.addSavedOrder(newOrderObject,imageUris)
-                              this.props.exitSelectedOrderModal()
+                              this.props.addSavedOrder(
+                                newOrderObject,
+                                imageUris
+                              );
+                              this.props.exitSelectedOrderModal();
                             }
                           }
                           this._close(this.state.saveHighlight, 0);
@@ -1117,25 +1242,27 @@ export default class SpecificSavedOrder extends React.Component {
                           </Text>
                         </Col>
                       </TouchableWithoutFeedback>
-                          <Animated.View
-                            style={{
-                              position: "absolute",
-                              backgroundColor: "red",
-                              width: this.state.deleteHighlight,
-                              height: 60,
-                            }}
-                            opacity={0.5}
-                          />
-                          <Animated.View
-                            style={{
-                              position: "absolute",
-                              backgroundColor: "#4cBB17",
-                              width: this.state.saveHighlight,
-                              height: 60,
-                              left:this.state.newOrder ? modalWidth /2 : modalWidth * 2/3,
-                            }}
-                            opacity={0.5}
-                          />
+                      <Animated.View
+                        style={{
+                          position: "absolute",
+                          backgroundColor: "red",
+                          width: this.state.deleteHighlight,
+                          height: 60,
+                        }}
+                        opacity={0.5}
+                      />
+                      <Animated.View
+                        style={{
+                          position: "absolute",
+                          backgroundColor: "#4cBB17",
+                          width: this.state.saveHighlight,
+                          height: 60,
+                          left: this.state.newOrder
+                            ? modalWidth / 2
+                            : (modalWidth * 2) / 3,
+                        }}
+                        opacity={0.5}
+                      />
                     </>
                   ) : (
                     <>
@@ -1148,14 +1275,16 @@ export default class SpecificSavedOrder extends React.Component {
                         }
                         onPress={() => {
                           const beforeEditing = clone({
-                            thumbnail : this.state.thumbnail,
-                            rangeSelected : this.state.rangeSelected,
-                            orderTitle : this.state.orderTitle,
-                            imageUrls : this.state.imageUrls,
-                          })
-                          
-                          this.setState({ editing: true,beforeEditing });
+                            thumbnail: this.state.thumbnail,
+                            rangeSelected: this.state.rangeSelected,
+                            orderTitle: this.state.orderTitle,
+                            imageUrls: this.state.imageUrls,
+                            amOrPm: this.state.amOrPm,
+                            timePreference: this.state.timePreference,
+                            dateTimeStamp: this.state.dateTimeStamp,
+                          });
 
+                          this.setState({ editing: true, beforeEditing });
                         }}
                       >
                         <Col
@@ -1265,10 +1394,10 @@ export default class SpecificSavedOrder extends React.Component {
             </View>
             {this.state.possibleProfitVisible && this.possibleProfit()}
             {this.state.isDeleting && this.deleteConfirmation()}
-          <UploadImages
-            isVisible={this.state.uploadImagesVisible}
-            photoCallb={this.photoCallback}
-          />
+            <UploadImages
+              isVisible={this.state.uploadImagesVisible}
+              photoCallb={this.photoCallback}
+            />
           </View>
         ) : (
           this.modalImages()
@@ -1287,15 +1416,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "black",
   },
-  glowBorder:{
-                              borderWidth: 3,
-                          borderColor: "#FFDB0C",
-                          shadowColor: "#FFDB0C",
-                          shadowOffset: {
-                            width: 0,
-                            height: 6,
-                          },
-                          shadowOpacity: 0.39,
-                          shadowRadius: 10,
-  }
+  glowBorder: {
+    borderWidth: 3,
+    borderColor: "#FFDB0C",
+    shadowColor: "#FFDB0C",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.39,
+    shadowRadius: 10,
+  },
 });

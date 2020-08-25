@@ -289,7 +289,7 @@ export default class SelectedOrderModal extends React.Component {
           if(!allImagesExist){
             order.imageNames.map((name) => {
               promises.push(
-                firebase.storage().ref(`/tempPhotos/${domain}/${order.buyer}/${name}.jpg`).getDownloadURL()
+                firebase.storage().ref(`/tempPhotos/${domain}/${order.buyer}/processingOrders/${this.props.navigation.state.params.orderNumber}/${name}.jpg`).getDownloadURL()
                   .then(async (foundURL) => {
                     console.log("foundURL ", foundURL)
                     console.log("viewedorders...[[name]] ", viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]])
@@ -423,6 +423,9 @@ export default class SelectedOrderModal extends React.Component {
   }
 
   acceptedOrderError = () => {
+    const user = firebase.auth().currentUser;
+    const end = user.email.indexOf(".com");
+    const email = user.email.substring(0, end);
     return(
       <View style={{position:"absolute",width:windowWidth,height:windowHeight,justifyContent:"center",alignItems:"center",backgroundColor: 'rgba(0,0,0,0.8)'}}>
         <View style={{
@@ -446,7 +449,7 @@ export default class SelectedOrderModal extends React.Component {
               justifyContent:"center",
               height:100,}}>
             <Text style={{fontSize:15,justifyContent:"center"}}>
-              Someone Has Already Accepted the Order.
+              {email == this.state.buyerEmail ? "You can't accept your own order." : "Someone Has Already Accepted the Order."}
             </Text>
           </View>
           <TouchableOpacity onPress={() => {

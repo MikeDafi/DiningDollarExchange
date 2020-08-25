@@ -44,23 +44,98 @@ import DatePicker from "react-native-datepicker";
 
 export default class PopupOrder extends React.Component {
   state = {
-    rangeSelected: "",
-    imageNames: [],
-    imageUris: [],
+    fromSavedOrders:this.props.fromSavedOrders,
+    rangeSelected: this.props.rangeSelected || "",
+    imageNames: this.props.imageNames || [],
+    imageUris: this.props.imageUris || [],
     numberOfPhotosSelected: 0,
     uploadImagesVisible: false,
     findASellerClicked: false,
     rendered: false,
     rangeError: "",
     imageBrowser: true,
-    timeSelected: "",
     invalidTime: false,
     minDate: "",
     maxDate: "",
     date: "",
     dateTimeStamp: "",
-    priceInputted: "",
+    priceInputted: this.props.priceInputted || "",
   };
+
+ onDateChange = (date) => {
+   if(!date || date== ""){return}
+                         console.log("date ");
+                      const year = new Date().getFullYear();
+                      const array = date
+                        .split(" ")
+                        .join(",")
+                        .split("/")
+                        .join(",")
+                        .split(":")
+                        .join(",")
+                        .split(",");
+                      const month = parseInt(array[0]) - 1;
+                      const day = parseInt(array[1]);
+                      const hour =
+                        array[4] == "AM"
+                          ? array[2] == "12"
+                            ? 12
+                            : parseInt(array[2])
+                          : array[2] != "12"
+                          ? parseInt(array[2]) + 12
+                          : 12;
+                      const minute = parseInt(array[3]);
+                      console.log("year ", year);
+                      console.log("month ", month);
+                      console.log("day ", day);
+                      console.log("hour ", hour);
+                      console.log("minute ", minute);
+                      var dateTimeStamp = new Date(
+                        year,
+                        month,
+                        day,
+                        hour,
+                        minute
+                      );
+                      dateTimeStamp = dateTimeStamp.getTime();
+                      console.log("new Date ", new Date().getTime());
+                      if (dateTimeStamp <= new Date().getTime() - 60000) {
+                        this.setState({ invalidTime: true });
+                      } else {
+                        this.setState({ invalidTime: false });
+                      }
+                      console.log("dateTimeStamp ", dateTimeStamp);
+
+                      this.setState({ date: date, dateTimeStamp });
+                      console.log("date", date);
+ }
+
+  getDateTime = (timestamp) => {
+    if(!timestamp){return ""}
+                          const date = new Date(timestamp);
+                      const amOrPm = date.getHours() >= 12 ? "PM" : "AM";
+                      const hour =
+                        date.getHours() == 0
+                          ? 0
+                          : date.getHours() > 12
+                          ? date.getHours() % 12
+                          : date.getHours();
+                      const day = date.getDate();
+                      const month = date.getMonth() + 1;
+                      var minute = "0" + date.getMinutes();
+                      minute = minute.substr(-2)
+                      return (
+                        month +
+                        "/" +
+                        day +
+                        " " +
+                        hour +
+                        ":" +
+                        minute +
+                        " " +
+                        amOrPm
+                      );
+  }
 
   sendSingleNotification = async (token, orderNumber) => {
     const user = firebase.auth().currentUser;
@@ -146,7 +221,7 @@ export default class PopupOrder extends React.Component {
     const email = user.email.substring(0, end);
     return firebase
       .storage()
-      .ref(`/tempPhotos/${domain}/${email}/${name}.jpg`)
+      .ref(`/tempPhotos/${domain}/${email}/processingOrders/${name}.jpg`)
       .put(blob, {
         contentType: "image/jpeg",
       });
@@ -201,7 +276,7 @@ export default class PopupOrder extends React.Component {
     orders.once("value", async (orderSnapshot) => {
       var orderNumberNow = 0;
       var currentOrdersNow = {};
-
+      if(!this.state.fromSavedOrders){
       if (orderSnapshot.val() != undefined || orderSnapshot.val() != null) {
         const values = orderSnapshot.val();
         orderNumberNow = values.orderNumber || 0;
@@ -213,7 +288,7 @@ export default class PopupOrder extends React.Component {
         console.log("uri", this.state.imageUris[i]);
         console.log("name", this.state.imageNames[i]);
         const uri = this.state.imageUris[i];
-        const name = this.state.imageNames[i];
+        const name = orderNumberNow + "/" + this.state.imageNames[i];
         uriToBlobPromises.push(
           this.uriToBlob(uri, i).then((blob) => {
             uploadToFirebasePromises.push(
@@ -269,6 +344,24 @@ export default class PopupOrder extends React.Component {
           // }, 200000);
         });
       });
+      }else{
+            const newOrder = {
+            buyer: user.email.substring(0, user.email.length - 4),
+            status: "searching",
+            rangeSelected: this.state.rangeSelected == "" ? this.state.priceInputted : this.state.rangeSelected,
+            imageNames: this.state.imageNames,
+            timeSelected: this.state.dateTimeStamp,
+            buyerUid: firebase.auth().currentUser.uid,
+          };
+          currentOrdersNow[[orderNumberNow]] = newOrder;
+          orderNumberForNotification = orderNumberNow;
+          orderNumberNow += 1;
+          orders.set({
+            currentOrders: currentOrdersNow,
+            orderNumber: orderNumberNow,
+          });
+
+        }
     });
 
     this.props.navigation.navigate("Home");
@@ -339,18 +432,22 @@ export default class PopupOrder extends React.Component {
     }
 
     if (this.props.popupVisible && !this.state.rendered) {
-      this.onOpenModal();
+      console.log("this.props.timestamp ", this.props.timestamp)
+      console.log("getDAteTime ",this.getDateTime(this.props.timestamp))
+        this.onDateChange(this.getDateTime(this.props.timestamp))
       this.setState({
         rendered: true,
-        rangeSelected: "",
-        date: "",
+        rangeSelected: this.props.rangeSelected || "",
+        priceInputted: this.props.priceInputted || "",
         rangeError: "",
-        imageNames: [],
-        imageUris: [],
-        numberOfPhotosSelected: 0,
+        fromSavedOrders:this.props.fromSavedOrders || false,
+        imageNames: this.props.imageNames || [],
+        imageUris: this.props.imageUris || [],
+        numberOfPhotosSelected: this.props.imageUris ? this.props.imageUris.length : 0,
         uploadImagesVisible: false,
         findASellerClicked: false,
       });
+      
     }
 
     // const date = new Date()
@@ -715,76 +812,11 @@ export default class PopupOrder extends React.Component {
                       // ... You can check the source to find the other keys.
                     }}
                     onDateChange={(date) => {
-                      console.log("date ");
-                      const year = new Date().getFullYear();
-                      const array = date
-                        .split(" ")
-                        .join(",")
-                        .split("/")
-                        .join(",")
-                        .split(":")
-                        .join(",")
-                        .split(",");
-                      const month = parseInt(array[0]) - 1;
-                      const day = parseInt(array[1]);
-                      const hour =
-                        array[4] == "AM"
-                          ? array[2] == "12"
-                            ? 12
-                            : parseInt(array[2])
-                          : array[2] != "12"
-                          ? parseInt(array[2]) + 12
-                          : 12;
-                      const minute = array[3];
-                      console.log("year ", year);
-                      console.log("month ", month);
-                      console.log("day ", day);
-                      console.log("hour ", hour);
-                      console.log("minute ", minute);
-                      var dateTimeStamp = new Date(
-                        year,
-                        month,
-                        day,
-                        hour,
-                        minute
-                      );
-                      dateTimeStamp = dateTimeStamp.getTime();
-                      console.log("new Date ", new Date().getTime());
-                      if (dateTimeStamp <= new Date().getTime()) {
-                        this.setState({ invalidTime: true });
-                      } else {
-                        this.setState({ invalidTime: false });
-                      }
-                      console.log("dateTimeStamp ", dateTimeStamp);
-
-                      this.setState({ date: date, dateTimeStamp });
-                      console.log("date", date);
+                      this.onDateChange()
                     }}
                     getDateStr={(props) => {
                       console.log("props ", props);
-
-                      const date = new Date(props);
-                      const amOrPm = date.getHours() >= 12 ? "PM" : "AM";
-                      const hour =
-                        date.getHours() == 0
-                          ? 0
-                          : date.getHours() > 12
-                          ? date.getHours() % 12
-                          : date.getHours();
-                      const day = date.getDate();
-                      const month = date.getMonth() + 1;
-                      const minute = date.getMinutes();
-                      return (
-                        month +
-                        "/" +
-                        day +
-                        " " +
-                        hour +
-                        ":" +
-                        minute +
-                        " " +
-                        amOrPm
-                      );
+                      return this.getDateTime(props)
                     }}
                     //   TouchableComponent={() => (
                     //         <Text>Time Expected</Text>

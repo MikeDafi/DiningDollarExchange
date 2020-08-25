@@ -327,13 +327,14 @@ export default class HomeScreen extends React.Component {
     if (!this.state.rendered) {
       this.setState({ rendered: true });
       if (this.state.page != 0) {
+        try{
         this._swiper.scrollBy(1);
+        }catch(e){
+          console.log("homescreen" , e)
+        }
       }
     }
-    const array = [1,2,3].map((element) => {
-                return(
-                  <View style={{flex:1,flexDirection:"row",width:200,height:200,backgroundColor:element== 2 ? "blue" : "red"}}/>
-              )})
+
     return (
       <View style={styles.container}>
         <QuickOrder

@@ -68,7 +68,7 @@ export default class SellerHomeScreen extends React.Component {
                 console.log(element.timeSelected)
                 if(count <=30 && !(element.key in orders)){
                  
-                    if(parseInt(element.val().timeSelected) >= new Date().getTime() && element.val().status == "searching" ){
+                    if((parseInt(element.val().timeSelected) >= (new Date().getTime() - 60000)) && element.val().status == "searching" ){
                         var randomX,randomY
                         shouldBeKept[[element.key]] = true
                         while(true){

@@ -569,7 +569,11 @@ export default class MessageScreen extends React.Component {
       });
       if (this.state.page != 0) {
         setTimeout(() => {
+          try{
           this._swiper.scrollBy(1);
+          }catch(e){
+            console.log("message screen ",e)
+          }
         }, 100);
       }
     }

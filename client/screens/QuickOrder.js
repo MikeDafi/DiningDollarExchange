@@ -46,7 +46,9 @@ export default class QuickOrder extends React.Component {
 <View style={styles.header}>
           <TouchableOpacity
             onPress={() => {
+              try{
               this.props._swiper.scrollBy(this.props.page * -1);
+              }catch(e){}
               this.props.setPage(0);
             }}
           >
@@ -54,7 +56,9 @@ export default class QuickOrder extends React.Component {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
+              try{
               this.props._swiper.scrollBy((this.props.page + 1) % 2);
+              }catch(e){}
               this.props.setPage(1);
             }}
           >

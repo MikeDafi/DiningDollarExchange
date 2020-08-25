@@ -39,9 +39,9 @@ export default class SavedOrders extends React.Component {
     animatedHeight: new Animated.Value(0),
     animatedWidth: new Animated.Value(0),
     modanOn: false,
-    chosenOrder : 0,
     showsButtons: true,
     newOrder: false,
+    orderIndex: 0,
   };
 
   toggleShowSwiperButtons = (value) => {
@@ -52,7 +52,7 @@ export default class SavedOrders extends React.Component {
     this.setState({ popupVisible: value });
   };
   exitSelectedOrderModal = () => {
-    this.setState({ modalOn: false,newOrder : false });
+    this.setState({ modalOn: false, newOrder: false });
     this._close(this.state.animatedWidth, 0, 200);
     this._close(this.state.animatedHeight, 0, 200);
   };
@@ -77,7 +77,7 @@ export default class SavedOrders extends React.Component {
       .database()
       .ref("users/" + domain + "/" + email + "/savedOrders")
       .once("value", async (snapshot) => {
-        const keys = Object.keys(snapshot.val());
+        const keys = Object.keys(snapshot.val() || {});
         // console.log("snapshot ", snapshot.val());
         const promises = [1];
         for (var key = 0; key < keys.length; key++) {
@@ -91,7 +91,8 @@ export default class SavedOrders extends React.Component {
           thisOrder.key = keys[key];
           thisOrder.timestamp = element.timePreference;
           thisOrder.lastUsed = this.displayTime(element.lastUsed);
-          console.log("element.thumbnail ", element.thumbnail)
+          console.log("element.thumbnail ", element.thumbnail);
+          console.log("from component didm mount ", savedOrders);
           //console.log("savedOrders[[actualKey]].thumbnail",savedOrders[[actualKey]].thumbnail)
           if (savedOrders[[actualKey]] && savedOrders[[actualKey]].thumbnail) {
             // console.log("element thumbnail ", element.thumbnail);
@@ -100,29 +101,28 @@ export default class SavedOrders extends React.Component {
             //   savedOrders[[actualKey]].thumbnail
             // );
             if (
-                            savedOrders[[actualKey]].thumbnail.uri && savedOrders[[actualKey]].thumbnail.url == element.thumbnail
-
+              savedOrders[[actualKey]].thumbnail.uri &&
+              savedOrders[[actualKey]].thumbnail.url == element.thumbnail
             ) {
-              console.log("exists savedOrders ")
-              
+              console.log("exists savedOrders ");
+
               thisOrder.thumbnail.uri = savedOrders[[actualKey]].thumbnail.uri;
-              
             } else {
-              console.log("element.thumbnail ", element.thumbnail)
+              console.log("element.thumbnail ", element.thumbnail);
               this.deleteUri(savedOrders[[actualKey]].thumbnail.uri);
               // if(element.thumbnail != ""){
-              if(element.thumbnail && element.thumbnail.length > 1){
-              promises.push(
-                (thisOrder.thumbnail.uri = await this.downloadUrl(
-                  element.thumbnail,
-                  actualKey,
-                  "thumbnail"
-                ))
-              );
+              if (element.thumbnail && element.thumbnail.length > 1) {
+                promises.push(
+                  (thisOrder.thumbnail.uri = await this.downloadUrl(
+                    element.thumbnail,
+                    actualKey,
+                    "thumbnail"
+                  ))
+                );
               }
               // }
             }
-          } else if(element.thumbnail && element.thumbnail.length > 1){
+          } else if (element.thumbnail && element.thumbnail.length > 1) {
             // console.log("get thumbnail", promises);
 
             promises.push(
@@ -135,8 +135,24 @@ export default class SavedOrders extends React.Component {
           }
           thisOrder.thumbnail.url = element.thumbnail;
 
+          if (element.thumbnail && element.thumbnail.length > 1) {
+            const { exists } = await FileSystem.getInfoAsync(
+              thisOrder.thumbnail.uri,
+              {}
+            );
+            if (!exists) {
+              //in case we have a uri to a file that doesn't exist
+              promises.push(
+                (thisOrder.thumbnail.uri = await this.downloadUrl(
+                  element.thumbnail,
+                  actualKey,
+                  "thumbnail"
+                ))
+              );
+            }
+          }
 
-          console.log("about to images",thisOrder.thumbnail);
+          console.log("about to images", thisOrder.thumbnail);
           const images = Object.values(element.images || {});
           const existsImages =
             savedOrders[[actualKey]] && savedOrders[[actualKey]].images
@@ -145,15 +161,33 @@ export default class SavedOrders extends React.Component {
           // console.log("existingImages ", existsImages);
           // console.log("images ", element.images);
           for (var i = 0; i < images.length; i++) {
+            console.log("existsImages ", existsImages);
+            console.log(
+              "savedOrders[[actualKey]].images[[images[i]]] ",
+              savedOrders[[actualKey]]
+            );
             if (existsImages && savedOrders[[actualKey]].images[[images[i]]]) {
-              thisOrder.images[[images[i]]] =
-                savedOrders[[actualKey]].images[[images[i]]];
+              const { exists } = await FileSystem.getInfoAsync(
+                savedOrders[[actualKey]].images[[images[i]]],
+                {}
+              );
+              console.log("exists ", exists);
+              if (exists) {
+                thisOrder.images[[images[i]]] =
+                  savedOrders[[actualKey]].images[[images[i]]];
+              } else {
+                //if we have a uri to a file that doesn't exist
+                const endIndex = images[i].indexOf(".jpg");
+                promises.push(
+                  (thisOrder.images[[images[i]]] = await this.downloadUrl(
+                    images[i],
+                    actualKey,
+                    images[i].substring(endIndex - 16, endIndex)
+                  ))
+                );
+              }
             } else {
-              // console.log(
-              //   "doesn't exist",
-              //   images[i].substring(images[i].length - 30, images[i].length)
-              // );
-                        const endIndex = images[i].indexOf(".jpg");
+              const endIndex = images[i].indexOf(".jpg");
               promises.push(
                 (thisOrder.images[[images[i]]] = await this.downloadUrl(
                   images[i],
@@ -202,70 +236,61 @@ export default class SavedOrders extends React.Component {
       });
   }
 
-  deleteSavedOrder = async (key, index) => {
-    let savedOrders = await AsyncStorage.getItem("savedOrders");
-    savedOrders = JSON.parse(savedOrders);
-    if (savedOrders[[key]]) {
-      const images = Object.keys(savedOrders[[key]].images);
-      for (var i = 0; i < images.length; i++) {
-        var imageRef = firebase
-          .storage()
-          .ref(`/savedOrders/${domain}/${email}/${images[i]}.jpg`);
-        // Delete the file
-        imageRef.delete();
-      }
-      var imageRef = firebase
-        .storage()
-        .ref(
-          `/savedOrders/${domain}/${email}/${
-            savedOrders[[key]].thumbnail.url
-          }.jpg`
-        );
-      // Delete the file
-      imageRef.delete();
-      this.deleteUri(savedOrders[[key]].thumbnail.url);
-      Object.values(savedOrders[[key]].images).forEach((element) => {
-        this.deleteUri(element);
-      });
-      savedOrders[[key]] = null;
-    }
-    firebase
-      .database()
-      .ref("/users/" + domain + "/" + email + "/savedOrders/")
-      .update({
-        key: null,
-      });
-    var newSavedOrders = this.state.newSavedOrders;
-    newSavedOrders = newSavedOrders.splice(index, 1);
-    this.setState({ newSavedOrders });
-    AsyncStorage.setItem("savedOrders", JSON.stringify(savedOrders));
-  };
-
-  deleteImages = async (key, index, images) => {
+  deleteSavedOrder = async (index) => {
+    console.log("index ", index);
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const email = user.email.substring(0, end);
-    let savedOrders = await AsyncStorage.getItem("savedOrders");
-    savedOrders = JSON.parse(savedOrders);
     var newSavedOrders = this.state.newSavedOrders;
-    if (savedOrders[[key]]) {
-      Object.keys(images).forEach((element) => {
-        this.deleteUri(images[[element]]);
-        savedOrders[[key]].images[[element]] = null;
-        newSavedOrders[[index]].images[[element]] = null;
-      });
+    console.log("deleteSavedOrder ", newSavedOrders);
+    const images = Object.keys(newSavedOrders[[index]].images || []);
+    console.log("images ", images);
+    for (var i = 0; i < images.length; i++) {
+      var imageRef = firebase
+        .storage()
+        .ref(`/savedOrders/${domain}/${email}/${images[i]}.jpg`);
+      // Delete the file
+      imageRef
+        .delete()
+        .then(function () {})
+        .catch(function (error) {
+          console.log("OH no, delete image dosn't work");
+        });
     }
+    var imageRef = firebase
+      .storage()
+      .ref(
+        `/savedOrders/${domain}/${email}/${
+          newSavedOrders[[index]].thumbnail.url
+        }.jpg`
+      );
+    // Delete the file
+    imageRef
+      .delete()
+      .then(function () {})
+      .catch(function (error) {
+        console.log("OH no, delete image dosn't work");
+      });
+    this.deleteUri(newSavedOrders[[index]].thumbnail.uri);
+    Object.values(newSavedOrders[[index]].images).forEach((element) => {
+      this.deleteUri(element);
+    });
 
     firebase
       .database()
-      .ref("/users/" + domain + "/" + email + "/savedOrders/" + key)
+      .ref("/users/" + domain + "/" + email + "/savedOrders/")
       .update({
-        images: newSavedOrders[[index]].images,
+        [[newSavedOrders[[index]].key]]: null,
       });
-
+    newSavedOrders.splice(index, 1);
+    console.log("newSavedOrders ", newSavedOrders);
     this.setState({ newSavedOrders });
+    const savedOrders = {};
+    for (var i = 0; i < newSavedOrders.length; i++) {
+      savedOrders[[newSavedOrders[i].key]] = newSavedOrders[i];
+    }
     AsyncStorage.setItem("savedOrders", JSON.stringify(savedOrders));
   };
 
@@ -362,11 +387,11 @@ export default class SavedOrders extends React.Component {
               .getDownloadURL()
               .then((foundURL) => {
                 imageUrls.push(foundURL);
-                console.log("uri ",uri)
-                console.log("order.thumbnail ", order.thumbnail.uri)
-                if(uri == order.thumbnail.uri ){
-                  order.thumbnail.url = foundURL
-                }else{
+                console.log("uri ", uri);
+                console.log("order.thumbnail ", order.thumbnail.uri);
+                if (uri == order.thumbnail.uri) {
+                  order.thumbnail.url = foundURL;
+                } else {
                   thisImages[[foundURL]] = uri;
                 }
               })
@@ -377,15 +402,14 @@ export default class SavedOrders extends React.Component {
         console.log("imageUrls ", imageUrls);
         const newSavedOrders = this.state.newSavedOrders;
         newSavedOrders[[index]].images = thisImages;
-        newSavedOrders[[index]].timestamp = order.timestamp
-        newSavedOrders[[index]].range = order.range
-        newSavedOrders[[index]].title = order.title
-        if(order.thumbnail.uri != newSavedOrders[[index]].thumbnail.uri){
-          newSavedOrders[[index]].thumbnail = order.thumbnail
+        newSavedOrders[[index]].timestamp = order.timestamp;
+        newSavedOrders[[index]].range = order.range;
+        newSavedOrders[[index]].title = order.title;
+        if (order.thumbnail.uri != newSavedOrders[[index]].thumbnail.uri) {
+          newSavedOrders[[index]].thumbnail = order.thumbnail;
         }
 
-
-        this.setState({ newSavedOrders: newSavedOrders });
+        this.setState({ newSavedOrders });
         // console.log("newOrderObject ", newSavedOrders)
         // console.log("keys ", key)
         firebase
@@ -397,14 +421,23 @@ export default class SavedOrders extends React.Component {
               range: newSavedOrders[[index]].range || null,
               timePreference: newSavedOrders[[index]].timestamp || null,
               title: newSavedOrders[[index]].title,
-              thumbnail: newSavedOrders[[index]].thumbnail.url != "" ? newSavedOrders[[index]].thumbnail.url : null,
+              thumbnail:
+                newSavedOrders[[index]].thumbnail.url != ""
+                  ? newSavedOrders[[index]].thumbnail.url
+                  : null,
             },
           });
+        const savedOrders = {};
+        for (var i = 0; i < newSavedOrders.length; i++) {
+          savedOrders[[newSavedOrders[i].key]] = newSavedOrders[i];
+        }
+        AsyncStorage.setItem("savedOrders", JSON.stringify(savedOrders));
       });
     });
   };
 
   addSavedOrder = async (newOrderObject, imageUris) => {
+    this.setState({loading : true})
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
@@ -440,7 +473,7 @@ export default class SavedOrders extends React.Component {
         console.log("in finished uploading");
         for (var i = 0; i < imageNames.length; i++) {
           const name = imageNames[i];
-          const uri = imageUris[i]
+          const uri = imageUris[i];
           const path = `/savedOrders/${domain}/${email}/${key}/${name}.jpg`;
           console.log("getting url ", path);
           storagePromises.push(
@@ -449,7 +482,8 @@ export default class SavedOrders extends React.Component {
               .ref(path)
               .getDownloadURL()
               .then((foundURL) => {
-                console.log("uri ",uri)
+                console.log("uri ", uri);
+                console.log("thumbnail ", newOrderObject.thumbnail.uri);
                 if (uri == newOrderObject.thumbnail.uri) {
                   newOrderObject.thumbnail.url = foundURL;
                 } else {
@@ -464,6 +498,10 @@ export default class SavedOrders extends React.Component {
         newOrderObject.key = key;
         console.log("newOrderObject ", newOrderObject);
         console.log("keys ", key);
+        const newSavedOrders = this.state.newSavedOrders;
+        newSavedOrders.push(newOrderObject);
+        this.setState({ newSavedOrders });
+        console.log("newSavedOrders From Add ", newSavedOrders);
         firebase
           .database()
           .ref("users/" + domain + "/" + email + "/savedOrders/")
@@ -473,12 +511,22 @@ export default class SavedOrders extends React.Component {
               range: newOrderObject.range || null,
               timePreference: newOrderObject.timestamp || null,
               title: newOrderObject.title,
-              thumbnail: newOrderObject.thumbnail.url.length > 1 ? newOrderObject.thumbnail.url : null,
+              thumbnail:
+                newOrderObject.thumbnail.url.length > 1
+                  ? newOrderObject.thumbnail.url
+                  : null,
             },
           });
+        const savedOrders = {};
+        for (var i = 0; i < newSavedOrders.length; i++) {
+          savedOrders[[newSavedOrders[i].key]] = newSavedOrders[i];
+        }
+        console.log("savedOrdes ", savedOrders);
+        AsyncStorage.setItem("savedOrders", JSON.stringify(savedOrders));
       });
     });
     console.log("done");
+    this.setState({loading : false})
     // savedOrders[[key]] = newOrderObject
     //     firebase
     // .database()
@@ -566,52 +614,68 @@ export default class SavedOrders extends React.Component {
     }
   };
 
-  displayTime = (timestamp) => {
-    if(timestamp > 1){
-    const dayOfTheWeek = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    var messageDate = new Date(timestamp);
-    var currentDate = this.state.date;
-    // console.log("getHours ", messageDate.getHours());
-    var hour, minute, seconds;
-    //2019 < 2020
-    if (messageDate.getFullYear() == currentDate.getFullYear()) {
-      if (messageDate.getMonth() == currentDate.getMonth()) {
-        const difference = currentDate.getDate() - messageDate.getDate();
-        if (difference < 7) {
-          if (difference == 0) {
-            hour = messageDate.getHours();
-            var afterNoon = hour > 11 ? "PM" : "AM";
-            hour =
-              hour == 0 || hour == 12 ? "12" : hour > 12 ? hour - 12 : hour;
+  formatTimeStampForToday = (timestamp) => {
+    const date = new Date();
+    const hourMinuteDate = new Date(timestamp);
+    const year = date.getFullYear();
 
-            minute = "0" + messageDate.getMinutes();
-            var formattedTime =
-              hour + ":" + minute.substr(-2) + " " + afterNoon;
-            return formattedTime;
-          } else if (difference == 1) {
-            return "Yesterday";
-          } else {
-            return dayOfTheWeek[messageDate.getDay()];
+    const month = date.getMonth();
+    const day = date.getDate();
+    const hour = hourMinuteDate.getHours();
+    const minute = hourMinuteDate.getMinutes();
+    var dateTimeStamp = new Date(year, month, day, hour, minute);
+    if (dateTimeStamp.getTime() >= new Date().getTime()) {
+      return dateTimeStamp.getTime();
+    }
+    return dateTimeStamp.getTime() + 86400000;
+  };
+
+  displayTime = (timestamp) => {
+    if (timestamp > 1) {
+      const dayOfTheWeek = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      var messageDate = new Date(timestamp);
+      var currentDate = this.state.date;
+      // console.log("getHours ", messageDate.getHours());
+      var hour, minute, seconds;
+      //2019 < 2020
+      if (messageDate.getFullYear() == currentDate.getFullYear()) {
+        if (messageDate.getMonth() == currentDate.getMonth()) {
+          const difference = currentDate.getDate() - messageDate.getDate();
+          if (difference < 7) {
+            if (difference == 0) {
+              hour = messageDate.getHours();
+              var afterNoon = hour > 11 ? "PM" : "AM";
+              hour =
+                hour == 0 || hour == 12 ? "12" : hour > 12 ? hour - 12 : hour;
+
+              minute = "0" + messageDate.getMinutes();
+              var formattedTime =
+                hour + ":" + minute.substr(-2) + " " + afterNoon;
+              return formattedTime;
+            } else if (difference == 1) {
+              return "Yesterday";
+            } else {
+              return dayOfTheWeek[messageDate.getDay()];
+            }
           }
         }
       }
-    }
 
-    const month = messageDate.getMonth() + 1;
-    const day = messageDate.getDate();
-    const year = ("" + messageDate.getFullYear()).substr(-2);
-    const formattedDate = month + "/" + day + "/" + year;
-    return formattedDate;
-    }else{
-      return ""
+      const month = messageDate.getMonth() + 1;
+      const day = messageDate.getDate();
+      const year = ("" + messageDate.getFullYear()).substr(-2);
+      const formattedDate = month + "/" + day + "/" + year;
+      return formattedDate;
+    } else {
+      return "";
     }
   };
 
@@ -631,25 +695,21 @@ export default class SavedOrders extends React.Component {
   };
 
   render() {
-    if(this.state.modalOn){
-      console.log("index modal ",this.state.indexModal)
+    if (this.state.modalOn) {
+      console.log("index modal ", this.state.indexModal);
       setTimeout(() => {
-        if(this.state.indexModal != 0){
-                          this._swiper.scrollBy(this.state.indexModal)
+        if (this.state.indexModal != 0) {
+          try {
+            this._swiper.scrollBy(this.state.indexModal);
+          } catch (e) {
+            console.log("scrollby ", e);
+          }
         }
       }, 1000);
     }
     var spaceLeftInRow = windowWidth - cardWidth;
     var nextAvailableIndex = 0;
     const items = ["REVIEW", "STATISTICS", "SCHEDULE", "SHARE"];
-    if (this.state.loading) {
-      return (
-        <View style={{ justifyContent: "center", alignItems: "center" }}>
-          <Text>Loading...</Text>
-          <ActivityIndicator size="large"></ActivityIndicator>
-        </View>
-      );
-    }
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -661,8 +721,38 @@ export default class SavedOrders extends React.Component {
             <Text style={{ fontSize: 20 }}>Finish</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView style={{ marginTop: 20 }}>
+        <ScrollView style={{ marginTop: this.state.loading ? 0 : 20 }}>
           <Grid style={{ width: windowWidth }}>
+            {this.state.newSavedOrders.length == 0 && (
+              <Row
+                style={{
+                  marginBottom: 20,
+                  marginLeft:
+                    (windowWidth -
+                      (this.state.numbOfColumns * cardWidth +
+                        this.state.numbOfColumns * 10)) /
+                    2,
+                }}
+              >
+                <Col style={styles.addItemContainer}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      this.setState({
+                        indexModal: 0,
+                        modalOn: true,
+                        newOrder: true,
+                      })
+                    }
+                    style={{alignItems:"center",justifyContent:"center"}}
+                  >
+                    <Ionicons name="md-add" size={100} color="black" />
+                    <View style={{ marginTop: -15 }}>
+                      <Text style={{ fontSize: 12 }}>Save Another Order!</Text>
+                    </View>
+                  </TouchableOpacity>
+                </Col>
+              </Row>
+            )}
             {this.state.newSavedOrders.map((x, i) => {
               const whatsInRow = [];
               if (nextAvailableIndex == 0) {
@@ -708,13 +798,22 @@ export default class SavedOrders extends React.Component {
                     if (index == -1) {
                       return (
                         <Col style={styles.addItemContainer}>
-                          <TouchableOpacity onPress={() => this.setState({ indexModal:0,modalOn: true, newOrder:true })}>
-                          <Ionicons name="md-add" size={100} color="black" />
-                          <View style={{ marginTop: -15 }}>
-                            <Text style={{ fontSize: 12 }}>
-                              Save Another Order!
-                            </Text>
-                          </View>
+                          <TouchableOpacity
+                            onPress={() =>
+                              this.setState({
+                                indexModal: 0,
+                                modalOn: true,
+                                newOrder: true,
+                              })
+                            }
+                            style={{alignItems:"center",justifyContent:"center"}}
+                          >
+                            <Ionicons name="md-add" size={100} color="black" />
+                            <View style={{ marginTop: -15 }}>
+                              <Text style={{ fontSize: 12 }}>
+                                Save Another Order!
+                              </Text>
+                            </View>
                           </TouchableOpacity>
                         </Col>
                       );
@@ -727,7 +826,10 @@ export default class SavedOrders extends React.Component {
                         style={styles.itemContainer}
                       >
                         <ImageBackground
-                          source={{uri : this.state.newSavedOrders[[index]].thumbnail.uri}}
+                          source={{
+                            uri: this.state.newSavedOrders[[index]].thumbnail
+                              .uri,
+                          }}
                           imageStyle={{ borderRadius: 45 }}
                           style={{
                             height: cardHeight - 10,
@@ -810,7 +912,10 @@ export default class SavedOrders extends React.Component {
                                         ].width.__getValue() <=
                                       10
                                     ) {
-                                      this.setState({ popupVisible: true });
+                                      this.setState({
+                                        popupVisible: true,
+                                        orderIndex: index,
+                                      });
                                     }
                                     this._close(
                                       this.state.newSavedOrders[index].width,
@@ -859,11 +964,40 @@ export default class SavedOrders extends React.Component {
               );
             })}
           </Grid>
+                  {this.state.loading && 
+                <View style={{position:"absolute",backgroundColor:"rgba(177,177,177,0.5)",width:windowWidth,height:windowHeight,justifyContent: "center", alignItems: "center" }}>
+          <Text>Loading...</Text>
+          <ActivityIndicator size="large"></ActivityIndicator>
+        </View>
+        }
         </ScrollView>
         <PopupOrder
           navigation={this.props.navigation}
           popupVisible={this.state.popupVisible}
+          fromSavedOrder={true}
           togglePopupVisibility={this.togglePopupVisibility}
+          timestamp={this.formatTimeStampForToday(this.state.newSavedOrders[[this.state.orderIndex]] ?
+            this.state.newSavedOrders[[this.state.orderIndex]].timestamp : 0
+          )}
+          imageNames={Object.values(this.state.newSavedOrders[[this.state.orderIndex]] ? 
+            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+          ).map((x, i) => i)}
+          imageUris={Object.values(
+            this.state.newSavedOrders[[this.state.orderIndex]] ?
+            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+          )}
+          priceInputted={
+            this.state.newSavedOrders[[this.state.orderIndex]] ? (
+            isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+              ? ""
+              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+          }
+          rangeSelected={
+            this.state.newSavedOrders[[this.state.orderIndex]] ? (
+            !isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+              ? ""
+              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+          }
         />
         <Modal
           testID={"modal"}
@@ -898,7 +1032,7 @@ export default class SavedOrders extends React.Component {
               width: this.state.animatedWidth,
             }}
           >
-{/* <ScrollView
+            {/* <ScrollView
                       ref={(scrollView) => {
                         this.scrollView = scrollView;
                       }}
@@ -936,52 +1070,55 @@ export default class SavedOrders extends React.Component {
                 </View>
               )})}
                     </ScrollView> */}
-            {this.state.newOrder ? 
-                <SpecificSavedOrder
-                  newOrder={true}
-                  exitSelectedOrderModal={this.exitSelectedOrderModal}
-                  addSavedOrder={this.addSavedOrder}
-                /> : 
-            <Swiper
-              ref={(swiper) => {
-                this._swiper = swiper;
-              }}
-              bounce
-              loop={false}
-              showsButtons={this.state.showsButtons}
-              onIndexChanged={this.setPage}
-              style={{
-                overflow: "visible",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-              nextButton={
-                <Text style={{ fontSize: 75, color: "#007aff" }}>›</Text>
-              }
-              prevButton={
-                <Text style={{ fontSize: 75, color: "#007aff" }}>‹</Text>
-              }
-            >
-
-              {this.state.newSavedOrders.map((element, index) => {
-                                console.log("element.thumbnail",element.thumbnail)
-                return(
-                  <View >
-                <SpecificSavedOrder
-                  rangeSelected={element.range || "N/A"}
-                  elementKey={element.key}
-                  index={index}
-                  toggleShowSwiperButtons={this.toggleShowSwiperButtons}
-                  exitSelectedOrderModal={this.exitSelectedOrderModal}
-                  timestamp={element.timestamp}
-                  imageUrls={element.images}
-                  orderTitle={element.title}
-                  updateOrderFirebase={this.updateOrderFirebase}
-                  thumbnail={element.thumbnail.uri}
-                />
-                </View>
-              )})}
-            </Swiper>}
+            {this.state.newOrder ? (
+              <SpecificSavedOrder
+                newOrder={true}
+                exitSelectedOrderModal={this.exitSelectedOrderModal}
+                addSavedOrder={this.addSavedOrder}
+              />
+            ) : (
+              <Swiper
+                ref={(swiper) => {
+                  this._swiper = swiper;
+                }}
+                bounce
+                loop={false}
+                showsButtons={this.state.showsButtons}
+                onIndexChanged={this.setPage}
+                style={{
+                  overflow: "visible",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                nextButton={
+                  <Text style={{ fontSize: 75, color: "#007aff" }}>›</Text>
+                }
+                prevButton={
+                  <Text style={{ fontSize: 75, color: "#007aff" }}>‹</Text>
+                }
+              >
+                {this.state.newSavedOrders.map((element, index) => {
+                  console.log("element.thumbnail", element.thumbnail);
+                  return (
+                    <View>
+                      <SpecificSavedOrder
+                        rangeSelected={element.range || "N/A"}
+                        elementKey={element.key}
+                        index={index}
+                        toggleShowSwiperButtons={this.toggleShowSwiperButtons}
+                        exitSelectedOrderModal={this.exitSelectedOrderModal}
+                        timestamp={element.timestamp}
+                        imageUrls={element.images}
+                        orderTitle={element.title}
+                        updateOrderFirebase={this.updateOrderFirebase}
+                        deleteSavedOrder={this.deleteSavedOrder}
+                        thumbnail={element.thumbnail.uri}
+                      />
+                    </View>
+                  );
+                })}
+              </Swiper>
+            )}
           </Animated.View>
         </Modal>
       </View>
@@ -1004,6 +1141,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     padding: 10,
     width: cardWidth,
+    height: cardHeight,
   },
   itemContainer: {
     width: cardWidth,
