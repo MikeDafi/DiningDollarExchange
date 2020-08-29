@@ -62,7 +62,7 @@ export default class RoomScreen extends React.Component {
       date: new Date(),
       uploadImagesVisible: false,
       count: 20,
-      tempCount:0,
+      // tempCount:0,
       imageUris: [],
       imageCount: 0,
       index: 0,
@@ -76,6 +76,7 @@ export default class RoomScreen extends React.Component {
       },
       historyOrderKey:
         this.props.navigation.state.params.historyOrderKey || "",
+      orderNumber: "",
     };
   }
 
@@ -513,7 +514,7 @@ export default class RoomScreen extends React.Component {
       this.historyObject.startIndex =
         count < 20
           ? this.historyObject.endIndex - count
-          : this.historyObject.endIndex - 1;
+          : this.historyObject.endIndex - 20;
       console.log(this.historyObject.startIndex);
       console.log("endIndex ", this.historyObject.endIndex);
       for (
@@ -628,7 +629,7 @@ export default class RoomScreen extends React.Component {
 
     this.setState({ delivered: false, read: false, hasSentMessage: true });
     this.refCheckChatter()
-      .child(user.email.substring(0, end))
+      .child(email)
       .update({ [hasSentMessage]: true });
     this.ref()
       .push(message)
@@ -715,10 +716,13 @@ export default class RoomScreen extends React.Component {
     }else{
 
           this.refCheckChatter()
-      .child(email + "/" + email + "/_hasSentMessage")
+      .child(email + "/" + email + "_hasSentMessage")
       .once("value", (snapshot) => {
         this.setState({ hasSentMessage: snapshot.val() });
       });
+      this.refCheckChatter().child("orderNumber").once("value",(snapshot) => {
+        this.setState({orderNumber : snapshot.val()})
+      })
 
     this.refCheckChatter()
       .child(email)
@@ -744,7 +748,7 @@ export default class RoomScreen extends React.Component {
       .database()
       .ref("users/" + this.state.domain + "/" + this.state.otherChatterEmail)
       .once("value", (snapshot) => {
-        this.setState({ otherChatterToken: snapshot.val().expoToken, notificationsOn : snapshot.val()["notifications"].newMessages });
+        this.setState({ otherChatterToken: snapshot.val().expoToken, notificationsOn : snapshot.val()["notifications"].notifications && snapshot.val()["notifications"].newMessages });
       });
 
 
@@ -754,19 +758,22 @@ export default class RoomScreen extends React.Component {
         await this.getUpdatedImage(message)
         const messagesObject = this.state.messagesObject
         messagesObject[[message._id]] = message
-        if(this.state.tempCount - this.state.count == -1){
+        // console.log("tempCount ",this.state.tempCount)
+        // if(this.state.tempCount - this.state.count == -1){
+        //   const currentArray = Object.values(this.state.messagesObject).sort(function(a, b) {
+        //     return b["timestamp"] - a["timestamp"];
+        //   });
+        //   this.setState((previousState) => ({
+        //   messages : currentArray,
+        //   tempCount: 0,
+        //   }));
+        // }else{
+        //   this.setState({tempCount : this.state.tempCount + 1 })
+        // }
           const currentArray = Object.values(this.state.messagesObject).sort(function(a, b) {
             return b["timestamp"] - a["timestamp"];
           });
-          this.setState((previousState) => ({
-          messages : currentArray,
-          tempCount: 0,
-          messagesObject
-          }));
-        }else{
-          this.setState({tempCount : this.state.tempCount + 1,
-          messagesObject })
-        }
+        this.setState({messages : currentArray,messagesObject})
 
         // this.setState((previousState) => ({
         //   messages : GiftedChat.append(previousState.messages,message)
@@ -888,8 +895,37 @@ export default class RoomScreen extends React.Component {
       messagess[[_id]] = { confirmAnswer: answer };
       return { messagess };
     });
+    console.log("in _sstart")
     this.updatedMessageConfirmAnswer(_id, answer);
+      this.addToHistory(_id)
   };
+
+  addToHistory = (_id) => {
+        const user = firebase.auth().currentUser;
+    const start = user.email.indexOf("@");
+    const end = user.email.indexOf(".com");
+    const domain = user.email.substring(start, end);
+    const email = user.email.substring(0, end);
+        const isBuyer =
+      this.state.thread.substring(0, email.length) == email ? true : false;
+
+    firebase.database().ref("orders/" + domain + "/currentOrders/" + this.state.orderNumber).once("value",snapshot =>{
+      console.log('sna' ,snapshot.val())
+      const order = {
+        price : snapshot.val().rangeSelected,
+        timestamp : this.timestamp(),
+        chatId : this.state.thread,
+        title : snapshot.val().title || "",
+        historyOrderKey : _id
+      }
+      firebase.database().ref("users/" + domain + "/" + email + "/historyOrders/" + (isBuyer ? "buyer" : "seller")).update({
+        [[this.state.orderNumber]] : order
+      })
+            firebase.database().ref("users/" + domain + "/" + this.state.otherChatterEmail + "/historyOrders/" + (isBuyer ? "seller" : "buyer" )).update({
+        [[this.state.orderNumber]] : order
+      })
+    })
+  }
 
   initialConfirmMessage = (_id, confirmAnswer, timestamp) => {
     return (
@@ -941,7 +977,7 @@ export default class RoomScreen extends React.Component {
                 { backgroundColor: confirmAnswer ? "green" : "red" },
               ]}
             >
-              <Text>Hi</Text>
+              <Text>{confirmAnswer ? "You Accepted!" : "You Rejected"}</Text>
             </View>
           </Animated.View>
           <Animated.View

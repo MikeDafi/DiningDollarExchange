@@ -18,6 +18,7 @@ import UploadImages from './client/screens/UploadImages'
 import HistoryPage from './client/screens/HistoryPage'
 import SelectedOrderModal from "./client/screens/SelectedOrderModal";
 import SavedOrders from "./client/screens/SavedOrders"
+import PendingOrders from "./client/screens/PendingOrders"
 import firebase from "./config"
 
 const AppContainer = createStackNavigator(
@@ -96,6 +97,9 @@ const AppContainer = createStackNavigator(
         },
         SavedOrders:{
             screen: SavedOrders,
+        },
+        PendingOrders:{
+            screen:PendingOrders,
         }
     },
     {

@@ -28,6 +28,7 @@ import * as FileSystem from "expo-file-system";
 import UploadImages from "./UploadImages";
 import {
   Animated,
+  Image,
   AsyncStorage,
   View,
   Text,
@@ -39,7 +40,6 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
   Switch,
-  Image,
   ActivityIndicator,
   Keyboard,
 } from "react-native";
@@ -190,6 +190,7 @@ export default class SpecificSavedOrder extends React.Component {
 
   componentDidMount() {
     this.formatTime(this.props.timestamp);
+
   }
 
   formatTime = (timestamp) => {
@@ -327,13 +328,13 @@ export default class SpecificSavedOrder extends React.Component {
               <Text style={{ fontWeight: "700" }}>80%</Text>
               <Text> in </Text>
               <Text style={{ color: "green" }}>Cash</Text>
-              {this.state.rangeSelected.includes("to") ? (
+              {(this.state.rangeSelected || "").includes("to") ? (
                 <Text>
                   <Text>. For a "{this.state.rangeSelected}" range, the </Text>
                   <Text style={{ fontWeight: "bold" }}> minimum </Text>
                   <Text> price you will pay is </Text>
                 </Text>
-              ) : this.state.rangeSelected.includes("+") ? (
+              ) : (this.state.rangeSelected || "").includes("+") ? (
                 <Text>
                   <Text>. For a "{this.state.rangeSelected}" range, the </Text>
                   <Text style={{ fontWeight: "bold" }}> minimum </Text>
@@ -348,7 +349,7 @@ export default class SpecificSavedOrder extends React.Component {
                 </Text>
               )}
             </Text>
-            {this.state.rangeSelected.includes("to") ? (
+            {(this.state.rangeSelected || "").includes("to") ? (
               <Text
                 style={{ fontWeight: "700", color: "#4CBB17", fontSize: 18 }}
               >
@@ -357,7 +358,7 @@ export default class SpecificSavedOrder extends React.Component {
                 ) * 0.8}{" "}
                 Dollars
               </Text>
-            ) : this.state.rangeSelected.includes("+") ? (
+            ) : (this.state.rangeSelected || "").includes("+") ? (
               <Text
                 style={{ fontWeight: "700", color: "#4CBB17", fontSize: 18 }}
               >
@@ -865,9 +866,9 @@ export default class SpecificSavedOrder extends React.Component {
                     <Text style={{ marginTop: 7 }}>
                       <Text style={{ marginLeft: 3, fontSize: 10 }}>$</Text>
                       <Text style={{ fontSize: 26, fontWeight: "700" }}>
-                        {this.state.rangeSelected.includes("+")
+                        {(this.state.rangeSelected || "").includes("+")
                           ? 12
-                          : this.state.rangeSelected.includes("to")
+                          : (this.state.rangeSelected || "").includes("to")
                           ? parseInt(
                               this.state.rangeSelected
                                 .substring(0, 2)
@@ -900,12 +901,13 @@ export default class SpecificSavedOrder extends React.Component {
                 </Row>
                 <Row>
                   <View
-                    style={{ alignItems: "center" }}
+                    style={{ alignItems: "center",justifyContent:"center",width:modalWidth }}
                     onLayout={(event) => {
                       var { x, y, width, height } = event.nativeEvent.layout;
                       this.setState({ carouselHeight: height });
                     }}
                   >
+                                        {this.state.imageUrls.length > 0 ?
                     <ScrollView
                       ref={(scrollView) => {
                         this.scrollView = scrollView;
@@ -915,7 +917,7 @@ export default class SpecificSavedOrder extends React.Component {
                       //pagingEnabled={true}
                       horizontal={true}
                       decelerationRate={0}
-                      snapToOffsets={this.state.imageUrls.map(
+                      snapToOffsets={(this.state.imageUrls || []).map(
                         (x, i) => i * (modalWidth - 60)
                       )}
                       snapToAlignment={"start"}
@@ -925,8 +927,8 @@ export default class SpecificSavedOrder extends React.Component {
                         bottom: 0,
                         right: 30,
                       }}
-                    >
-                      {this.state.imageUrls.map((x, i) => (
+                    > 
+                      {(this.state.imageUrls || []).map((x, i) => (
                         // <View
                         //   onLayout={(event) => {
                         //     var {x, y, width, height} = event.nativeEvent.layout;
@@ -1004,7 +1006,18 @@ export default class SpecificSavedOrder extends React.Component {
                           </View>
                         </View>
                       ))}
-                    </ScrollView>
+                      
+                    </ScrollView> : 
+                      <TouchableOpacity 
+                                              onPress={() => {
+                          this.setState({ uploadImagesVisible: true });
+                        }}
+                      style={{justifyContent:"center",alignItems:"center"}}>
+                        <Text style={{fontSize:25,color:"gray",textDecorationLine: "underline"}}>Upload Images</Text>
+                        <Text style={{fontSize:25,color:"gray",textDecorationLine: "underline"}}>of Your Order</Text>
+
+                      </TouchableOpacity>
+                    }
                   </View>
                   {this.state.editing && (
                     <View style={{ position: "absolute", left: 2, top: 2 }}>
@@ -1088,6 +1101,9 @@ export default class SpecificSavedOrder extends React.Component {
                           this.setState({ cancelHighlight: false })
                         }
                         onPress={() => {
+                          if(this.state.newOrder){
+                              this.props.exitSelectedOrderModal();
+                          }else{
                           console.log(
                             "beforeEditing ",
                             this.state.beforeEditing
@@ -1112,7 +1128,7 @@ export default class SpecificSavedOrder extends React.Component {
                             newThumbnail: false,
                             beforeEditing: {},
                             hasSaved: true,
-                          });
+                          });}
                         }}
                       >
                         <Col

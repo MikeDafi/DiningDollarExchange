@@ -28,7 +28,7 @@ import Image from "react-native-image-progress";
 import SwipeButton from "rn-swipe-button";
 import arrowRight from "../assets/arrowRight.png";
 import DatePicker from "react-native-datepicker";
-
+import ImageViewer from "react-native-image-zoom-viewer";
 // import * as admin from 'firebase-admin';
 //   var firebaseConfig = {
 //     credential: admin.credential.applicationDefault(),
@@ -59,10 +59,13 @@ export default class PopupOrder extends React.Component {
     maxDate: "",
     date: "",
     dateTimeStamp: "",
+    showImageViewer : false,
     priceInputted: this.props.priceInputted || "",
   };
+  
 
  onDateChange = (date) => {
+   console.log("date ",date)
    if(!date || date== ""){return}
                          console.log("date ");
                       const year = new Date().getFullYear();
@@ -179,9 +182,11 @@ export default class PopupOrder extends React.Component {
       .database()
       .ref("users/" + domain + "/")
       .once("value", function (domainAccounts) {
+        const repeatTokens = {}
         domainAccounts.forEach((user) => {
           var userInfo = user.val();
-          if (user.key != thisUserEmail) {
+          if (user.key != thisUserEmail && !repeatTokens[[userInfo.expoToken]]) {
+            repeatTokens[[userInfo.expoToken]] = true
             console.log("found notification");
             thisReference.sendSingleNotification(
               userInfo.expoToken,
@@ -270,6 +275,7 @@ export default class PopupOrder extends React.Component {
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
+    const realEmail = user.email.substring(0,end)
     const orders = firebase.database().ref("orders/" + domain);
 
     var orderNumberForNotification = 0;
@@ -320,6 +326,12 @@ export default class PopupOrder extends React.Component {
             orderNumber: orderNumberNow,
           });
 
+                      firebase
+      .database()
+      .ref("users/" + domain + "/" + realEmail + "/pendingOrders").update({
+        [[orderNumberForNotification]] : "searching"
+      })
+
           setTimeout(() => {
             this.sendAllNotifications(orderNumberForNotification);
           }, 1000);
@@ -360,6 +372,11 @@ export default class PopupOrder extends React.Component {
             currentOrders: currentOrdersNow,
             orderNumber: orderNumberNow,
           });
+                      firebase
+      .database()
+      .ref("users/" + domain + "/" + realEmail + "/pendingOrders").update({
+        [[orderNumberForNotification]] : "searching"
+      })
 
         }
     });
@@ -367,47 +384,54 @@ export default class PopupOrder extends React.Component {
     this.props.navigation.navigate("Home");
   };
 
+  model = () => {
+    return(
+            <Modal
+        testID={"modal"}
+        isVisible={this.state.showImageViewer}
+        onBackdropPress={() => {this.setState({showImageViewer:false})}}
+        animationIn="slideInUp"
+        animationInTiming={500}
+        style={{ overflow:"visible",width: windowWidth, height: windowHeight, margin: 0 }}
+      >
+        <ImageViewer
+          index={0}
+          imageUrls={this.state.imageUris.map((x) => {return {url : x}})}
+          enableSwipeDown
+          onSwipeDown={() => this.setState({showImageViewer : false})}
+        />
+        <View style={{ position: "absolute", left: windowWidth - 50, top: 30 }}>
+          <TouchableOpacity onPress={() => this.setState({showImageViewer : false})}>
+            <AntDesign name="close" size={35} color="white" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    )
+  }
+
   onOpenModal = () => {
-    const date = new Date();
-    const is28or30or31Days =
-      date.getMonth() == 1
-        ? 28
-        : date.getMonth() <= 6
-        ? date.getMonth() % 2 == 0
-          ? 31
-          : 30
-        : date.getMonth() % 2 == 0
-        ? 30
-        : 31;
-    console.log(is28or30or31Days);
-    const weekFromNowDays =
-      date.getDate() + 7 == is28or30or31Days
-        ? is28or30or31Days
-        : (date.getDate() + 7) % is28or30or31Days;
-    const weekFromNowMonth =
-      is28or30or31Days - 7 < 7
-        ? date.getMonth()
-        : date.getMonth() == 11
-        ? 1
-        : date.getMonth() + 1;
-    const maxDate =
-      weekFromNowMonth +
-      "-" +
-      weekFromNowDays +
-      "-" +
-      date.getHours() +
-      "-" +
-      date.getMinutes();
-    const minDate =
-      date.getMonth() +
-      1 +
-      "-" +
-      date.getDate() +
-      "-" +
-      date.getHours() +
-      "-" +
-      date.getMinutes();
-    this.setState({ minDate, maxDate });
+    console.log("in OpenModal")
+    const minDate = new Date()
+    const maxDate = new Date(new Date().getTime() + 604800000);
+
+    const minDate1 =
+      (minDate.getMonth() + 1)+
+      "/" +
+      minDate.getDate() +
+      " " +
+      minDate.getHours() +
+      ":" +
+      minDate.getMinutes()
+    const maxDate1 =
+      (maxDate.getMonth() + 1) +
+      "/" +
+      maxDate.getDate() +
+      " " +
+      maxDate.getHours() +
+      ":" +
+      maxDate.getMinutes()
+
+    this.setState({ minDate : minDate1, maxDate  : maxDate1 });
   };
 
   rangeSelected = (value) => {
@@ -434,7 +458,11 @@ export default class PopupOrder extends React.Component {
     if (this.props.popupVisible && !this.state.rendered) {
       console.log("this.props.timestamp ", this.props.timestamp)
       console.log("getDAteTime ",this.getDateTime(this.props.timestamp))
-        this.onDateChange(this.getDateTime(this.props.timestamp))
+      if(this.props.timestamp == undefined){
+        this.setState({dateTimeStamp : "",date:"",invalidTime:false})
+      }else{ 
+      this.onDateChange(this.getDateTime(this.props.timestamp))
+      }
       this.setState({
         rendered: true,
         rangeSelected: this.props.rangeSelected || "",
@@ -462,6 +490,8 @@ export default class PopupOrder extends React.Component {
     // console.log("now ", date.getMonth() + "-" + date.getDate() + "-" + date.getHours() + "-" +date.getMinutes())
     return (
       <View>
+        {this.state.showImageViewer ?
+        this.model() :
         <Modal
           testID={"modal"}
           coverScreen={true}
@@ -499,6 +529,9 @@ export default class PopupOrder extends React.Component {
                 </Col>
                 {this.state.imageUris.length != 0 ? (
                   <Col style={{ flexDirection: "row" }}>
+                    <TouchableOpacity 
+                    style={{ flexDirection: "row" }}
+                    onPress={() => this.setState({showImageViewer : true})}>
                     {this.state.imageUris.map((item, i) => {
                       if (i == 3) {
                         if (this.state.imageUris.length == 4) {
@@ -554,6 +587,7 @@ export default class PopupOrder extends React.Component {
                         );
                       }
                     })}
+                                      </TouchableOpacity>
                   </Col>
                 ) : (
                   <Col
@@ -618,13 +652,14 @@ export default class PopupOrder extends React.Component {
                         shadowRadius: 10,
                       }}
                       onFocus={() => {
-                        this.setState({ inTextInput: true });
+                        this.setState({ inTextInput: true,priceInputted:"" });
                       }}
                       onEndEditing={() => {
                         const amount = isNaN(this.state.priceInputted);
                         console.log("amount ", amount);
                         if (amount) {
                           this.setState({
+                            priceInputted:"",
                             rangeError: "Price is not a Number",
                           });
                         } else if (parseInt(this.state.priceInputted) < 1) {
@@ -641,9 +676,15 @@ export default class PopupOrder extends React.Component {
                       }}
                       autoCapitalize="none"
                       onSubmitEditing={Keyboard.dismiss}
-                      onChangeText={(field) => {
-                        this.setState({ priceInputted: field });
-                      }}
+                          onChangeText={(field) => {
+                            if (parseInt(field) < 1) {
+                              this.setState({ priceInputted: "1" });
+                            } else if (parseInt(field) > 100) {
+                              this.setState({ priceInputted: "100" });
+                            } else {
+                              this.setState({ priceInputted: field });
+                            }
+                          }}
                       value={this.state.priceInputted}
                     />
                     <Text> or</Text>
@@ -790,7 +831,7 @@ export default class PopupOrder extends React.Component {
                     date={this.state.date}
                     mode="datetime"
                     placeholder="Select Date"
-                    format={"MM/DD HH:mm A"}
+                    format={"MM/DD HH:mm AA"}
                     minDate={this.state.minDate}
                     maxDate={this.state.maxDate}
                     confirmBtnText="Confirm"
@@ -812,11 +853,13 @@ export default class PopupOrder extends React.Component {
                       // ... You can check the source to find the other keys.
                     }}
                     onDateChange={(date) => {
-                      this.onDateChange()
+                      this.onDateChange(date)
                     }}
                     getDateStr={(props) => {
                       console.log("props ", props);
-                      return this.getDateTime(props)
+                      const date =  this.getDateTime(props)
+                      console.log("after getDateStr ", date)
+                      return date
                     }}
                     //   TouchableComponent={() => (
                     //         <Text>Time Expected</Text>
@@ -884,7 +927,7 @@ export default class PopupOrder extends React.Component {
             isVisible={this.state.uploadImagesVisible}
             photoCallb={this.photoCallback}
           />
-        </Modal>
+        </Modal>}
       </View>
     );
   }

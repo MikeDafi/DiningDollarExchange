@@ -64,7 +64,7 @@ export default class MessageScreen extends React.Component {
     const email = user.email.substring(0, end);
     return firebase
       .database()
-      .ref("/users/" + domain + "/" + email + "/orders");
+      .ref("/users/" + domain + "/" + email + "/historyOrders");
   };
 
   merge = (left,right,orderBy,ascending) => {
@@ -138,7 +138,8 @@ export default class MessageScreen extends React.Component {
         const promises = [];
         ordersSnapshot.forEach((chat) => {
           var otherChatterEmail;
-          // console.log("chat", chat);
+        
+           console.log("CHATTTTTTTTTTTTTTTTTTTTT", chat);
           if (chat.val().chatId.indexOf(email) == 0) {
             otherChatterEmail = chat
               .val()
@@ -193,6 +194,7 @@ export default class MessageScreen extends React.Component {
           thread.price = chat.val().price;
           thread.title = chat.val().title;
           thread.rating= chat.val().rating;
+          thread.historyOrderKey = chat.val().historyOrderKey
           thread.key = chat.key;
           if(thread.rating == undefined){
             thread.daysLeftToReview = this.daysLeftToReview(thread.date)
@@ -248,7 +250,7 @@ export default class MessageScreen extends React.Component {
   }
 
    console.log("url ", url)
-  await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"historyOrders/",{intermediates:true})
+  await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"otherChattersProfileImages/",{intermediates:true})
   // const downloadResumable = FileSystem.createDownloadResumable(
   //     url,
   //     FileSystem.documentDirectory  + name + ".png",
@@ -259,7 +261,7 @@ export default class MessageScreen extends React.Component {
     try {
       const { uri } = await FileSystem.downloadAsync(
               url,
-      FileSystem.documentDirectory  + "historyOrders/" + name + ".png",
+      FileSystem.documentDirectory  + "otherChattersProfileImages/" + name + ".png",
       {},
       callback
       );
@@ -394,32 +396,52 @@ export default class MessageScreen extends React.Component {
   };
 
   setRating = (buyer,key,index,rating) => {
-    if(buyer){
-      const threadsBuyer = this.state.threadsBuyer
-      if(rating ==  threadsBuyer[[index]].rating){
-         threadsBuyer[[index]].rating = null;
+        const user = firebase.auth().currentUser;
+    const start = user.email.indexOf("@");
+    const end = user.email.indexOf(".com");
+    const domain = user.email.substring(start, end);
+    const email = user.email.substring(0, end);
+    const thread = buyer ? this.state.threadsBuyer : this.state.threadsSeller
+      if(rating ==  thread[[index]].rating){
+         thread[[index]].rating = null;
       }else{
-        threadsBuyer[[index]].rating = rating
+        thread[[index]].rating = rating
       }
-      this.setState({threadsBuyer})
+      this.setState({[(buyer ? "threadsBuyer" : "threadsSeller")] : thread})
       setTimeout(() => {
-        if(rating == this.state.threadsBuyer[[index]].rating){
-          this.ref().child("buyer").child(key).update({rating})
-          threadsBuyer[[index]].daysLeftToReview = null
-          this.setState({threadsBuyer})
+        const threadNew = buyer ? this.state.threadsBuyer : this.state.threadsSeller
+        if(rating == threadNew[[index]].rating){
+          this.ref().child(buyer ? "buyer" : "seller").child(key).update({rating})
+          threadNew[[index]].daysLeftToReview = null
+          this.setState({[(buyer ? "threadsBuyer" : "threadsSeller")] : thread})
           console.log("in rating")
+                var otherChatterEmail = ""
+              if (thread[[index]]["chatId"].indexOf(email) == 0) {
+            otherChatterEmail = thread[[index]]["chatId"].substring(email.length, thread[[index]]["chatId"].length);
+          } else {
+            otherChatterEmail = thread[[index]]["chatId"].substring(0, thread[[index]]["chatId"].length - email.length);
+          }
+      firebase.database().ref("users/" + domain + "/" + otherChatterEmail).once("value",snapshot => {
+        var ratingFraction = snapshot.val().ratingFraction || ""
+        var numerator = 0,denominator = 0;
+        if(ratingFraction != ""){
+        const slash = ratingFraction.indexOf("/")
+        numerator = ratingFraction.substring(0,slash)
+        denominator = ratingFraction.substring(slash + 1,ratingFraction.length)
+        numerator = parseInt(numerator)
+        denominator = parseInt(denominator)
+        }
+        numerator += rating
+        denominator += 5
+        const newRating = (numerator / denominator) * 5
+        firebase.database().ref("users/" + domain + "/" + otherChatterEmail).update({
+          ratingFraction : numerator + "/" + denominator,
+          starRating : newRating
+        })
+      })
         }
       },5000)
-
-      // console.log("threadsBuyer ", this.state.threadsBuyer)
-      // console.log("index ", index)
-
-    }else{
-      const threadsBuyer = this.state.threadsSeller
-      threadsSeller[[index]].rating = rating
-      this.setState({threadsSeller})
-      this.ref().child("buyer").child(key).update({rating})
-    }
+        
   }
 
   formatSorter = () => {
@@ -585,7 +607,7 @@ export default class MessageScreen extends React.Component {
                           thread: item.chatId,
                           chattingUser: item.name,
                           otherChatterEmail: item.otherChatterEmail,
-                          historyOrderKey : "-MD4CrJZ07Jh0PMoYGe-"
+                          historyOrderKey : item.historyOrderKey,
                         })
                         // this.setState({popupVisible:true})
                       }
@@ -668,76 +690,106 @@ export default class MessageScreen extends React.Component {
               </View>
             )}
           </View>
-          {this.state.threadsSeller.length > 0 ? (
-          <View style={{ height: windowHeight - 300 }}>
+                    <View style={{ height: windowHeight - 300 }}>
             <Divider />
-            <FlatList
-              data={this.state.threadsSeller}
-              keyExtractor={(item) => item._id}
-              ItemSeparatorComponent={() => <Divider />}
-              renderItem={({ item, index }) => {
-                return (
-                  <TouchableWithoutFeedback
-                    onPressIn={() => {
-                      var clickedSeller = this.state.clickedSeller;
-                      clickedSeller[index] = true;
-                      this.setState({ clickedSeller });
-                    }}
-                    onPressOut={() => {
-                      var clickedSeller = this.state.clickedSeller;
-                      clickedSeller[index] = false;
-                      this.setState({ clickedSeller });
-                    }}
-                    onPress={() =>
-                      this.props.navigation.navigate("Room", {
-                        thread: item.chatId,
-                        chattingUser: item.name,
-                        otherChatterEmail: item.otherChatterEmail,
-                      })
-                    }
-                  >
-                    <View
-                      style={[
-                        styles.chatRow,
-                        {
-                          backgroundColor: this.state.clickedSeller[index]
-                            ? "#A9A9A9"
-                            : "white",
-                        },
-                      ]}
+            {this.state.threadsSeller.length > 0 ? (
+              <FlatList
+                data={this.state.threadsSeller}
+                keyExtractor={(item) => item._id}
+                ItemSeparatorComponent={() => <Divider />}
+                renderItem={({ item, index }) => {
+                  return (
+                    <TouchableWithoutFeedback
+                      onPressIn={() => {
+                        var clickedSeller = this.state.clickedSeller;
+                        clickedSeller[index] = true;
+                        this.setState({ clickedSeller });
+                      }}
+                      onPressOut={() => {
+                        var clickedSeller = this.state.clickedSeller;
+                        clickedSeller[index] = false;
+                        this.setState({ clickedSeller });
+                      }}
+                      onPress={() =>
+                        this.props.navigation.navigate("Room", {
+                          thread: item.chatId,
+                          chattingUser: item.name,
+                          otherChatterEmail: item.otherChatterEmail,
+                          historyOrderKey : item.historyOrderKey,
+                        })
+                        // this.setState({popupVisible:true})
+                      }
                     >
                       <View
-                        style={{ width: (3 * windowWidth) / 4,
-                            height: 80,
-                            flexDirection:"column" }}
+                        style={[
+                          styles.chatRow,
+                          {
+                            backgroundColor: this.state.clickedSeller[index]
+                              ? "#A9A9A9"
+                              : "white",
+                          },
+                        ]}
                       >
-                        <View style={[styles.avatar, { marginLeft: 20 }]}>
-                          {item.avatar ? (
-                            <Image
-                              source={{ url: item.avatar }}
-                              style={styles.avatar}
-                            />
-                          ) : (
-                            <FontAwesome name="user" size={50} color="black" />
-                          )}
+                        <View
+                          style={
+                            { width: (1 * windowWidth) / 4,
+                            flexDirection:"col",
+                            justifyContent:"center",
+                            alignItems:"center",
+                            paddingHorizontal:5,
+                            height:80 }}
+                        >
+                          <View style={[styles.avatar]}>
+                            {item.avatar ? (
+                              <Image
+                                source={{ url: item.avatar }}
+                                style={styles.avatar}
+                              />
+                            ) : (
+                              <FontAwesome
+                                name="user"
+                                size={50}
+                                color="black"
+                              />
+                            )}
+                          </View>
+                            <Text numberOfLines={1} style={{fontSize:13}}>{item.name}</Text>
                         </View>
-                          <Text style={{ fontSize: 20 }}>{item.name}</Text>
+                        <View
+                          style={{flexDirection:"column",justifyContent:"space-between",
+                                  width:windowWidth/2, height:80}}>
+                          <View style={{justifyContent:"center",alignItems:"center"}}>    
+                          <Text numberOfLines={1} style={{fontSize:20}}>{item.title}</Text>
+                          </View>
+                            <View style={{justifyContent:"flex-end",alignItems:"center",marginBottom:5}}>
+                            {item.rating != undefined && item.daysLeftToReview == null ? 
+                                <Text style={styles.daysLeft}> You rated a {item.rating}</Text> :
+                                (item.daysLeftToReview ? (
+                                  <>
+                                    <RatingUser starSize={30} 
+                                                selected={(rating) => this.setRating(false,item.key,item.index,rating)}
+                                                halfStarEnabled={true}
+                                                starCount={item.rating}/>
+                                    <Text style={styles.daysLeft}>{item.daysLeftToReview}</Text>
+                                  </>) : 
+                                  <Text style={styles.daysLeft}>Can No Longer Review</Text>)}
+                            </View>
+                        </View>
+                        <View
+                          style={{
+                            justifyContent: "center",
+                            alignItems: "center",
+                            width: windowWidth / 4,
+                          }}
+                        >
+                          <Text style={{color:"green",fontSize:25}}>${item.price}</Text>
+                          <Text>{item.formattedTime}</Text>
+                        </View>
                       </View>
-                      <View
-                        style={{
-                          justifyContent: "center",
-                          alignItems: "center",
-                          width: windowWidth / 4,
-                        }}
-                      >
-                        <Text>{item.formattedTime}</Text>
-                      </View>
-                    </View>
-                  </TouchableWithoutFeedback>
-                );
-              }}
-            />
-            </View>
+                    </TouchableWithoutFeedback>
+                  );
+                }}
+              />
             ) : (
               <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
                 <Text style={{color:"gray",fontSize:20}}>
@@ -745,6 +797,7 @@ export default class MessageScreen extends React.Component {
                 </Text>
               </View>
             )}
+          </View>
         </Swiper>
         {/* <View style={{marginTop:40,position:"absolute",top:60,right:5}}>
           <View style={{flexDirection:"column",alignItems:"flex-end"}}>

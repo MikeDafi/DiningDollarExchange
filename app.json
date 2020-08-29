@@ -5,15 +5,15 @@
     "name": "DDE",
     "slug": "DDE",
     "orientation": "portrait",
-    "icon" : "./client/assets/AppIconSquare.png",
+    "icon": "./client/assets/AppIconSquare1.png",
     "version": "1.0.0",
     "platforms": [
       "ios",
       "android",
       "web"
     ],
-    "assetBundlePatterns": [
-      "**/*"
-    ]
+    "ios": {
+      "bundleIdentifier": "com.michaelaskndafi.DDE"
+    }
   }
 }

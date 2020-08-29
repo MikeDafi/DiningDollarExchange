@@ -4,6 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   Dimensions,
@@ -37,6 +38,7 @@ export default class ProfileScreen extends React.Component {
     sellerReminders: new Animated.Value(0),
     beforeChanges: [],
     loading: true,
+    showSavedResult : false,
     notificationCategory: {},
     rating: 5,
     generalCategoryIndex: 0,
@@ -130,12 +132,12 @@ export default class ProfileScreen extends React.Component {
       newMessages: true,
       buyer: {
         buyerNotification: true,
-        reminders: [],
+        reminders: 0,
       },
       seller: {
         sellerNotification: true,
         scheduled: true,
-        reminders: [],
+        reminders: 0,
       },
     };
 
@@ -293,22 +295,29 @@ export default class ProfileScreen extends React.Component {
         isSeller: this.state.accountCategory[2].isSeller,
         notifications: this.state.notificationCategory,
         name: this.state.generalCategory[0].field,
-      });
+      }).catch(() => {
+          this.setState({savedSuccessfully:false})      
+      })
 
     if (this.state.changedUrl) {
       console.log("changed url")
       this.uriToBlob(this.state.imageUri).then((blob) => {
         console.log("this.state.imageUri ", this.state.imageUri)
         this.uploadToFirebase(blob)
+      }).catch(() => {
+        this.setState({savedSuccessfully:false})
       })
     }
 
     user.updateProfile({
       displayName: this.state.generalCategory[0].field,
-    });
+    }).catch(() => {
+      this.setState({savedSuccessfully : false})
+    })
 
     this.setState({
       changedUrl: false,
+      savedSuccessfully : this.state.savedSuccessfully == false ? false : true,
       beforeChanges: clone([
         this.state.generalCategory,
         this.state.accountCategory,
@@ -365,7 +374,7 @@ export default class ProfileScreen extends React.Component {
         })
         })
         .catch((error) => {
-          reject(error);
+          this.setState({savedSuccessfully : false})
         });
     });
   };
@@ -454,7 +463,7 @@ export default class ProfileScreen extends React.Component {
             )}
           </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={() => this.saveToFirebase()}>
+          <TouchableOpacity onPress={() => {this.setState({savedSuccessfully : undefined,showSavedResult:true});this.saveToFirebase()}}>
             <Text style={{ color: "white", fontSize: 18 }}>Save</Text>
           </TouchableOpacity>
         </View>
@@ -465,8 +474,8 @@ export default class ProfileScreen extends React.Component {
           disabled={true}
           selected={(rating) => this.onStarRatingPress(rating)}
         />
-        <Text style={{ fontSize: 10, color: "white" }}>
-          {this.state.rating}
+        <Text style={{ fontSize: 15, color: "white" }}>
+          {this.state.rating.toString().substring(0,4)}
         </Text>
       </View>
     );
@@ -544,6 +553,55 @@ export default class ProfileScreen extends React.Component {
       this.setState({ accountCategory: updatedCategory });
     }
   };
+
+  saveResult = () => (
+    <View style={{position:"absolute",width:windowWidth,height:windowHeight,justifyContent:"center",alignItems:"center",backgroundColor: 'rgba(0,0,0,0.8)'}}>
+        <View style={{
+          width:250,
+          height:200,
+          flexDirection:"column",
+          justifyContent:"space-between",
+          backgroundColor:"white",
+          borderRadius:20
+        }}>
+          <View style={{
+            height:30,
+            alignItems:"center",
+            justifyContent:"center",
+          }}>
+            <Text style={{fontSize:20}}>Save Result</Text>
+          </View>
+          <View style={{
+              alignItems:"center",
+              marginHorizontal:10,
+              justifyContent:"center",
+              height:100,}}>
+            {this.state.savedSuccessfully == undefined ? 
+            <>
+                    <ActivityIndicator size="large"></ActivityIndicator>
+                    <Text>Saving...</Text>
+                    </>
+            :
+            <Text style={{fontSize:15,justifyContent:"center"}}>
+              {this.state.savedSuccessfully ? "Successfully Saved" : "Unsuccessful"}
+            </Text>
+            } 
+          </View>
+          <TouchableOpacity onPress={() => {
+          this.setState({showSavedResult : false})
+          }}>
+            <View style={{
+                alignItems:"center",
+                justifyContent:"center",
+                borderTopWidth:0.2,
+                height:50,
+                borderColor:"gray"}}>
+              <Text>Dismiss</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        </View>
+  )
 
   general = () => {
     return (
@@ -647,7 +705,7 @@ export default class ProfileScreen extends React.Component {
 
   convertToArray = (number) => {
     const array = [];
-    var binary = 8;
+    var binary = 64;
     while (binary >= 1) {
       if (number >= binary) {
         number -= binary;
@@ -793,7 +851,7 @@ export default class ProfileScreen extends React.Component {
                       }
                       containerStyle={{ height: 40, width: 200 }}
                       onChangeItem={(item) =>
-                        this.setEditMode(1, 2, "ranges", item)
+                        this.setEditMode(1, 2, "ranges", this.convertToNumber(item))
                       }
                     />
                   </Animated.View>
@@ -979,26 +1037,27 @@ export default class ProfileScreen extends React.Component {
                     this._close(this.state.buyerReminders);
                   }}
                   items={[
-                    { label: "5 minutes", value: 64 },
-                    { label: "30 minutes", value: 16 },
-                    { label: "1 hour", value: 8 },
-                    { label: "5 hours", value: 4 },
-                    { label: "12 hours", value: 2 },
-                    { label: "1 day", value: 1 },
+                      { label: "5 minutes", value: 64 },
+                      { label: "15 minutes", value: 32 },
+                      { label: "30 minutes", value: 16 },
+                      { label: "1 hour", value: 8 },
+                      { label: "5 hours", value: 4 },
+                      { label: "12 hours", value: 2 },
+                      { label: "1 day", value: 1 },
                   ]}
                   multiple={true}
                   multipleText="%d items have been selected."
                   placeholder="Select a Reminder"
                   min={0}
                   max={4}
-                  defaultValue={this.state.notificationCategory.buyerReminders}
+                  defaultValue={this.convertToArray(this.state.notificationCategory.buyer.reminders)}
                   containerStyle={{ height: 40, width: 150 }}
                   onChangeItem={(item) =>
                     this.setEditMode(
                       this.state.notificationCategoryIndex,
                       "buyer",
                       "reminders",
-                      item
+                      this.convertToNumber(item)
                     )
                   }
                 />
@@ -1084,7 +1143,7 @@ export default class ProfileScreen extends React.Component {
                   style={{
                     marginVertical: 10,
                     flexDirection: "row",
-                    marginBottom: this.state.buyerReminders,
+                    marginBottom: this.state.sellerReminders,
                     justifyContent: "space-between",
                     alignItems: "center",
                   }}
@@ -1112,12 +1171,13 @@ export default class ProfileScreen extends React.Component {
                     min={0}
                     max={4}
                     defaultValue={
-                      this.state.notificationCategory.sellerReminders
+                      this.convertToArray(this.state.notificationCategory.seller.reminders)
                     }
                     containerStyle={{ height: 40, width: 150 }}
-                    onChangeItem={(item) =>
-                      this.setEditMode(2, "seller", "reminders", item)
-                    }
+                    onChangeItem={(item) =>{
+                      console.log("item ",item)
+                      this.setEditMode(2, "seller", "reminders", this.convertToNumber(item))
+                    }}
                   />
                 </Animated.View>
               </View>
@@ -1290,6 +1350,8 @@ export default class ProfileScreen extends React.Component {
           {this.deleteAndSignOut()}
         </ScrollView>
         {/* {this.updatingFields()} */}
+                {this.state.showSavedResult &&
+        this.saveResult()}
         <ProfileScreenModal
           submitModal={this.submitModal}
           modal={this.state.modal}

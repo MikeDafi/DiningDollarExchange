@@ -53,10 +53,10 @@ export default class MessageScreen extends React.Component {
 
   setPage = async(index) => {
     const user = firebase.auth().currentUser || {};
-    const start = (user.email || "").indexOf("@");
-    const end = (user.email || "").indexOf(".com");
-    const domain = (user.email || "").substring(start, end);
-    const email = (user.email || "").substring(0, end);
+    const start = ((user || {}).email || "").indexOf("@");
+    const end = ((user || {}).email || "").indexOf(".com");
+    const domain = ((user || {}).email || "").substring(start, end);
+    const email = ((user || {}).email || "").substring(0, end);
     await this.setState({ page: index });
     this.getUpdatedList(this.state.textSearchInput)
 
@@ -72,10 +72,10 @@ export default class MessageScreen extends React.Component {
 
   ref = () => {
     const user = firebase.auth().currentUser || {};
-    const email = (user.email || "")
-    const start = (user.email || "").indexOf("@");
-    const end = (user.email || "").indexOf(".com");
-    const domain = (user.email || "").substring(start, end);
+    const email = ((user || {}).email || "")
+    const start = ((user || {}).email || "").indexOf("@");
+    const end = ((user || {}).email || "").indexOf(".com");
+    const domain = ((user || {}).email || "").substring(start, end);
     return firebase
       .database()
       .ref(
@@ -93,10 +93,10 @@ export default class MessageScreen extends React.Component {
   keepUpdatedList = async (isBuyer) => {
     const buyer = isBuyer ? "buyer" : "seller";
     const user = firebase.auth().currentUser || {};
-    const start = (user.email || "").indexOf("@");
-    const end = (user.email || "").indexOf(".com");
-    const domain = (user.email || "").substring(start, end);
-    const email = (user.email || "").substring(0, end);
+    const start = ((user || {}).email || "").indexOf("@");
+    const end = ((user || {}).email || "").indexOf(".com");
+    const domain = ((user || {}).email || "").substring(start, end);
+    const email = ((user || {}).email || "").substring(0, end);
     
     if(isBuyer){
       this.setState({loadingBuyer : true})
@@ -223,10 +223,10 @@ export default class MessageScreen extends React.Component {
     this.keepUpdatedList(true);
     this.keepUpdatedList(false);
     const user = firebase.auth().currentUser || {};
-    const start = (user.email || "").indexOf("@");
-    const end = (user.email || "").indexOf(".com");
-    const domain = (user.email || "").substring(start, end);
-    const realEmail = (user.email || "").substring(0, end);
+    const start = ((user || {}).email || "").indexOf("@");
+    const end = ((user || {}).email || "").indexOf(".com");
+    const domain = ((user || {}).email || "").substring(start, end);
+    const realEmail = ((user || {}).email || "").substring(0, end);
 
     firebase
       .database()
@@ -383,10 +383,10 @@ export default class MessageScreen extends React.Component {
 
   getUpdatedList = async (textUnedited) => {
     const user = firebase.auth().currentUser || {};
-    const start = (user.email || "").indexOf("@");
-    const end = (user.email || "").indexOf(".com");
-    const domain = (user.email || "").substring(start, end);
-    const email = (user.email || "").substring(0, end);
+    const start = ((user || {}).email || "").indexOf("@");
+    const end = ((user || {}).email || "").indexOf(".com");
+    const domain = ((user || {}).email || "").substring(start, end);
+    const email = ((user || {}).email || "").substring(0, end);
     if(this.state.page == 0){
       this.setState({loadingBuyer : true})
     }else{

@@ -63,7 +63,10 @@ export default class SelectedOrderModal extends React.Component {
     console.log("agreed")
     this.orderRef().once("value", async (snapshot) => {
       const order = snapshot.val()
-      if(order.status == "searching"){
+          const user = firebase.auth().currentUser;
+    const end = user.email.indexOf(".com");
+    const email = user.email.substring(0, end);
+      if(order.status == "searching" && this.state.buyerEmail != email){
         this.setState({modalOn : false,acceptedOrderVisible: true})
         const name = "";
         const myUser = firebase
@@ -115,9 +118,14 @@ export default class SelectedOrderModal extends React.Component {
             });
         
         const buyerSentMessage = order.buyer + "_hasSentMessage";
+
           firebase
             .database()
-            .ref("/chats/" + domain + "/" + order.buyer + myUser)
+            .ref("/chats/" + domain + "/" + order.buyer + myUser + "/"+ order.buyer)
+            .update({ [buyerSentMessage]: true });
+                    firebase
+            .database()
+            .ref("/chats/" + domain + "/" + order.buyer + myUser + "/")
             .update({ [buyerSentMessage]: true });
 
         const path =
@@ -260,7 +268,7 @@ export default class SelectedOrderModal extends React.Component {
           const profileImagePath =
             "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg";
           this.formatTime(order.timeSelected)
-          this.setState({modalOn : true,rangeSelected : order.rangeSelected,imageNames : order.imageNames,imageUrls:order.imageUrls || [],buyerEmail: order.buyer})
+          this.setState({rangeSelected : order.rangeSelected,imageNames : order.imageNames,imageUrls:order.imageUrls || [],buyerEmail: order.buyer})
           const promises = []
           promises.push(firebase.database().ref("/users/" + domain + "/" + order.buyer+ "/").once("value",(snapshot) => {
             this.setState({buyerStarRating : snapshot.val().starRating,buyerName : snapshot.val().name})
@@ -397,8 +405,8 @@ export default class SelectedOrderModal extends React.Component {
   _startHeight = (heightVariable) => {
     console.log("oooooooooo");
     Animated.timing(heightVariable, {
-      toValue: windowHeight - 100,
-      duration: 400,
+      toValue: windowHeight - 200,
+      duration: 600,
     }).start();
   };
 
@@ -562,6 +570,7 @@ export default class SelectedOrderModal extends React.Component {
           alignItems: "center",
         }}
         onModalWillShow={()=> {this._startWidth(this.state.animatedWidth); this._startHeight(this.state.animatedHeight)}}
+        onModalShow={() => this.setState({modalOn:true})}
         onModalWillHide={() => {this._close(this.state.animatedWidth); this._close(this.state.animatedHeight)}}
         onBackdropPress={ () =>{
           this.setState({modalOn : false})

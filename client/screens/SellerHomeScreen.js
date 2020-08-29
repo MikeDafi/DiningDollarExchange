@@ -67,8 +67,11 @@ export default class SellerHomeScreen extends React.Component {
                 console.log("KEY ", element.key)
                 console.log(element.timeSelected)
                 if(count <=30 && !(element.key in orders)){
-                 
-                    if((parseInt(element.val().timeSelected) >= (new Date().getTime() - 60000)) && element.val().status == "searching" ){
+                  var timeSelected = element.val().timeSelected
+                  timeSelected = timeSelected.toString(10).substring(0,13)
+                    const stillExists = parseInt(timeSelected) - new Date().getTime() + 60000
+                    console.log(stillExists)
+                    if(stillExists > 0 && element.val().status == "searching" ){
                         var randomX,randomY
                         shouldBeKept[[element.key]] = true
                         while(true){
@@ -98,7 +101,7 @@ export default class SellerHomeScreen extends React.Component {
                             opacity : new Animated.Value(1)
                         }
                         multiArray[randomX][randomY] = true
-                    }else{
+                    }else if(element.val().status != "in-progress"){
                       shouldBeDeleted.push(element.key)
                     }
                 }
