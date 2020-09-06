@@ -54,6 +54,7 @@ export default class SpecificSavedOrder extends React.Component {
     uploadImagesVisible: false,
     deleteHighlight: new Animated.Value(0),
     isDeleting: false,
+    orderHighlight: new Animated.Value(0),
     saveHighlight: new Animated.Value(0),
     rangeSelected: this.props.rangeSelected || "",
     timePreference: "",
@@ -106,19 +107,19 @@ export default class SpecificSavedOrder extends React.Component {
         });
       }
 
-      console.log(result);
+      //1 console.log(result);
     } catch (E) {
-      console.log(E);
+      //1 console.log(E);
     }
   };
 
   photoCallback = async (params) => {
-    console.log("photoCallback");
+    //1 console.log("photoCallback");
     this.setState({ uploadImagesVisible: false });
     if (params == null) {
       return;
     }
-    console.log("here ");
+    //1 console.log("here ");
     const imageUrls = this.state.imageUrls;
     const toAddImages = this.state.toAddImages;
     await params.then(async (images) => {
@@ -137,7 +138,7 @@ export default class SpecificSavedOrder extends React.Component {
     return firebase.database.ServerValue.TIMESTAMP;
   };
   _start = (variableToChange, value, duration) => {
-    console.log("oooooooooo");
+    //1 console.log("oooooooooo");
     Animated.timing(variableToChange, {
       toValue: value,
       duration: duration,
@@ -198,7 +199,7 @@ export default class SpecificSavedOrder extends React.Component {
       const orderDate = new Date(parseInt(timestamp));
 
       const AM = orderDate.getHours() < 12 ? true : false;
-      const hour = AM ? orderDate.getHours() : orderDate.getHours() - 12;
+      const hour =orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
       const minute = "0" + orderDate.getMinutes();
       const time = hour + ":" + minute.substr(-2);
       // const date = orderDate.getDay() + '/' + (orderDate.getMonth() + 1)
@@ -522,14 +523,14 @@ export default class SpecificSavedOrder extends React.Component {
         }}
         showIcon={false}
         onDateChange={(date) => {
-          console.log("date ", date);
+          //1 console.log("date ", date);
           var dateTimeStamp = new Date(date);
           dateTimeStamp = dateTimeStamp.getTime();
           this.formatTime(dateTimeStamp);
           this.setState({ dateTimeStamp });
         }}
         getDateStr={(props) => {
-          console.log("props ", props);
+          //1 console.log("props ", props);
 
           return props;
         }}
@@ -1104,10 +1105,10 @@ export default class SpecificSavedOrder extends React.Component {
                           if(this.state.newOrder){
                               this.props.exitSelectedOrderModal();
                           }else{
-                          console.log(
-                            "beforeEditing ",
-                            this.state.beforeEditing
-                          );
+                          //1 console.log(
+                          //1   "beforeEditing ",
+                          //1   this.state.beforeEditing
+                          //1 );
                           this.setState({
                             editing: false,
                             thumbnail: this.state.beforeEditing["thumbnail"],
@@ -1203,7 +1204,7 @@ export default class SpecificSavedOrder extends React.Component {
                                 newThumbnail: false,
                               });
                             } else {
-                              console.log("new Order");
+                              //1 console.log("new Order");
                               const newOrderObject = {
                                 range: this.state.rangeSelected,
                                 thumbnail: {
@@ -1215,9 +1216,9 @@ export default class SpecificSavedOrder extends React.Component {
                               };
                               const imageUris = [];
                               const imageUrls = this.state.imageUrls;
-                              console.log("imageUrls", imageUrls);
+                              //1 console.log("imageUrls", imageUrls);
                               for (var i = 0; i < imageUrls.length; i++) {
-                                console.log("iamge", imageUrls[i]);
+                                //1 console.log("iamge", imageUrls[i]);
                                 imageUris.push(imageUrls[i].url);
                               }
                               if (
@@ -1225,7 +1226,7 @@ export default class SpecificSavedOrder extends React.Component {
                                 this.state.thumbnail.length > 1 &&
                                 this.state.newThumbnail
                               ) {
-                                console.log("pushed ", this.state.thumbnail);
+                                //1 console.log("pushed ", this.state.thumbnail);
                                 imageUris.push(this.state.thumbnail);
                               }
                               this.props.addSavedOrder(
@@ -1325,26 +1326,28 @@ export default class SpecificSavedOrder extends React.Component {
                           </Text>
                         </Col>
                       </TouchableWithoutFeedback>
-                      <SwipeButton
-                        width={modalWidth - 80}
-                        swipeSuccessThreshold={50}
-                        onSwipeSuccess={() => {
-                          this.agreeToOrder();
-                        }}
-                        onSwipeFail={() => console.log("onSwipeFail")}
-                        thumbIconStyles={{
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                        thumbIconImageSource={arrowRight}
-                        thumbIconBackgroundColor="white"
-                        thumbIconBorderColor="black"
-                        title={"Request Order"}
-                        railBackgroundColor="white"
-                        renderMessageImage={null}
-                        railFillBorderColor="rgba(252,220,0,1)"
-                        railFillBackgroundColor="rgba(252,220,0,1)"
-                      />
+                                              <TouchableWithoutFeedback
+                        onPressIn={() => this._start(this.state.orderHighlight,modalWidth - 80,1000)}
+                        onPressOut={() => {
+                          if(                            (modalWidth -80) -
+                              this.state.orderHighlight.__getValue() <=
+                            10 ){
+                            this.props.exitSelectedOrderModal()
+                                                          this.props.togglePopupVisibility(true)
+                            this.props.toggleOrderIndex(this.props.index)
+
+
+                          }
+                          this._close(this.state.orderHighlight,0)}}
+                        >
+                      <View style={{width:modalWidth - 80,marginTop:5,marginRight:5,height:50,borderWidth:1,borderRadius:50,overflow: 'hidden',}}>
+                        <View style={{justifyContent:"center",alignItems:"center",height:50}}>
+                        <Text style={{fontSize:25}}>Hold to Order</Text>
+                        </View>
+                                                <Animated.View style={{backgroundColor:"black",position:"absolute",justifyContent:"center",alignItems:"center",height:50,width:this.state.orderHighlight}}/>
+                      </View>
+                                              </TouchableWithoutFeedback>
+
                     </>
                   )}
                 </Row>
@@ -1389,7 +1392,7 @@ export default class SpecificSavedOrder extends React.Component {
                       width: 200,
                     }}
                     onChangeItem={(item) => {
-                      console.log("item ", item);
+                      //1 console.log("item ", item);
                       this.setState({ rangeSelected: item.label });
                     }}
                   />

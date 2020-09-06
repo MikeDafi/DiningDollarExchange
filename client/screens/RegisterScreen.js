@@ -13,9 +13,11 @@ export default class RegisterScreen extends React.Component{
         name: "",
         email : "",
         password:"",
+        confirmPassword:"",
         avatar:null,
         emailError:"",
         passwordError:"",
+        confirmPasswordError:"",
         nameError:"",
     }
 
@@ -33,9 +35,9 @@ export default class RegisterScreen extends React.Component{
             this.setState({ avatar: result.uri });
             }
 
-            console.log(result);
+            //1 console.log(result);
         } catch (E) {
-            console.log(E);
+            //1 console.log(E);
         }
     }
 
@@ -78,20 +80,21 @@ export default class RegisterScreen extends React.Component{
         const {email,password} = this.state
         this.handleEmail(this.state.email)
         this.handlePassword(this.state.password)
+        this.handleConfirmPassword(this.state.confirmPassword)
         this.handleName(this.state.name)
-        console.log(this.state.emailError)
+        //1 console.log(this.state.emailError)
         const start = this.state.email.indexOf("@")
         const end = this.state.email.indexOf(".com")
         const domain = this.state.email.substring(start,end)
-        console.log("in signupp")
-        if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != ""){
+        //1 console.log("in signupp")
+        if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != "" || this.state.confirmPasswordError != ""){
             return
         }
-        console.log("in sign up")
+        //1 console.log("in sign up")
         var user = firebase.auth().currentUser;
         firebase.auth().createUserWithEmailAndPassword(email,password)
         .then(userCredentials =>{
-            console.log("in create user")
+            //1 console.log("in create user")
             var user = firebase.auth().currentUser;
             user.updateEmail(this.state.email)
             if(this.state.avatar){
@@ -108,7 +111,7 @@ export default class RegisterScreen extends React.Component{
             user.updateProfile({
                 displayName:this.state.name
             })
-            console.log("about to set");
+            //1 console.log("about to set");
             firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).update({
                 name:this.state.name,
                 starRating:5,
@@ -141,7 +144,8 @@ export default class RegisterScreen extends React.Component{
             }, 300000);
             this.props.navigation.navigate("Login",{errorMessage : "A verification email has been sent"})
         })
-        .catch(error => {console.log(error);this.setState({emailError: "*Email already in use, Go to Login*"})})
+        .catch(error => {//1 console.log(error);this.setState({emailError: "*Email already in use, Go to Login*"})})
+        })
         
     }
 
@@ -169,7 +173,7 @@ export default class RegisterScreen extends React.Component{
         var atLeastOneNumber = /^(?=.*\d).{1,}$/;
         var atLeastOneLowerCase = /^(?=.*[a-z]).{1,}$/;
         var atLeastOneUpperCase = /^(?=.*[A-Z]).{1,}$/;
-        this.setState({password: password})
+        this.setState({password})
         if(password.length == 0){
             this.setState({passwordError : "Password is empty"})            
         }
@@ -186,6 +190,13 @@ export default class RegisterScreen extends React.Component{
         }
     }
 
+    handleConfirmPassword = (confirmPassword) => {
+        if(confirmPassword != this.state.password){
+            this.setState({confirmPasswordError : "Passwords do not match"})
+        }
+        this.setState({confirmPassword})
+    }
+
     render(){
         LayoutAnimation.easeInEaseOut()
         return(
@@ -194,23 +205,25 @@ export default class RegisterScreen extends React.Component{
                     <ImageBackground source={require('../assets/SignUpPage.png')} style={styles.image}>
                         <KeyboardAvoidingView
                         behavior={Platform.OS == "ios" ? "padding" : "height"}
-                        style={{flex : 1}}
+                        style={{flex : 1,height:200}}
+                        keyboardVerticalOffset={-100}
                         >
                             <View style={styles.header}>
                                 <TouchableOpacity onPress={() => this.props.navigation.goBack(null)}>
-                                    <AntDesign name="arrowleft" size={30} color="white" />
+                                    <AntDesign name="arrowleft" size={40} color="white" />
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={this.handleSignUp}>
                                     <Text style={styles.headerNext}>Finish</Text>
                                 </TouchableOpacity>
                             </View>
-                            <View style={{alignItems:"center",justifyContent:"flex-end",marginBottom:80}}>
+
+                            <View style={styles.form}>
+                            <View style={{alignItems:"center",justifyContent:"flex-end",marginBottom:30}}>
                             <TouchableOpacity style={styles.avatarPlaceholder} onPress={this.handlePickAvatar}>
                                 {this.state.avatar ? <Image source={{uri : this.state.avatar}} style={styles.avatar}/> :
                                 <Octicons name="person" size= {50} color="#FFF" />}
                             </TouchableOpacity>
                             </View>
-                            <View style={styles.form}>
                                 <View>
                                     <Text style={styles.inputTitle}>Full Name</Text>
                                     <TextInput style={styles.input} 
@@ -233,7 +246,7 @@ export default class RegisterScreen extends React.Component{
                                 <View style={styles.errorMessage}>
                                     <Text style={styles.error}>{this.state.emailError}</Text>
                                 </View>}
-                                <View  style={{marginTop: this.state.emailError != ""? 0: 20,marginBottom: this.state.passwordError != ""? 0: 20}}>
+                                <View  style={{marginTop: this.state.emailError != ""? 0: 20}}>
                                     <Text style={styles.inputTitle}>Password</Text>
                                     <TextInput style={styles.input} 
                                         autoCapitalize="none"
@@ -244,6 +257,18 @@ export default class RegisterScreen extends React.Component{
                                 {this.state.passwordError != "" && 
                                 <View style={styles.errorMessage}>
                                     <Text style={styles.error}>{this.state.passwordError}</Text>
+                                </View>}
+                                <View  style={{marginTop: this.state.passwordError != ""? 0: 20,marginBottom: this.state.confirmPasswordError != ""? 0: 20}}>
+                                    <Text style={styles.inputTitle}>Confirm Password</Text>
+                                    <TextInput style={styles.input} 
+                                        autoCapitalize="none"
+                                        secureTextEntry
+                                        onChangeText={confirmPassword => this.handleConfirmPassword(confirmPassword)}
+                                        value={this.state.confirmPassword}/>
+                                </View>
+                                {this.state.confirmPasswordError != "" && 
+                                <View style={styles.errorMessage}>
+                                    <Text style={styles.error}>{this.state.confirmPasswordError}</Text>
                                 </View>}
                             </View>
                         </KeyboardAvoidingView>
@@ -318,7 +343,7 @@ const styles = StyleSheet.create({
         flex:1,
         flexDirection:"row",
         justifyContent:"space-between",
-        marginHorizontal:10,
+        marginHorizontal:20,
         marginTop:30
     },
     avatar:{

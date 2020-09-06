@@ -53,7 +53,7 @@ export default class ProfileScreen extends React.Component {
   };
 
   _start = (heightVariable) => {
-    console.log("oooooooooo");
+    //1 console.log("oooooooooo");
     Animated.timing(heightVariable, {
       toValue: 150,
       duration: 50,
@@ -61,7 +61,7 @@ export default class ProfileScreen extends React.Component {
   };
 
   _close = (heightVariable) => {
-    console.log("iiiiii");
+    //1 console.log("iiiiii");
     Animated.timing(heightVariable, {
       toValue: 0,
       duration: 50,
@@ -81,9 +81,9 @@ export default class ProfileScreen extends React.Component {
         this.setState({ imageUri: result.uri, changedUrl: true });
       }
 
-      console.log(result);
+      //1 console.log(result);
     } catch (E) {
-      console.log(E);
+      //1 console.log(E);
     }
   };
 
@@ -159,7 +159,7 @@ export default class ProfileScreen extends React.Component {
         .once("value", (snapshot) => {
           const accountCategory = this.state.accountCategory;
           accountCategory[1].isBuyer = snapshot.val().isBuyer;
-          // console.log(snapshot.val());
+          // //1 console.log(snapshot.val());
           accountCategory[2].isSeller = {
             searching: snapshot.val().isSeller.searching,
             ranges: this.convertToArray(snapshot.val().isSeller.ranges),
@@ -175,10 +175,10 @@ export default class ProfileScreen extends React.Component {
                   firebase
                     .database()
                     .ref("users/" + realDomain + "/" + email).update({profileImageUrl: foundURL})
-                                console.log("done finding")
+                                //1 console.log("done finding")
                 })
                 .catch((error) => {
-                  console.log(error);
+                  //1 console.log(error);
                 })
 
             );
@@ -194,7 +194,7 @@ export default class ProfileScreen extends React.Component {
             rating: snapshot.val().starRating,
           });
 
-          // console.log("notification ", accountCategory);
+          // //1 console.log("notification ", accountCategory);
         })
     );
 
@@ -207,13 +207,13 @@ export default class ProfileScreen extends React.Component {
       ]),
       loading: false,
     });
-    console.log("profileImageUrl ", profileImageUrl)
-    console.log("profileObject" , profileObject)
+    //1 console.log("profileImageUrl ", profileImageUrl)
+    //1 console.log("profileObject" , profileObject)
 
     if(!profileObject || profileObject.uri == undefined || profileImageUrl != profileObject.url ){//compare urls
-      console.log("trying to download")
+      //1 console.log("trying to download")
       if(profileObject && !profileObject.uri){
-        console.log("delete")
+        //1 console.log("delete")
         await this.deleteUri(profileObject.uri)
       }
       try{
@@ -221,23 +221,23 @@ export default class ProfileScreen extends React.Component {
       const newProfileObject = {uri,url : profileImageUrl}
       await AsyncStorage.setItem("profileObject", JSON.stringify(newProfileObject))
         .then( ()=>{
-        console.log("It was saved successfully")
+        //1 console.log("It was saved successfully")
         } )
         .catch( ()=>{
-        console.log("There was an error saving the product")
+        //1 console.log("There was an error saving the product")
         } )
       this.setState({imageUri : uri})
       }catch(e){
-        console.log("big error")
+        //1 console.log("big error")
       }
     }else{
-      console.log("the same url",profileObject.uri)
+      //1 console.log("the same url",profileObject.uri)
       this.setState({imageUri : profileObject.uri})
     }
   }
 
   updatingFields = () => {
-    console.log(windowWidth);
+    //1 console.log(windowWidth);
     return (
       <View
         style={{
@@ -300,9 +300,9 @@ export default class ProfileScreen extends React.Component {
       })
 
     if (this.state.changedUrl) {
-      console.log("changed url")
+      //1 console.log("changed url")
       this.uriToBlob(this.state.imageUri).then((blob) => {
-        console.log("this.state.imageUri ", this.state.imageUri)
+        //1 console.log("this.state.imageUri ", this.state.imageUri)
         this.uploadToFirebase(blob)
       }).catch(() => {
         this.setState({savedSuccessfully:false})
@@ -359,7 +359,7 @@ export default class ProfileScreen extends React.Component {
         .put(blob, {
           contentType: "image/jpeg",
         }).then(() => {
-          console.log("image")
+          //1 console.log("image")
  const image = firebase
           .storage()
           .ref()
@@ -367,7 +367,7 @@ export default class ProfileScreen extends React.Component {
           image
             .getDownloadURL()
             .then((foundURL) => {
-              console.log("foundUrl")
+              //1 console.log("foundUrl")
               firebase
                 .database()
                 .ref("users/" + domain + "/" + email).update({profileImageUrl: foundURL})
@@ -494,13 +494,13 @@ export default class ProfileScreen extends React.Component {
   };
 
   setEditMode = async (category, index, title, field) => {
-    console.log("values ", index + " " + title + " " + field);
-    console.log("category ", category);
+    //1 console.log("values ", index + " " + title + " " + field);
+    //1 console.log("category ", category);
     if (category == 0) {
       const generalCategory = this.state.generalCategory;
       generalCategory[index][[title]] = field;
       this.setState({ generalCategory });
-      //console.log(this.state.generalCategory)
+      ////1 console.log(this.state.generalCategory)
     } else if (category == 1) {
       var accountCategory = this.state.accountCategory;
       if (index == 0) {
@@ -578,7 +578,7 @@ export default class ProfileScreen extends React.Component {
               height:100,}}>
             {this.state.savedSuccessfully == undefined ? 
             <>
-                    <ActivityIndicator size="large"></ActivityIndicator>
+                    <Loading/>
                     <Text>Saving...</Text>
                     </>
             :
@@ -1175,7 +1175,7 @@ export default class ProfileScreen extends React.Component {
                     }
                     containerStyle={{ height: 40, width: 150 }}
                     onChangeItem={(item) =>{
-                      console.log("item ",item)
+                      //1 console.log("item ",item)
                       this.setEditMode(2, "seller", "reminders", this.convertToNumber(item))
                     }}
                   />
@@ -1270,7 +1270,7 @@ export default class ProfileScreen extends React.Component {
     try{
       await FileSystem.deleteAsync(path, {})
     }catch(e){
-      console.log("ERROR deleting profile image in profile screen")
+      //1 console.log("ERROR deleting profile image in profile screen")
     }
   }
 
@@ -1282,7 +1282,7 @@ export default class ProfileScreen extends React.Component {
     // });
   }
 
-  console.log("url ", url)
+  //1 console.log("url ", url)
   await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"profileImage/",{intermediates:true})
   const downloadResumable = FileSystem.createDownloadResumable(
       url,
@@ -1293,7 +1293,7 @@ export default class ProfileScreen extends React.Component {
 
     try {
       const { uri } = await downloadResumable.downloadAsync();
-      console.log('Finished downloading to ', uri);
+      //1 console.log('Finished downloading to ', uri);
       return uri;
     } catch (e) {
       console.error(e);
@@ -1302,7 +1302,7 @@ export default class ProfileScreen extends React.Component {
 
     // try {
     //   await downloadResumable.pauseAsync();
-    //   console.log('Paused download operation, saving for future retrieval');
+    //   //1 console.log('Paused download operation, saving for future retrieval');
     //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
     // } catch (e) {
     //   console.error(e);
@@ -1310,7 +1310,7 @@ export default class ProfileScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     //   this.setState({imageUrl :uri})
     // } catch (e) {
     //   console.error(e);
@@ -1329,7 +1329,7 @@ export default class ProfileScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     // } catch (e) {
     //   console.error(e);
     // }

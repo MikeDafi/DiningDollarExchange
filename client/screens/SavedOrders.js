@@ -49,12 +49,18 @@ export default class SavedOrders extends React.Component {
   };
 
   togglePopupVisibility = (value) => {
+    console.log("in toggle",value)
     this.setState({ popupVisible: value });
   };
+
+  toggleOrderIndex = ( value) => {
+     this.setState({orderIndex : value})
+  }
+
   exitSelectedOrderModal = () => {
-    this.setState({ modalOn: false, newOrder: false });
     this._close(this.state.animatedWidth, 0, 200);
     this._close(this.state.animatedHeight, 0, 200);
+    this.setState({ modalOn: false, newOrder: false });
   };
 
   async componentDidMount() {
@@ -78,7 +84,7 @@ export default class SavedOrders extends React.Component {
       .ref("users/" + domain + "/" + email + "/savedOrders")
       .once("value", async (snapshot) => {
         const keys = Object.keys(snapshot.val() || {});
-        // console.log("snapshot ", snapshot.val());
+        // //1 console.log("snapshot ", snapshot.val());
         const promises = [1];
         for (var key = 0; key < keys.length; key++) {
           const element = snapshot.val()[[keys[key]]];
@@ -91,12 +97,12 @@ export default class SavedOrders extends React.Component {
           thisOrder.key = keys[key];
           thisOrder.timestamp = element.timePreference;
           thisOrder.lastUsed = this.displayTime(element.lastUsed);
-          console.log("element.thumbnail ", element.thumbnail);
-          console.log("from component didm mount ", savedOrders);
-          //console.log("savedOrders[[actualKey]].thumbnail",savedOrders[[actualKey]].thumbnail)
+          //1 console.log("element.thumbnail ", element.thumbnail);
+          //1 console.log("from component didm mount ", savedOrders);
+          ////1 console.log("savedOrders[[actualKey]].thumbnail",savedOrders[[actualKey]].thumbnail)
           if (savedOrders[[actualKey]] && savedOrders[[actualKey]].thumbnail) {
-            // console.log("element thumbnail ", element.thumbnail);
-            // console.log(
+            // //1 console.log("element thumbnail ", element.thumbnail);
+            // //1 console.log(
             //   "savedOrders[[actualKey]].thumbnail ",
             //   savedOrders[[actualKey]].thumbnail
             // );
@@ -104,11 +110,11 @@ export default class SavedOrders extends React.Component {
               savedOrders[[actualKey]].thumbnail.uri &&
               savedOrders[[actualKey]].thumbnail.url == element.thumbnail
             ) {
-              console.log("exists savedOrders ");
+              //1 console.log("exists savedOrders ");
 
               thisOrder.thumbnail.uri = savedOrders[[actualKey]].thumbnail.uri;
             } else {
-              console.log("element.thumbnail ", element.thumbnail);
+              //1 console.log("element.thumbnail ", element.thumbnail);
               this.deleteUri(savedOrders[[actualKey]].thumbnail.uri);
               // if(element.thumbnail != ""){
               if (element.thumbnail && element.thumbnail.length > 1) {
@@ -123,7 +129,7 @@ export default class SavedOrders extends React.Component {
               // }
             }
           } else if (element.thumbnail && element.thumbnail.length > 1) {
-            // console.log("get thumbnail", promises);
+            // //1 console.log("get thumbnail", promises);
 
             promises.push(
               (thisOrder.thumbnail.uri = await this.downloadUrl(
@@ -152,26 +158,26 @@ export default class SavedOrders extends React.Component {
             }
           }
 
-          console.log("about to images", thisOrder.thumbnail);
+          //1 console.log("about to images", thisOrder.thumbnail);
           const images = Object.values(element.images || {});
           const existsImages =
             savedOrders[[actualKey]] && savedOrders[[actualKey]].images
               ? true
               : false;
-          // console.log("existingImages ", existsImages);
-          // console.log("images ", element.images);
+          // //1 console.log("existingImages ", existsImages);
+          // //1 console.log("images ", element.images);
           for (var i = 0; i < images.length; i++) {
-            console.log("existsImages ", existsImages);
-            console.log(
-              "savedOrders[[actualKey]].images[[images[i]]] ",
-              savedOrders[[actualKey]]
-            );
+            //1 console.log("existsImages ", existsImages);
+            //1 console.log(
+            //1   "savedOrders[[actualKey]].images[[images[i]]] ",
+            //1   savedOrders[[actualKey]]
+            //1 );
             if (existsImages && savedOrders[[actualKey]].images[[images[i]]]) {
               const { exists } = await FileSystem.getInfoAsync(
                 savedOrders[[actualKey]].images[[images[i]]],
                 {}
               );
-              console.log("exists ", exists);
+              //1 console.log("exists ", exists);
               if (exists) {
                 thisOrder.images[[images[i]]] =
                   savedOrders[[actualKey]].images[[images[i]]];
@@ -199,9 +205,9 @@ export default class SavedOrders extends React.Component {
           }
         }
         await Promise.all(promises);
-        // console.log("thisOrder ", thisOrder);
+        // //1 console.log("thisOrder ", thisOrder);
         numbOfItems = keys.length;
-        // console.log("finished an order");
+        // //1 console.log("finished an order");
 
         var numbOfColumns = Math.floor(windowWidth / cardWidth);
         // var numbOfRows = Math.ceil(numbOfItems / numbOfColumns);
@@ -237,16 +243,16 @@ export default class SavedOrders extends React.Component {
   }
 
   deleteSavedOrder = async (index) => {
-    console.log("index ", index);
+    //1 console.log("index ", index);
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const email = user.email.substring(0, end);
     var newSavedOrders = this.state.newSavedOrders;
-    console.log("deleteSavedOrder ", newSavedOrders);
+    //1 console.log("deleteSavedOrder ", newSavedOrders);
     const images = Object.keys(newSavedOrders[[index]].images || []);
-    console.log("images ", images);
+    //1 console.log("images ", images);
     for (var i = 0; i < images.length; i++) {
       var imageRef = firebase
         .storage()
@@ -256,7 +262,7 @@ export default class SavedOrders extends React.Component {
         .delete()
         .then(function () {})
         .catch(function (error) {
-          console.log("OH no, delete image dosn't work");
+          //1 console.log("OH no, delete image dosn't work");
         });
     }
     var imageRef = firebase
@@ -271,7 +277,7 @@ export default class SavedOrders extends React.Component {
       .delete()
       .then(function () {})
       .catch(function (error) {
-        console.log("OH no, delete image dosn't work");
+        //1 console.log("OH no, delete image dosn't work");
       });
     this.deleteUri(newSavedOrders[[index]].thumbnail.uri);
     Object.values(newSavedOrders[[index]].images).forEach((element) => {
@@ -285,7 +291,7 @@ export default class SavedOrders extends React.Component {
         [[newSavedOrders[[index]].key]]: null,
       });
     newSavedOrders.splice(index, 1);
-    console.log("newSavedOrders ", newSavedOrders);
+    //1 console.log("newSavedOrders ", newSavedOrders);
     this.setState({ newSavedOrders });
     const savedOrders = {};
     for (var i = 0; i < newSavedOrders.length; i++) {
@@ -307,8 +313,8 @@ export default class SavedOrders extends React.Component {
   ) => {
     let savedOrders = await AsyncStorage.getItem("savedOrders");
     savedOrders = JSON.parse(savedOrders);
-    console.log("key ", key);
-    console.log("index ", index);
+    //1 console.log("key ", key);
+    //1 console.log("index ", index);
     const thisOrder = this.state.newSavedOrders[[index]];
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
@@ -318,24 +324,24 @@ export default class SavedOrders extends React.Component {
 
     const imageKeys = Object.keys(this.state.newSavedOrders[[index]].images);
     const thisImages = this.state.newSavedOrders[[index]].images;
-    console.log("toDeleteImages ", toDeleteImages);
+    //1 console.log("toDeleteImages ", toDeleteImages);
     //Not going to delete from asyncstorage cause it's already done in componentdidmount
     for (var i = 0; i < toDeleteImages.length; i++) {
       const path = toDeleteImages[i];
-      console.log("delete path", path);
-      console.log("imageKeys ", imageKeys);
+      //1 console.log("delete path", path);
+      //1 console.log("imageKeys ", imageKeys);
       for (var j = 0; j < imageKeys.length; j++) {
-        console.log("thisImages[[imageKeys[j]]] ", thisImages[[imageKeys[j]]]);
+        //1 console.log("thisImages[[imageKeys[j]]] ", thisImages[[imageKeys[j]]]);
         if (thisImages[[imageKeys[j]]] == path) {
-          console.log("being deleted");
+          //1 console.log("being deleted");
           thisImages[[imageKeys[j]]] = null;
           delete thisImages[[imageKeys[j]]];
           const endIndex = imageKeys[j].indexOf(".jpg");
           const name = imageKeys[j].substring(endIndex - 16, endIndex);
-          console.log(
-            "imageRef ",
-            `/savedOrders/${domain}/${email}/${key}/${name}.jpg`
-          );
+          //1 console.log(
+          //1   "imageRef ",
+          //1   `/savedOrders/${domain}/${email}/${key}/${name}.jpg`
+          //1 );
           var imageRef = firebase
             .storage()
             .ref(`/savedOrders/${domain}/${email}/${key}/${name}.jpg`);
@@ -344,15 +350,15 @@ export default class SavedOrders extends React.Component {
             .delete()
             .then(function () {})
             .catch(function (error) {
-              console.log("OH no, delete image dosn't work");
+              //1 console.log("OH no, delete image dosn't work");
             });
           break;
         }
       }
       this.deleteUri(path);
     }
-    console.log("afterDelet ,", thisImages);
-    console.log("kyyy", key);
+    //1 console.log("afterDelet ,", thisImages);
+    //1 console.log("kyyy", key);
     const uploadToFirebasePromises = [];
     const imageNames = [];
     const uriToBlobPromises = [];
@@ -363,14 +369,14 @@ export default class SavedOrders extends React.Component {
       const path = `/savedOrders/${domain}/${email}/${key}/${nameKey}.jpg`;
       uriToBlobPromises.push(
         this.uriToBlob(uri, i).then((blob) => {
-          console.log("got the blob");
+          //1 console.log("got the blob");
           uploadToFirebasePromises.push(this.uploadToFirebase(blob, path));
         })
       );
     }
-    console.log("already there", uriToBlobPromises);
+    //1 console.log("already there", uriToBlobPromises);
     await Promise.all(uriToBlobPromises).then(async () => {
-      console.log("come on ", uploadToFirebasePromises);
+      //1 console.log("come on ", uploadToFirebasePromises);
 
       await Promise.all(uploadToFirebasePromises).then(async () => {
         const storagePromises = [];
@@ -379,7 +385,7 @@ export default class SavedOrders extends React.Component {
           const name = imageNames[i].nameKey;
           const uri = imageNames[i].uri;
           const path = `/savedOrders/${domain}/${email}/${key}/${name}.jpg`;
-          console.log("getting url ", path);
+          //1 console.log("getting url ", path);
           storagePromises.push(
             firebase
               .storage()
@@ -387,8 +393,8 @@ export default class SavedOrders extends React.Component {
               .getDownloadURL()
               .then((foundURL) => {
                 imageUrls.push(foundURL);
-                console.log("uri ", uri);
-                console.log("order.thumbnail ", order.thumbnail.uri);
+                //1 console.log("uri ", uri);
+                //1 console.log("order.thumbnail ", order.thumbnail.uri);
                 if (uri == order.thumbnail.uri) {
                   order.thumbnail.url = foundURL;
                 } else {
@@ -398,8 +404,8 @@ export default class SavedOrders extends React.Component {
           );
         }
         await Promise.all(storagePromises);
-        console.log("thisImages", thisImages);
-        console.log("imageUrls ", imageUrls);
+        //1 console.log("thisImages", thisImages);
+        //1 console.log("imageUrls ", imageUrls);
         const newSavedOrders = this.state.newSavedOrders;
         newSavedOrders[[index]].images = thisImages;
         newSavedOrders[[index]].timestamp = order.timestamp;
@@ -410,8 +416,8 @@ export default class SavedOrders extends React.Component {
         }
 
         this.setState({ newSavedOrders });
-        // console.log("newOrderObject ", newSavedOrders)
-        // console.log("keys ", key)
+        // //1 console.log("newOrderObject ", newSavedOrders)
+        // //1 console.log("keys ", key)
         firebase
           .database()
           .ref("users/" + domain + "/" + email + "/savedOrders/")
@@ -450,40 +456,40 @@ export default class SavedOrders extends React.Component {
     const storagePromises = [];
     const imageUrls = {};
     const imageNames = [];
-    console.log("in add saved order");
-    console.log("imageUris ", imageUris);
+    //1 console.log("in add saved order");
+    //1 console.log("imageUris ", imageUris);
     for (var i = 0; i < imageUris.length; i++) {
       const nameKey = this.generateRandomString();
       imageNames.push(nameKey);
       const uri = imageUris[i];
       const path = `/savedOrders/${domain}/${email}/${key}/${nameKey}.jpg`;
-      console.log("about to add ", imageUris[i]);
+      //1 console.log("about to add ", imageUris[i]);
       uriToBlobPromises.push(
         this.uriToBlob(uri, i).then((blob) => {
-          console.log("got the blob");
+          //1 console.log("got the blob");
           uploadToFirebasePromises.push(this.uploadToFirebase(blob, path));
         })
       );
     }
-    console.log("already there", uriToBlobPromises);
+    //1 console.log("already there", uriToBlobPromises);
     await Promise.all(uriToBlobPromises).then(async () => {
-      console.log("come on ", uploadToFirebasePromises);
+      //1 console.log("come on ", uploadToFirebasePromises);
 
       await Promise.all(uploadToFirebasePromises).then(async () => {
-        console.log("in finished uploading");
+        //1 console.log("in finished uploading");
         for (var i = 0; i < imageNames.length; i++) {
           const name = imageNames[i];
           const uri = imageUris[i];
           const path = `/savedOrders/${domain}/${email}/${key}/${name}.jpg`;
-          console.log("getting url ", path);
+          //1 console.log("getting url ", path);
           storagePromises.push(
             firebase
               .storage()
               .ref(path)
               .getDownloadURL()
               .then((foundURL) => {
-                console.log("uri ", uri);
-                console.log("thumbnail ", newOrderObject.thumbnail.uri);
+                //1 console.log("uri ", uri);
+                //1 console.log("thumbnail ", newOrderObject.thumbnail.uri);
                 if (uri == newOrderObject.thumbnail.uri) {
                   newOrderObject.thumbnail.url = foundURL;
                 } else {
@@ -493,15 +499,15 @@ export default class SavedOrders extends React.Component {
           );
         }
         await Promise.all(storagePromises);
-        console.log("imageUrls ", imageUrls);
+        //1 console.log("imageUrls ", imageUrls);
         newOrderObject.images = imageUrls;
         newOrderObject.key = key;
-        console.log("newOrderObject ", newOrderObject);
-        console.log("keys ", key);
+        //1 console.log("newOrderObject ", newOrderObject);
+        //1 console.log("keys ", key);
         const newSavedOrders = this.state.newSavedOrders;
         newSavedOrders.push(newOrderObject);
         this.setState({ newSavedOrders });
-        console.log("newSavedOrders From Add ", newSavedOrders);
+        //1 console.log("newSavedOrders From Add ", newSavedOrders);
         firebase
           .database()
           .ref("users/" + domain + "/" + email + "/savedOrders/")
@@ -521,11 +527,11 @@ export default class SavedOrders extends React.Component {
         for (var i = 0; i < newSavedOrders.length; i++) {
           savedOrders[[newSavedOrders[i].key]] = newSavedOrders[i];
         }
-        console.log("savedOrdes ", savedOrders);
+        //1 console.log("savedOrdes ", savedOrders);
         AsyncStorage.setItem("savedOrders", JSON.stringify(savedOrders));
       });
     });
-    console.log("done");
+    //1 console.log("done");
     this.setState({loading : false})
     // savedOrders[[key]] = newOrderObject
     //     firebase
@@ -557,23 +563,23 @@ export default class SavedOrders extends React.Component {
   };
 
   uploadToFirebase = async (blob, path) => {
-    console.log("in upload");
+    //1 console.log("in upload");
     return firebase.storage().ref(`${path}`).put(blob, {
       contentType: "image/jpeg",
     });
   };
 
   deleteUri = async (path) => {
-    console.log("path ", path);
+    //1 console.log("path ", path);
     try {
       await FileSystem.deleteAsync(path, {});
     } catch (e) {
-      console.log("ERROR deleting profile image in profile screen");
+      //1 console.log("ERROR deleting profile image in profile screen");
     }
   };
 
   downloadUrl = async (url, path, name) => {
-    console.log("DOWNLOADINGGGGGGGGGGGGGGGGGGGGG");
+    //1 console.log("DOWNLOADINGGGGGGGGGGGGGGGGGGGGG");
     const callback = (downloadProgress) => {
       const progress =
         downloadProgress.totalBytesWritten /
@@ -583,7 +589,7 @@ export default class SavedOrders extends React.Component {
       // });
     };
 
-    console.log("url ", url);
+    //1 console.log("url ", url);
     await FileSystem.makeDirectoryAsync(
       FileSystem.documentDirectory + "savedOrders/" + path,
       { intermediates: true }
@@ -607,7 +613,7 @@ export default class SavedOrders extends React.Component {
         {},
         callback
       );
-      console.log("Finished downloading to ", uri);
+      //1 console.log("Finished downloading to ", uri);
       return uri;
     } catch (e) {
       console.error(e);
@@ -643,7 +649,7 @@ export default class SavedOrders extends React.Component {
       ];
       var messageDate = new Date(timestamp);
       var currentDate = this.state.date;
-      // console.log("getHours ", messageDate.getHours());
+      // //1 console.log("getHours ", messageDate.getHours());
       var hour, minute, seconds;
       //2019 < 2020
       if (messageDate.getFullYear() == currentDate.getFullYear()) {
@@ -680,7 +686,7 @@ export default class SavedOrders extends React.Component {
   };
 
   _start = (variableToChange, value, duration) => {
-    console.log("oooooooooo");
+    //1 console.log("oooooooooo");
     Animated.timing(variableToChange, {
       toValue: value,
       duration: duration,
@@ -696,13 +702,13 @@ export default class SavedOrders extends React.Component {
 
   render() {
     if (this.state.modalOn) {
-      console.log("index modal ", this.state.indexModal);
+      //1 console.log("index modal ", this.state.indexModal);
       setTimeout(() => {
         if (this.state.indexModal != 0) {
           try {
             this._swiper.scrollBy(this.state.indexModal);
           } catch (e) {
-            console.log("scrollby ", e);
+            //1 console.log("scrollby ", e);
           }
         }
       }, 1000);
@@ -768,7 +774,7 @@ export default class SavedOrders extends React.Component {
                 j < this.state.newSavedOrders.length;
                 j++
               ) {
-                console.log("ANTHONY ", this.state.newSavedOrders[j].width);
+                //1 console.log("ANTHONY ", this.state.newSavedOrders[j].width);
                 if (spaceLeftInRow - cardWidth >= 0) {
                   nextAvailableIndex += 1;
                   spaceLeftInRow -= cardWidth;
@@ -777,11 +783,11 @@ export default class SavedOrders extends React.Component {
                   break;
                 }
               }
-              console.log("whatsInRow ", whatsInRow);
-              console.log("currentIndex ", i);
-              console.log("nextAvailableIndex ", nextAvailableIndex);
+              //1 console.log("whatsInRow ", whatsInRow);
+              //1 console.log("currentIndex ", i);
+              //1 console.log("nextAvailableIndex ", nextAvailableIndex);
               spaceLeftInRow = windowWidth;
-              console.log("i ", i);
+              //1 console.log("i ", i);
               return (
                 <Row
                   style={{
@@ -999,6 +1005,7 @@ export default class SavedOrders extends React.Component {
               : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
           }
         />
+        {!this.state.popupVisible && 
         <Modal
           testID={"modal"}
           coverScreen={true}
@@ -1011,8 +1018,8 @@ export default class SavedOrders extends React.Component {
             justifyContent: "center",
           }}
           onModalWillShow={() => {
-            this._start(this.state.animatedWidth, windowWidth, 400);
-            this._start(this.state.animatedHeight, windowHeight, 400);
+            this._start(this.state.animatedWidth, windowWidth, 300);
+            this._start(this.state.animatedHeight, windowHeight, 300);
           }}
           onModalWillHide={() => {
             this._close(this.state.animatedWidth, 0, 200);
@@ -1027,49 +1034,10 @@ export default class SavedOrders extends React.Component {
         >
           <Animated.View
             style={{
-              overflow: "visible",
               height: this.state.animatedHeight,
-              width: this.state.animatedWidth,
+              width: windowWidth,
             }}
           >
-            {/* <ScrollView
-                      ref={(scrollView) => {
-                        this.scrollView = scrollView;
-                      }}
-                      style={{ width: windowWidth }}
-                      //pagingEnabled={true}
-                      horizontal={true}
-                      decelerationRate={0}
-                      snapToOffsets={this.state.newSavedOrders.map(
-                        (x, i) => i * (windowWidth - 60)
-                      )}
-                      snapToAlignment={"start"}
-                      contentInset={{
-                        top: 0,
-                        left: 30,
-                        bottom: 0,
-                        right: 30,
-                      }}
-                    >
-
-{this.state.newSavedOrders.map((element, index) => {
-                return(
-                  <View style={{flexDirection:"row",width:500,height:200,backgroundColor:index== 2 ? "blue" : "red"}}>
-                <SpecificSavedOrder
-                  rangeSelected={element.range || "N/A"}
-                  elementKey={element.key}
-                  index={index}
-                  toggleShowSwiperButtons={this.toggleShowSwiperButtons}
-                  exitSelectedOrderModal={this.exitSelectedOrderModal}
-                  timestamp={element.timestamp}
-                  imageUrls={element.images}
-                  orderTitle={element.title}
-                  updateOrderFirebase={this.updateOrderFirebase}
-                  thumbnail={element.thumbnail.uri}
-                />
-                </View>
-              )})}
-                    </ScrollView> */}
             {this.state.newOrder ? (
               <SpecificSavedOrder
                 newOrder={true}
@@ -1098,13 +1066,15 @@ export default class SavedOrders extends React.Component {
                 }
               >
                 {this.state.newSavedOrders.map((element, index) => {
-                  console.log("element.thumbnail", element.thumbnail);
+                  //1 console.log("element.thumbnail", element.thumbnail);
                   return (
                     <View>
                       <SpecificSavedOrder
                         rangeSelected={element.range || "N/A"}
                         elementKey={element.key}
                         index={index}
+                        togglePopupVisibility={this.togglePopupVisibility}
+                        toggleOrderIndex={this.toggleOrderIndex}
                         toggleShowSwiperButtons={this.toggleShowSwiperButtons}
                         exitSelectedOrderModal={this.exitSelectedOrderModal}
                         timestamp={element.timestamp}
@@ -1120,7 +1090,35 @@ export default class SavedOrders extends React.Component {
               </Swiper>
             )}
           </Animated.View>
-        </Modal>
+        </Modal>}
+        <PopupOrder
+          navigation={this.props.navigation}
+          popupVisible={this.state.popupVisible}
+          fromSavedOrder={true}
+          togglePopupVisibility={this.togglePopupVisibility}
+          timestamp={this.formatTimeStampForToday(this.state.newSavedOrders[[this.state.orderIndex]] ?
+            this.state.newSavedOrders[[this.state.orderIndex]].timestamp : 0
+          )}
+          imageNames={Object.values(this.state.newSavedOrders[[this.state.orderIndex]] ? 
+            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+          ).map((x, i) => i)}
+          imageUris={Object.values(
+            this.state.newSavedOrders[[this.state.orderIndex]] ?
+            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+          )}
+          priceInputted={
+            this.state.newSavedOrders[[this.state.orderIndex]] ? (
+            isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+              ? ""
+              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+          }
+          rangeSelected={
+            this.state.newSavedOrders[[this.state.orderIndex]] ? (
+            !isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+              ? ""
+              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+          }
+        />
       </View>
     );
   }

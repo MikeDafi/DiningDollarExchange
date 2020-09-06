@@ -65,9 +65,9 @@ export default class PopupOrder extends React.Component {
   
 
  onDateChange = (date) => {
-   console.log("date ",date)
+   //1 console.log("date ",date)
    if(!date || date== ""){return}
-                         console.log("date ");
+                         //1 console.log("date ");
                       const year = new Date().getFullYear();
                       const array = date
                         .split(" ")
@@ -88,11 +88,11 @@ export default class PopupOrder extends React.Component {
                           ? parseInt(array[2]) + 12
                           : 12;
                       const minute = parseInt(array[3]);
-                      console.log("year ", year);
-                      console.log("month ", month);
-                      console.log("day ", day);
-                      console.log("hour ", hour);
-                      console.log("minute ", minute);
+                      //1 console.log("year ", year);
+                      //1 console.log("month ", month);
+                      //1 console.log("day ", day);
+                      //1 console.log("hour ", hour);
+                      //1 console.log("minute ", minute);
                       var dateTimeStamp = new Date(
                         year,
                         month,
@@ -101,16 +101,16 @@ export default class PopupOrder extends React.Component {
                         minute
                       );
                       dateTimeStamp = dateTimeStamp.getTime();
-                      console.log("new Date ", new Date().getTime());
+                      //1 console.log("new Date ", new Date().getTime());
                       if (dateTimeStamp <= new Date().getTime() - 60000) {
                         this.setState({ invalidTime: true });
                       } else {
                         this.setState({ invalidTime: false });
                       }
-                      console.log("dateTimeStamp ", dateTimeStamp);
+                      //1 console.log("dateTimeStamp ", dateTimeStamp);
 
                       this.setState({ date: date, dateTimeStamp });
-                      console.log("date", date);
+                      //1 console.log("date", date);
  }
 
   getDateTime = (timestamp) => {
@@ -143,8 +143,8 @@ export default class PopupOrder extends React.Component {
   sendSingleNotification = async (token, orderNumber) => {
     const user = firebase.auth().currentUser;
     const uid = user.uid;
-    console.log("imgeNames", this.state.imageNames);
-    console.log("order Number From Buyer ", orderNumber);
+    //1 console.log("imgeNames", this.state.imageNames);
+    //1 console.log("order Number From Buyer ", orderNumber);
     const message = {
       to: token,
       sound: "default",
@@ -170,9 +170,9 @@ export default class PopupOrder extends React.Component {
   };
 
   sendAllNotifications = async (orderNumber) => {
-    console.log("in all notifications");
+    //1 console.log("in all notifications");
     var user = firebase.auth().currentUser;
-    console.log("orderNumber", orderNumber);
+    //1 console.log("orderNumber", orderNumber);
     const thisReference = this;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
@@ -187,7 +187,7 @@ export default class PopupOrder extends React.Component {
           var userInfo = user.val();
           if (user.key != thisUserEmail && !repeatTokens[[userInfo.expoToken]]) {
             repeatTokens[[userInfo.expoToken]] = true
-            console.log("found notification");
+            //1 console.log("found notification");
             thisReference.sendSingleNotification(
               userInfo.expoToken,
               orderNumber
@@ -218,7 +218,7 @@ export default class PopupOrder extends React.Component {
   };
 
   uploadToFirebase = async (blob, name) => {
-    console.log("in upload");
+    //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
@@ -236,23 +236,23 @@ export default class PopupOrder extends React.Component {
   };
 
   photoCallback = async (params) => {
-    console.log("photoCallback");
+    //1 console.log("photoCallback");
     this.setState({ uploadImagesVisible: false });
     if (params == null) {
       return;
     }
-    console.log("here ");
+    //1 console.log("here ");
     var imageNames = [];
     var imageUris = [];
     await params.then(async (images) => {
       for (var i = 0; i < images.length; i++) {
-        console.log("imageHappened");
+        //1 console.log("imageHappened");
         let name = this.generateRandomString();
         imageNames.push(name);
         imageUris.push(images[i].uri);
       }
     });
-    console.log("imageNames", imageNames.length);
+    //1 console.log("imageNames", imageNames.length);
     this.setState({
       imageNames,
       imageUris,
@@ -269,7 +269,7 @@ export default class PopupOrder extends React.Component {
     if (this.state.imageUris.length == 0) {
       return;
     }
-    console.log("imageUris", this.state.imageUris);
+    //1 console.log("imageUris", this.state.imageUris);
     this.props.togglePopupVisibility(false);
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
@@ -291,15 +291,15 @@ export default class PopupOrder extends React.Component {
       const uriToBlobPromises = [];
       const uploadToFirebasePromises = [];
       for (var i = 0; i < this.state.imageUris.length; i++) {
-        console.log("uri", this.state.imageUris[i]);
-        console.log("name", this.state.imageNames[i]);
+        //1 console.log("uri", this.state.imageUris[i]);
+        //1 console.log("name", this.state.imageNames[i]);
         const uri = this.state.imageUris[i];
         const name = orderNumberNow + "/" + this.state.imageNames[i];
         uriToBlobPromises.push(
           this.uriToBlob(uri, i).then((blob) => {
             uploadToFirebasePromises.push(
               this.uploadToFirebase(blob, name).then(() => {
-                console.log("Hi there");
+                //1 console.log("Hi there");
               })
             );
           })
@@ -308,8 +308,8 @@ export default class PopupOrder extends React.Component {
 
       Promise.all(uriToBlobPromises).then(() => {
         Promise.all(uploadToFirebasePromises).then(() => {
-          console.log("time");
-          console.log("in popup order");
+          //1 console.log("time");
+          //1 console.log("in popup order");
           const newOrder = {
             buyer: user.email.substring(0, user.email.length - 4),
             status: "searching",
@@ -340,9 +340,9 @@ export default class PopupOrder extends React.Component {
           //         orders.child("currentOrders/").update({[orderNumberForNotification]:null})
           //         const email = user.email.substring(0,end)
           //         // Create a reference to the file to delete
-          //         console.log("mickey mouse",email)
+          //         //1 console.log("mickey mouse",email)
           //         for(var i = 0; i < this.state.imageNames.length; i++){
-          //             console.log("/tempPhotos/"+domain+"/"+email +"/"+this.state.imageNames[i] + ".jpg")
+          //             //1 console.log("/tempPhotos/"+domain+"/"+email +"/"+this.state.imageNames[i] + ".jpg")
           //             var imageRef = firebase.storage().ref(`/tempPhotos/${domain}/${email}/${this.state.imageNames[i]}.jpg`);
 
           //             // Delete the file
@@ -410,7 +410,7 @@ export default class PopupOrder extends React.Component {
   }
 
   onOpenModal = () => {
-    console.log("in OpenModal")
+    //1 console.log("in OpenModal")
     const minDate = new Date()
     const maxDate = new Date(new Date().getTime() + 604800000);
 
@@ -456,8 +456,8 @@ export default class PopupOrder extends React.Component {
     }
 
     if (this.props.popupVisible && !this.state.rendered) {
-      console.log("this.props.timestamp ", this.props.timestamp)
-      console.log("getDAteTime ",this.getDateTime(this.props.timestamp))
+      //1 console.log("this.props.timestamp ", this.props.timestamp)
+      //1 console.log("getDAteTime ",this.getDateTime(this.props.timestamp))
       if(this.props.timestamp == undefined){
         this.setState({dateTimeStamp : "",date:"",invalidTime:false})
       }else{ 
@@ -482,12 +482,12 @@ export default class PopupOrder extends React.Component {
     // const is28or30or31Days = date.getMonth() == 1 ? 28 :
     //                         (date.getMonth() <= 6 ? (date.getMonth() % 2 == 0 ? 31 : 30)
     //                          :   (date.getMonth() % 2 == 0 ? 30 : 31))
-    // console.log(is28or30or31Days)
+    // //1 console.log(is28or30or31Days)
     // const weekFromNowDays = (date.getDate() + 7) == is28or30or31Days ? is28or30or31Days : (date.getDate() + 7) % is28or30or31Days
     // const weekFromNowMonth = is28or30or31Days - 7 < 7 ? date.getMonth() : (date.getMonth() == 11 ? 1 : date.getMonth() + 1 )
     // const fromNow = weekFromNowMonth  + "-" + weekFromNowDays + "-"+  date.getHours() + "-" + date.getMinutes()
-    // console.log("fromNow ",fromNow)
-    // console.log("now ", date.getMonth() + "-" + date.getDate() + "-" + date.getHours() + "-" +date.getMinutes())
+    // //1 console.log("fromNow ",fromNow)
+    // //1 console.log("now ", date.getMonth() + "-" + date.getDate() + "-" + date.getHours() + "-" +date.getMinutes())
     return (
       <View>
         {this.state.showImageViewer ?
@@ -656,7 +656,7 @@ export default class PopupOrder extends React.Component {
                       }}
                       onEndEditing={() => {
                         const amount = isNaN(this.state.priceInputted);
-                        console.log("amount ", amount);
+                        //1 console.log("amount ", amount);
                         if (amount) {
                           this.setState({
                             priceInputted:"",
@@ -701,7 +701,7 @@ export default class PopupOrder extends React.Component {
                     activeOpacity={0}
                     onPress={() => {
                       this.rangeSelected("1 to 5");
-                      console.log("rangeSelected", this.state.rangeSelected);
+                      //1 console.log("rangeSelected", this.state.rangeSelected);
                     }}
                     style={[
                       styles.rangeButton,
@@ -728,7 +728,7 @@ export default class PopupOrder extends React.Component {
                     activeOpacity={0}
                     onPress={() => {
                       this.rangeSelected("5 to 10");
-                      console.log("rangeSelected", this.state.rangeSelected);
+                      //1 console.log("rangeSelected", this.state.rangeSelected);
                     }}
                     style={[
                       styles.rangeButton,
@@ -762,7 +762,7 @@ export default class PopupOrder extends React.Component {
                     activeOpacity={0}
                     onPress={() => {
                       this.rangeSelected("10 to 15");
-                      console.log("rangeSelected", this.state.rangeSelected);
+                      //1 console.log("rangeSelected", this.state.rangeSelected);
                     }}
                     style={[
                       styles.rangeButton,
@@ -789,7 +789,7 @@ export default class PopupOrder extends React.Component {
                     activeOpacity={0}
                     onPress={() => {
                       this.rangeSelected("15+");
-                      console.log("rangeSelected", this.state.rangeSelected);
+                      //1 console.log("rangeSelected", this.state.rangeSelected);
                     }}
                     style={[
                       styles.rangeButton,
@@ -856,9 +856,9 @@ export default class PopupOrder extends React.Component {
                       this.onDateChange(date)
                     }}
                     getDateStr={(props) => {
-                      console.log("props ", props);
+                      //1 console.log("props ", props);
                       const date =  this.getDateTime(props)
-                      console.log("after getDateStr ", date)
+                      //1 console.log("after getDateStr ", date)
                       return date
                     }}
                     //   TouchableComponent={() => (
@@ -885,7 +885,7 @@ export default class PopupOrder extends React.Component {
                   onSwipeSuccess={() => {
                     this.findASeller();
                   }}
-                  onSwipeFail={() => console.log("onSwipeFail")}
+                  
                   thumbIconStyles={{
                     justifyContent: "center",
                     alignItems: "center",

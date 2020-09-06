@@ -106,7 +106,7 @@ export default class MessageScreen extends React.Component {
 
     let otherChattersObject = await AsyncStorage.getItem('otherChattersProfileImages')
     otherChattersObject = JSON.parse(otherChattersObject);
-    console.log("before other ", otherChattersObject)
+    //1 console.log("before other ", otherChattersObject)
     if(!otherChattersObject){
       otherChattersObject = {}
     }
@@ -114,14 +114,14 @@ export default class MessageScreen extends React.Component {
       .child(buyer)
       .orderByChild("timestamp")
       .on("value", async (chatsSnapshot) => {
-        // console.log("chatsSnapshot", chatsSnapshot);
+        // //1 console.log("chatsSnapshot", chatsSnapshot);
         var threadss = [];
         var count = 0;
         var thread = {};
         const promises = [];
         chatsSnapshot.forEach((chat) => {
           var otherChatterEmail;
-          // console.log("chat", chat);
+          // //1 console.log("chat", chat);
           if (chat.key.indexOf(email) == 0) {
             otherChatterEmail = chat.key.substring(
               email.length,
@@ -136,30 +136,30 @@ export default class MessageScreen extends React.Component {
           const realCount = count
           promises.push(
             firebase.database().ref("users/" + domain + "/" + otherChatterEmail).once("value",async (snapshot) => {
-            // console.log("otherChatterEmail", otherChatterEmail);
-             console.log("CODE RED",otherChattersObject)
-             console.log("otherChatterEmail ", otherChatterEmail)
+            // //1 console.log("otherChatterEmail", otherChatterEmail);
+             //1 console.log("CODE RED",otherChattersObject)
+             //1 console.log("otherChatterEmail ", otherChatterEmail)
               if(snapshot.val().profileImageUrl){
                 if(otherChattersObject[[otherChatterEmail]] == undefined || !otherChattersObject[[otherChatterEmail]].uri || otherChattersObject[[otherChatterEmail]].url != snapshot.val().profileImageUrl){
-                  console.log("trying to download")
+                  //1 console.log("trying to download")
                     if(otherChattersObject[[otherChatterEmail]] && !otherChattersObject[[otherChatterEmail]].uri){
-                      console.log("delete")
+                      //1 console.log("delete")
                       this.deleteUri(otherChattersObject[[otherChatterEmail]].uri)
                     }
                   try{
                     const uri = await this.downloadUrl(snapshot.val().profileImageUrl,otherChatterEmail)
                     const newProfileObject = {uri,url : snapshot.val().profileImageUrl}
                     otherChattersObject[[otherChatterEmail]] = newProfileObject
-                    console.log("WOOOHOOO",otherChattersObject[[otherChatterEmail]])
-                    console.log("uri ", uri)
+                    //1 console.log("WOOOHOOO",otherChattersObject[[otherChatterEmail]])
+                    //1 console.log("uri ", uri)
                     threadss[realCount].avatar = otherChattersObject[[otherChatterEmail]].uri
                     AsyncStorage.setItem("otherChattersProfileImages", JSON.stringify(otherChattersObject))
                   }catch(e){
-                      console.log("big error")
+                      //1 console.log("big error")
                   }
                 }else{
-                  console.log("already defined")
-                  console.log(otherChattersObject[[otherChatterEmail]])
+                  //1 console.log("already defined")
+                  //1 console.log(otherChattersObject[[otherChatterEmail]])
                   threadss[realCount].avatar = otherChattersObject[[otherChatterEmail]].uri
                 }
               }
@@ -172,19 +172,19 @@ export default class MessageScreen extends React.Component {
               .database()
               .ref("users/" + domain + "/" + otherChatterEmail)
               .once("value", (snapshot) => {
-                // console.log("snapshot.val()", snapshot.val().name);
-                threadss[realCount].title = snapshot.val().name;
+                // //1 console.log("snapshot.val()", snapshot.val().name);
+                threadss[realCount].title = (snapshot.val() || {}).name == undefined ? "No Name" : (snapshot.val() || {}).name;
               })
           );
           const chatPath = "chats/" + domain + "/" + chat.key + "/chat";
-          // console.log("thread.chatId = chat.key");
+          // //1 console.log("thread.chatId = chat.key");
           thread.otherChatterEmail = otherChatterEmail;
           thread.chatId = chat.key;
           thread.timestamp = chat.val().timestamp;
           thread.text = chat.val().text;
           thread.read = chat.val().read;
           this.displayTime(thread);
-          console.log(thread);
+          //1 console.log(thread);
           threadss.push(thread);
           thread = {};
           // this.sortThreads(threadss)
@@ -193,18 +193,18 @@ export default class MessageScreen extends React.Component {
           // });
           count += 1;
         });
-        console.log("promises ready");
+        //1 console.log("promises ready");
         const responses = await Promise.all(promises);
-            console.log("after other ", otherChattersObject)
+            //1 console.log("after other ", otherChattersObject)
         // await AsyncStorage.setItem("otherChattersProfileImages", JSON.stringify(otherChattersObject))
         //   .then( ()=>{
-        //   console.log("It was saved successfully")
+        //   //1 console.log("It was saved successfully")
         //   } )
         //   .catch( ()=>{
-        //   console.log("There was an error saving the product")
+        //   //1 console.log("There was an error saving the product")
         //   } )
-        // console.log("after response");
-        // console.log("threads", threadss);
+        // //1 console.log("after response");
+        // //1 console.log("threads", threadss);
         if (isBuyer) {
           this.setState({
             loadingBuyer : false,
@@ -244,7 +244,7 @@ export default class MessageScreen extends React.Component {
     try{
       await FileSystem.deleteAsync(path, {})
     }catch(e){
-      console.log("ERROR deleting profile image in profile screen")
+      //1 console.log("ERROR deleting profile image in profile screen")
     }
     
   }
@@ -257,7 +257,7 @@ export default class MessageScreen extends React.Component {
     // });
     }
 
-   console.log("url ", url)
+   //1 console.log("url ", url)
    await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"otherChattersProfileImages/",{intermediates:true})
   // const downloadResumable = FileSystem.createDownloadResumable(
   //     url,
@@ -273,7 +273,7 @@ export default class MessageScreen extends React.Component {
       {},
       callback
       );
-      console.log('Finished downloading to ', uri);
+      //1 console.log('Finished downloading to ', uri);
       return uri;
     } catch (e) {
       console.error(e);
@@ -282,7 +282,7 @@ export default class MessageScreen extends React.Component {
 
     // try {
     //   await downloadResumable.pauseAsync();
-    //   console.log('Paused download operation, saving for future retrieval');
+    //   //1 console.log('Paused download operation, saving for future retrieval');
     //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
     // } catch (e) {
     //   console.error(e);
@@ -290,7 +290,7 @@ export default class MessageScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     //   this.setState({imageUrl :uri})
     // } catch (e) {
     //   console.error(e);
@@ -309,7 +309,7 @@ export default class MessageScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     // } catch (e) {
     //   console.error(e);
     // }
@@ -332,7 +332,7 @@ export default class MessageScreen extends React.Component {
     ];
     var messageDate = new Date(thread.timestamp);
     var currentDate = this.state.date;
-    // console.log("getHours ", messageDate.getHours());
+    // //1 console.log("getHours ", messageDate.getHours());
     var hour, minute, seconds;
     //2019 < 2020
     if (messageDate.getFullYear() == currentDate.getFullYear()) {
@@ -366,7 +366,7 @@ export default class MessageScreen extends React.Component {
   };
 
     _start = (variable,result) => {
-    // console.log("oooooooooo");
+    // //1 console.log("oooooooooo");
     Animated.timing(variable, {
       toValue: result,
       duration: 100,
@@ -374,7 +374,7 @@ export default class MessageScreen extends React.Component {
   };
 
     _close = (variable,result) => {
-    // console.log("oooooooooo");
+    // //1 console.log("oooooooooo");
     Animated.timing(variable, {
       toValue: result,
       duration: 100,
@@ -397,11 +397,11 @@ export default class MessageScreen extends React.Component {
       if(this.state.textSearchInput == textUnedited){
         const text = textUnedited.toLowerCase();
         if(this.state.page == 0){
-          // console.log("page 0",text.length)
+          // //1 console.log("page 0",text.length)
           if(this.state.beforeBuyerSearchList == undefined){
             await this.setState({beforeBuyerSearchList : this.state.threadsBuyer})
           }else if(text.length == 0){
-            // console.log("text empty",this.state.beforeBuyerSearchList)
+            // //1 console.log("text empty",this.state.beforeBuyerSearchList)
             await this.setState({threadsBuyer:this.state.beforeBuyerSearchList,loadingBuyer:false})
             return;
           }
@@ -409,7 +409,7 @@ export default class MessageScreen extends React.Component {
           if(this.state.beforeSellerSearchList == undefined){
             await this.setState({beforeSellerSearchList : this.state.threadsSeller})
           }else if(text.length == 0){
-            console.log("beforeSellerSearchList ")
+            //1 console.log("beforeSellerSearchList ")
             await this.setState({threadsSeller:this.state.beforeSellerSearchList,loadingSeller:false})
             return
           }
@@ -423,7 +423,7 @@ export default class MessageScreen extends React.Component {
         var currentArray = this.state.page == 0 ? clone(this.state.beforeBuyerSearchList) : clone(this.state.beforeSellerSearchList)
         const currentArrayLength = currentArray.length
         var currentArray = Object.assign({},currentArray);
-        // console.log("page ",this.state.page)
+        // //1 console.log("page ",this.state.page)
         const promises = []
         for(var i = 0; i < currentArrayLength; i++){
           var path = "/chats/" + domain + "/" 
@@ -432,7 +432,7 @@ export default class MessageScreen extends React.Component {
           }else{
             path += currentArray[[i]].otherChatterEmail + email
           }
-          //console.log("path ", path)
+          ////1 console.log("path ", path)
           
           const index = i
           promises.push(
@@ -442,13 +442,13 @@ export default class MessageScreen extends React.Component {
                 const objectMessages = messages.val()
                 Object.keys(objectMessages).reverse().forEach((message) =>{
                   if(objectMessages[[message]].text != undefined && objectMessages[[message]].text.toLowerCase().includes(text)){
-                    // console.log("index ", message)
+                    // //1 console.log("index ", message)
                     currentArray[[index]].text = objectMessages[[message]].text;
                     currentArray[[index]].timestamp = objectMessages[[message]].timestamp
                     currentArray[[index]].key = message
                     this.displayTime(currentArray[[index]])
                     foundRecentText = true
-                    //console.log("mind control",currentArray[[index]])
+                    ////1 console.log("mind control",currentArray[[index]])
                   }
                 })
               })
@@ -475,12 +475,12 @@ export default class MessageScreen extends React.Component {
   makeTextBold = (text,thisPage) => {
     if(this.state.page == thisPage){
     var position = text == undefined ? 0 : text.toLowerCase().indexOf(this.state.textSearchInput.toLowerCase())
-    // console.log("position ", position)
-    // console.log("text ", text)
+    // //1 console.log("position ", position)
+    // //1 console.log("text ", text)
     var beginning = position == 0  ? "" : (text || "").substring(0,position - 1)
     var middle = (text || "").substring(position,this.state.textSearchInput.length +position)
     var end = position == (beginning.length + middle.length) == (text || "").length ? "" : (text ||  "").substring(position + this.state.textSearchInput.length)
-    // console.log("position " + position + " beginning " + beginning + " middle " + middle + " end " + end)
+    // //1 console.log("position " + position + " beginning " + beginning + " middle " + middle + " end " + end)
     return(
       <View style={{flexDirection:"row"}}>
         <Text style={{ fontSize: 15, color: "gray"}} numberOfLines={1} >
@@ -572,7 +572,7 @@ export default class MessageScreen extends React.Component {
           try{
           this._swiper.scrollBy(1);
           }catch(e){
-            console.log("message screen ",e)
+            //1 console.log("message screen ",e)
           }
         }, 100);
       }
@@ -618,7 +618,7 @@ export default class MessageScreen extends React.Component {
           <View style={{ height: windowHeight - 300 }}>
             <Divider />
             {this.state.loadingBuyer ? 
-            <ActivityIndicator size="large"></ActivityIndicator> :
+            <Loading/> :
             <FlatList
               data={this.state.threadsBuyer}
               keyExtractor={(item) => item._id}
@@ -687,7 +687,7 @@ export default class MessageScreen extends React.Component {
                           style={{ flexDirection: "column", marginLeft: 5 }}
                         >
                           <Text style={{ fontSize: 20 }}>{item.title}</Text>
-                          {/* {console.log(this.state.threadsBuyer)} */}
+                          {/* {//1 console.log(this.state.threadsBuyer)} */}
                           {this.makeTextBold(item.text,0)}
 
                         </View>
@@ -729,7 +729,7 @@ export default class MessageScreen extends React.Component {
           <View style={{ height: windowHeight - 300 }}>
             <Divider />
             {this.state.loadingSeller ? 
-            <ActivityIndicator size="large"></ActivityIndicator> : 
+            <Loading/> : 
             <FlatList
               data={this.state.threadsSeller}
               keyExtractor={(item) => item._id}

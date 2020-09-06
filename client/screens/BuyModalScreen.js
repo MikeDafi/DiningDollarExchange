@@ -20,7 +20,7 @@ export default class BuyModalScreen extends React.Component{
         this.setState({
           roomName: ''
         });
-        console.log("here i am")
+        //1 console.log("here i am")
         this.props.navigation.navigate('Message')
       })
       .catch((err) => {

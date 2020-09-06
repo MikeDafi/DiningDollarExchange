@@ -9,14 +9,18 @@ import {
   Dimensions,
 } from "react-native";
 import * as firebase from "firebase";
-import {  FontAwesome } from "@expo/vector-icons";
+// import {  FontAwesome } from "@expo/vector-icons";
 import { FlatGrid } from "react-native-super-grid";
+import FontAwesome from 'react-native-vector-icons/FontAwesome'
 import AwesomeButton from "react-native-really-awesome-button";
+import LottieView from "lottie-react-native";
 import RatingUser from "./RatingUser";
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 import * as FileSystem from "expo-file-system";
 import { Col, Row, Grid } from "react-native-easy-grid";
+    const cardHeight = (windowHeight - 280) / 2;
+    const cardWidth = (windowWidth - 20) / 2;
 export default class BuyerHomeScreen extends React.Component {
   state = {
     currentFont: 20,
@@ -50,19 +54,19 @@ export default class BuyerHomeScreen extends React.Component {
         reviewAccount = {};
         var buyer = 0
         while(buyer <= 1){
-        const historyOrders = Object.keys(snapshot.val()[buyer == 0 ? "buyer" : "seller"] || {}).reverse();
-        const thread = snapshot.val()[buyer == 0 ? "buyer" : "seller"]
-        console.log("historyOrders ", historyOrders)
+        const historyOrders = Object.keys((snapshot.val() || {})[buyer == 0 ? "buyer" : "seller"] || {}).reverse();
+        const thread = (snapshot.val() || {})[buyer == 0 ? "buyer" : "seller"] 
+        //1 console.log("historyOrders ", historyOrders)
         for (var i = 0; i < historyOrders.length; i++) {
           const daysLeftToReview = this.daysLeftToReview(
             thread[[historyOrders[i]]].timestamp
           );
-          console.log("daysLeft ",daysLeftToReview)
-          console.log("rating ",  thread[[historyOrders[i]]].rating)
+          //1 console.log("daysLeft ",daysLeftToReview)
+          //1 console.log("rating ",  thread[[historyOrders[i]]].rating)
           if (daysLeftToReview == null || thread[[historyOrders[i]]].rating != undefined) {
             break;
           } else {
-            console.log("here")
+            //1 console.log("here")
             reviewAccount = {
               chatId:  thread[[historyOrders[i]]].chatId,
               daysLeftToReview,
@@ -75,7 +79,7 @@ export default class BuyerHomeScreen extends React.Component {
 
 
 
-        console.log("review Account ", reviewAccount)
+        //1 console.log("review Account ", reviewAccount)
         if (reviewAccount["chatId"] != undefined) {
           var otherChatterEmail = "";
           if (reviewAccount["chatId"].indexOf(email) == 0) {
@@ -102,7 +106,7 @@ export default class BuyerHomeScreen extends React.Component {
               otherChattersProfileImages = JSON.parse(
                 otherChattersProfileImages
               );
-              console.log("before history ", otherChattersProfileImages);
+              //1 console.log("before history ", otherChattersProfileImages);
               if (!otherChattersProfileImages) {
                 otherChattersProfileImages = {};
               }
@@ -142,10 +146,10 @@ export default class BuyerHomeScreen extends React.Component {
                       JSON.stringify(otherChattersProfileImages)
                     );
                   } catch (e) {
-                    console.log(e);
+                    //1 console.log(e);
                   }
                 } else {
-                  console.log("already defined");
+                  //1 console.log("already defined");
                   reviewAccount.imageUri =
                     otherChattersProfileImages[[otherChatterEmail]].uri;
                 }
@@ -160,12 +164,12 @@ export default class BuyerHomeScreen extends React.Component {
     try {
       await FileSystem.deleteAsync(path, {});
     } catch (e) {
-      console.log("ERROR deleting profile image in profile screen");
+      //1 console.log("ERROR deleting profile image in profile screen");
     }
   };
 
   downloadUrl = async (url, name) => {
-    console.log("in download url");
+    //1 console.log("in download url");
     const callback = (downloadProgress) => {
       const progress =
         downloadProgress.totalBytesWritten /
@@ -175,7 +179,7 @@ export default class BuyerHomeScreen extends React.Component {
       // });
     };
 
-    console.log("url ", url);
+    //1 console.log("url ", url);
     await FileSystem.makeDirectoryAsync(
       FileSystem.documentDirectory + "otherChattersProfileImages/",
       { intermediates: true }
@@ -197,7 +201,7 @@ export default class BuyerHomeScreen extends React.Component {
         {},
         callback
       );
-      console.log("Finished downloading to ", uri);
+      //1 console.log("Finished downloading to ", uri);
       return uri;
     } catch (e) {
       console.error(e);
@@ -221,7 +225,7 @@ export default class BuyerHomeScreen extends React.Component {
   }
 
   reviewView = () => {
-    console.log("REVIEW ", this.state.reviewAccount)
+    //1 console.log("REVIEW ", this.state.reviewAccount)
     if(!this.state.reviewAccount.hasOwnProperty("chatId")){
       return(
       <View
@@ -321,8 +325,6 @@ export default class BuyerHomeScreen extends React.Component {
   }
 
   savedOrdersView = () => {
-    const cardHeight = (windowHeight - 280) / 2;
-    const cardWidth = (windowWidth - 20) / 2;
     return (
       <TouchableOpacity
         style={[
@@ -377,6 +379,17 @@ export default class BuyerHomeScreen extends React.Component {
           this.props.navigation.navigate("PendingOrders", {});
         }}
       >
+
+        {/* <LottieView
+          style={{
+            width: cardHeight > cardWidth ? cardWidth : cardHeight,
+            height: cardHeight > cardWidth ? cardWidth : cardHeight,
+            position: "absolute",
+            marginTop: -3,
+          }}
+          source={require("../assets/hourGlass.json")}
+          autoPlay
+        /> */}
         <Text style={{ fontSize: 20, fontWeight: "bold" }}>Pending Orders</Text>
       </TouchableOpacity>
     );
@@ -422,14 +435,18 @@ export default class BuyerHomeScreen extends React.Component {
           }}
           width={180}
           height={180}
+          ripple={true}
           borderColor="black"
           borderWidth={16}
+          raiseLevel={7}
           borderRadius={180}
           backgroundColor="#FFDA00"
           backgroundShadow="#B79D07"
           backgroundDarker="#B79D07"
+          textSize={30}
+          textColor="black"
         >
-          Press To Boost
+          Press to Boost
         </AwesomeButton>
       </View>
     );

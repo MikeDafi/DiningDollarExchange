@@ -53,8 +53,8 @@ export default class PendingOrders extends React.Component {
         const promises = [];
     const listData = {};
         var foundAOneMinute = false
-        console.log("orderNumbers ", orderNumbers);
-        console.log("allStatus", allStatus);
+        //1 console.log("orderNumbers ", orderNumbers);
+        //1 console.log("allStatus", allStatus);
         for (var i = 0; i < orderNumbers.length; i++) {
           promises.push(
             currentOrderRef
@@ -68,7 +68,7 @@ export default class PendingOrders extends React.Component {
                   // })
                   // return
                 }
-                console.log(orderSnapshot.val());
+                //1 console.log(orderSnapshot.val());
                 if (!orderSnapshot.val()) {
                   firebase
                     .database()
@@ -104,7 +104,7 @@ export default class PendingOrders extends React.Component {
 
         await Promise.all(promises);
         let timerId = setInterval(() => {
-          console.log("60 second called from timeout");
+          //1 console.log("60 second called from timeout");
           this.checkAllRemainingTime();
         }, foundAOneMinute ? 1000 : 60000);
         this.setState({
@@ -124,7 +124,7 @@ export default class PendingOrders extends React.Component {
   deleteRow = (rowMap, rowKey, orderNumber) => {
     // this.closeRow(rowMap, rowKey);
     const newData = [...this.state.listData];
-    console.log("rowKey ", rowKey);
+    //1 console.log("rowKey ", rowKey);
     const prevIndex = this.state.listData.findIndex(
       (item) => item.key === rowKey
     );
@@ -150,7 +150,7 @@ export default class PendingOrders extends React.Component {
   };
 
   onRowDidOpen = (rowKey) => {
-    console.log("This row opened", rowKey);
+    //1 console.log("This row opened", rowKey);
   };
 
   onSwipeValueChange = (swipeData) => {
@@ -170,14 +170,14 @@ export default class PendingOrders extends React.Component {
     var listDataLength = listData.length
     for (var i = 0; i < listData.length; i++) {
       listData[i].timeRemaining = this.findRemainingTime(listData[i].timestamp);
-      console.log("listData[i].timeRemaining", listData[i].timeRemaining);
+      //1 console.log("listData[i].timeRemaining", listData[i].timeRemaining);
       if (listData[i].timeRemaining == "1 Minute") {
         foundAOneMinute = true
         let timerId = this.state.timerId;
         if (!this.state.minuteTimer) {
           clearInterval(timerId);
           timerId = setInterval(() => {
-            console.log("1 minute interval");
+            //1 console.log("1 minute interval");
             this.checkAllRemainingTime();
           }, 1000);
         }
@@ -187,7 +187,7 @@ export default class PendingOrders extends React.Component {
         if (this.state.minuteTimer  && !foundAOneMinute) {
           clearInterval(timerId);
           timerId = setInterval(() => {
-            console.log("0 second interval");
+            //1 console.log("0 second interval");
             this.checkAllRemainingTime();
           }, 60000);
         }
@@ -306,7 +306,7 @@ export default class PendingOrders extends React.Component {
     const orderDate = new Date(parseInt(timestamp));
 
     const AM = orderDate.getHours() < 12 ? true : false;
-    const hour = AM ? orderDate.getHours() : orderDate.getHours() - 12;
+    const hour = orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
     const minute = "0" + orderDate.getMinutes();
     const time = hour + ":" + minute.substr(-2);
     const amOrPm = AM ? "am" : "pm";

@@ -52,12 +52,12 @@ export default class HomeScreen extends React.Component {
       .database()
       .ref("/users/" + domain + "/" + realEmail + "/page")
       .once("value", function (pageSnapshot) {
-        console.log(pageSnapshot.val());
+        //1 console.log(pageSnapshot.val());
         thisClass.setState({
           page: pageSnapshot.val(),
           rendered: false,
         });
-        console.log("in component mount ", thisClass.state.page);
+        //1 console.log("in component mount ", thisClass.state.page);
       });
 
     firebase.database().ref('users/' + domain +'/' + realEmail).update({
@@ -119,7 +119,7 @@ export default class HomeScreen extends React.Component {
   };
 
   _handleNotification = (notification) => {
-    console.log("-------------------------------------");
+    //1 console.log("-------------------------------------");
     if(notification.data.data.thread != undefined){
       this.props.navigation.navigate("Room", {
         thread: notification.data.data.thread,
@@ -132,7 +132,7 @@ export default class HomeScreen extends React.Component {
         orderNumber  : notification.data.data.orderNumber,
       })
     }
-    // console.log("in notification", notification.data.data.orderNumber);
+    // //1 console.log("in notification", notification.data.data.orderNumber);
     // const myUser = firebase
     //   .auth()
     //   .currentUser.email.substring(
@@ -144,7 +144,7 @@ export default class HomeScreen extends React.Component {
     //   start,
     //   firebase.auth().currentUser.email.length - 4
     // );
-    // console.log("85");
+    // //1 console.log("85");
 
     // firebase
     //   .database()
@@ -155,7 +155,7 @@ export default class HomeScreen extends React.Component {
     //       notification.data.data.orderNumber
     //   )
     //   .once("value", async (snapshot) => {
-    //     //console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
+    //     ////1 console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
     //     const order = snapshot.val();
     //     if (order.status == "searching") {
     //       const name = "";
@@ -209,29 +209,29 @@ export default class HomeScreen extends React.Component {
     //       var storageRef = firebase.storage().ref();
     //       const path =
     //         "/chats/" + domain + "/" + order.buyer + myUser + "/chat";
-    //       // console.log("path",path)
+    //       // //1 console.log("path",path)
     //       const profileImagePath =
     //         "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg";
-    //       // console.log("profileImagePath",profileImagePath)
+    //       // //1 console.log("profileImagePath",profileImagePath)
 
     //       // await firebase.storage().ref().child(profileImagePath).getDownloadURL().then((foundURL) => {
     //       //     this.setState({ profileImage: foundURL})
     //       // })
-    //       console.log("order");
+    //       //1 console.log("order");
     //       const promises = [];
     //       const orderImages = firebase
     //         .storage()
     //         .ref("tempPhotos/" + domain + "/" + order.buyer);
     //       for (var i = 0; i < notification.data.data.imageNames.length; i++) {
-    //         // console.log("length ",notification.data.data.imageNames.length)
-    //         // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
-    //         // console.log("befor",notification.data.data.imageNames[i] + ".jpg")
+    //         // //1 console.log("length ",notification.data.data.imageNames.length)
+    //         // //1 console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
+    //         // //1 console.log("befor",notification.data.data.imageNames[i] + ".jpg")
     //         const name = notification.data.data.imageNames[i];
-    //         // console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
+    //         // //1 console.log("orderImages ", 'tempPhotos/' + domain + "/" + order.buyer)
     //         const image = orderImages.child(
     //           notification.data.data.imageNames[i] + ".jpg"
     //         );
-    //         //console.log("BEFORE")
+    //         ////1 console.log("BEFORE")
     //         promises.push(
     //           this.takePhotoFromTemp(
     //             image,
@@ -244,7 +244,7 @@ export default class HomeScreen extends React.Component {
     //       }
 
     //       const responses = await Promise.all(promises);
-    //       console.log("NEDDD");
+    //       //1 console.log("NEDDD");
     //     }
     //   });
   };
@@ -314,9 +314,9 @@ export default class HomeScreen extends React.Component {
   };
 
   // componentDidMount() {
-  //     console.log("uid",firebase.auth().currentUser.uid)
+  //     //1 console.log("uid",firebase.auth().currentUser.uid)
   //     const images = firebase.storage().ref().child('profilePics');
-  //     console.log("images",images)
+  //     //1 console.log("images",images)
   //     const image = images.child(firebase.auth().currentUser.uid + ".jpg");
   //     image.getDownloadURL().then((url) =>  this.setState({ avatar: url }));
   // }
@@ -330,7 +330,7 @@ export default class HomeScreen extends React.Component {
         try{
         this._swiper.scrollBy(1);
         }catch(e){
-          console.log("homescreen" , e)
+          //1 console.log("homescreen" , e)
         }
       }
     }

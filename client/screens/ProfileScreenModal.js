@@ -142,7 +142,7 @@ export default class ProfileScreenModal extends React.Component {
             }
             onEndEditing={() => {
               this.setState({ stillInTextInput: false });
-              console.log("im going stomach");
+              //1 console.log("im going stomach");
               setTimeout(() => {
                 if (!this.state.stillInTextInput) {
                   this.setState({ inTextInput: false });
@@ -187,10 +187,10 @@ export default class ProfileScreenModal extends React.Component {
         // User re-authenticated.
         // user.updatePassword(self.newPassword)
         //     .then(function() {
-        //         console.log("Password update successful!");
+        //         //1 console.log("Password update successful!");
         //     })
         //     .catch(function(error) {
-        //         console.log(
+        //         //1 console.log(
         //             "An error occurred while changing the password:",
         //             error
         //         );
@@ -198,7 +198,7 @@ export default class ProfileScreenModal extends React.Component {
         const password = this.state.password;
         password["verified"] = true;
         this.setState({ password, firstTextInputError: "" });
-        console.log("VERIFIED");
+        //1 console.log("VERIFIED");
       })
       .catch((error) => {
         this.setState({ firstTextInputError: "Invalid Password" });
@@ -206,7 +206,7 @@ export default class ProfileScreenModal extends React.Component {
       });
 
     this.setState({ loading: false });
-    console.log("DONE");
+    //1 console.log("DONE");
   };
 
   packagePassword = () => {
@@ -227,7 +227,7 @@ export default class ProfileScreenModal extends React.Component {
       .then(() => {
         password["changed"] = true;
         this.setState({ loading: false, password });
-        console.log(this.state.password);
+        //1 console.log(this.state.password);
       })
       .catch((error) => {
         password["changed"] = false;
@@ -480,11 +480,11 @@ export default class ProfileScreenModal extends React.Component {
                               this.setCredentials();
                             }
                           }
-                          console.log("first ", this.state.firstTextInputError);
-                          console.log(
-                            "second ",
-                            this.state.secondTextInputError
-                          );
+                          //1 console.log("first ", this.state.firstTextInputError);
+                          //1 console.log(
+                          //1   "second ",
+                          //1   this.state.secondTextInputError
+                          //1 );
                         } else if (this.state.password.oldPassword != "") {
                           this.setState({ loading: true });
                           this.checkCredentials();
@@ -494,7 +494,24 @@ export default class ProfileScreenModal extends React.Component {
                           });
                         }
                       } else if (this.props.modal.title == "Delete Account") {
-                        firebase.auth().currentUser.delete();
+                
+                        const user = firebase.auth().currentUser;
+                        const start = user.email.indexOf("@");
+                        const end = user.email.indexOf(".com");
+                        const domain = user.email.substring(start, end);
+                        const email = user.email.substring(0, end);
+                        user
+                          .delete()
+                          .then(function () {
+                            // User deleted.
+                          })
+                          .catch(function (error) {
+                            console.log(error);
+                          });
+                        firebase
+                          .database()
+                          .ref("users/" + domain + "/" + email)
+                          .remove();
                         this.props.setModal(
                           this.props.modal.title,
                           this.props.modal.field,

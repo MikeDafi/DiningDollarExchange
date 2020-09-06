@@ -1,11 +1,14 @@
 import React from "react";
-import { View, Text, StyleSheet, Dimensions,TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, Dimensions,TouchableOpacity,TouchableWithoutFeedback } from "react-native";
 import * as firebase from "firebase";
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 export default class QuickOrder extends React.Component {
 
+  state={
+    isClickedBuyNow : false,
+  }
 
   nextButton = () => {
     return (
@@ -64,27 +67,32 @@ export default class QuickOrder extends React.Component {
           >
             {this.nextButton()}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={{
+          <TouchableWithoutFeedback
+
+            onPressIn={() => this.setState({isClickedBuyNow:true})}
+            onPressOut={() => this.setState({isClickedBuyNow:false})}
+            onPress={() => {
+              this.props.togglePopupVisibility(true);
+            }}
+          >
+            <View
+                        style={{
               position: "absolute",
               left: windowWidth / 2 - 62,
               marginTop: 40,
               width: 120,
               height: 120,
               borderRadius: 120,
-              backgroundColor: "white",
+              backgroundColor: this.state.isClickedBuyNow ? "#FFE300" : "white",
               justifyContent: "center",
               alignItems: "center",
-              borderColor: "#FFE300",
+              borderColor: !this.state.isClickedBuyNow ? "#FFE300" : (this.props.blackBackground ? "white" : "black"),
               borderWidth: 10,
-            }}
-            onPress={() => {
-              this.props.togglePopupVisibility(true);
-            }}
-          >
+            }}>
             <FontAwesome5 name="user-friends" size={45} color="black" />
             <Text> BUY NOW</Text>
-          </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
         </View>
     );
   }

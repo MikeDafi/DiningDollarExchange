@@ -6,21 +6,32 @@ import {
   Platform,
   Image,
   View,
+  KeyboardAvoidingView,
   Dimensions,
   Animated,
   ActivityIndicator,
   SafeAreaView,
   TouchableOpacity,
+  ScrollView,
   AsyncStorage,
   Text,
+  Keyboard,
+  Clipboard,
+  TextInput,
 } from "react-native";
 import firebase from "../../config";
 import Modal from "react-native-modal";
-import { Entypo, AntDesign } from "@expo/vector-icons";
+import LottieView from "lottie-react-native";
+import { Entypo, AntDesign, MaterialCommunityIcons,MaterialIcons } from "@expo/vector-icons";
+import { Col, Row, Grid } from "react-native-easy-grid";
 import UploadImages from "./UploadImages";
+import AwesomeButton from "react-native-really-awesome-button";
 import * as ImagePicker from "expo-image-picker";
 import ImageViewer from "react-native-image-zoom-viewer";
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from "expo-file-system";
+import ToolTip from "react-native-tooltip";
+import DropDownPicker from "react-native-dropdown-picker";
+
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 
@@ -44,10 +55,22 @@ export default class RoomScreen extends React.Component {
     const path = "profilePics/" + domain + "/" + email + "/profilePic.jpg";
 
     this.state = {
-      allChats:{},
-      notificationsOn : true,
+      paymentDropdown: new Animated.Value(30),
+      confirmModalHeight: new Animated.Value(330),
+      confirmOrderError: {
+        priceInputtedError: false,
+        paymentOptionsError: false,
+      },
+      possibleProfitVisible: false,
+      possibleProfit : {
+        actualPrice : 0,
+        newPrice : 0,
+      },
+      chosenPaymentOptions: [],
+      allChats: {},
+      notificationsOn: true,
       messages: [],
-      messagesObject : {},
+      messagesObject: {},
       thread: (this.props.navigation.state.params || {}).thread,
       domain: domain,
       refreshing: false,
@@ -58,6 +81,9 @@ export default class RoomScreen extends React.Component {
       read: false,
       text: "",
       otherChatterToken: "",
+      priceInputted: "",
+      noteInputted: "",
+      confirmModal: false,
       delivered: false,
       date: new Date(),
       uploadImagesVisible: false,
@@ -67,6 +93,7 @@ export default class RoomScreen extends React.Component {
       imageCount: 0,
       index: 0,
       showImageViewer: false,
+      confirmModalViewer: false,
       chattingUser: (this.props.navigation.state.params || {}).chattingUser,
       otherChatterEmail: (this.props.navigation.state.params || {})
         .otherChatterEmail,
@@ -74,11 +101,82 @@ export default class RoomScreen extends React.Component {
       user: {
         _id: firebase.auth().currentUser.uid,
       },
-      historyOrderKey:
-        this.props.navigation.state.params.historyOrderKey || "",
+      historyOrderKey: this.props.navigation.state.params.historyOrderKey || "",
       orderNumber: "",
     };
   }
+
+  getOtherChatterProfileImage = async () => {
+    const user = firebase.auth().currentUser;
+    const start = user.email.indexOf("@");
+    const end = user.email.indexOf(".com");
+    const domain = user.email.substring(start, end);
+    const email = user.email.substring(0, end);
+    let otherChattersObject = await AsyncStorage.getItem(
+      "otherChattersProfileImages"
+    );
+    otherChattersObject = JSON.parse(otherChattersObject);
+    //1 console.log("before other ", otherChattersObject)
+    if (!otherChattersObject) {
+      otherChattersObject = {};
+    }
+    var otherChatterEmail = this.state.otherChatterEmail;
+    firebase
+      .database()
+      .ref("users/" + domain + "/" + otherChatterEmail)
+      .once("value", async (snapshot) => {
+        // //1 console.log("otherChatterEmail", otherChatterEmail);
+        //1 console.log("CODE RED",otherChattersObject)
+        //1 console.log("otherChatterEmail ", otherChatterEmail)
+        if (snapshot.val().profileImageUrl) {
+          if (
+            otherChattersObject[[otherChatterEmail]] == undefined ||
+            !otherChattersObject[[otherChatterEmail]].uri ||
+            otherChattersObject[[otherChatterEmail]].url !=
+              snapshot.val().profileImageUrl
+          ) {
+            //1 console.log("trying to download")
+            if (
+              otherChattersObject[[otherChatterEmail]] &&
+              !otherChattersObject[[otherChatterEmail]].uri
+            ) {
+              //1 console.log("delete")
+              this.deleteUri(otherChattersObject[[otherChatterEmail]].uri);
+            }
+            try {
+              const uri = await this.downloadUrl(
+                snapshot.val().profileImageUrl,
+                otherChatterEmail
+              );
+              const newProfileObject = {
+                uri,
+                url: snapshot.val().profileImageUrl,
+              };
+              otherChattersObject[[otherChatterEmail]] = newProfileObject;
+              //1 console.log("WOOOHOOO",otherChattersObject[[otherChatterEmail]])
+              //1 console.log("uri ", uri)
+              this.setState({
+                otherChatterProfileImage:
+                  otherChattersObject[[otherChatterEmail]].uri,
+              });
+              AsyncStorage.setItem(
+                "otherChattersProfileImages",
+                JSON.stringify(otherChattersObject)
+              );
+            } catch (e) {
+              //1 console.log("big error")
+            }
+          } else {
+            //1 console.log("already defined")
+            //1 console.log(otherChattersObject[[otherChatterEmail]])
+            this.setState({
+              otherChatterProfileImage:
+                otherChattersObject[[otherChatterEmail]].uri,
+            });
+          }
+        }
+      });
+  };
 
   worthPuttingCenterTimestamp = (currentTimestamp, text) => {
     if (this.earlierMessage == "") {
@@ -89,7 +187,7 @@ export default class RoomScreen extends React.Component {
       const old = this.earlierMessage;
       this.earlierMessage = currentTimestamp;
       this.earlierMessagetext = text;
-      if (this.earlierMessage - old >= 216000) {
+      if (this.earlierMessage - old >= 3600000) {
         return (
           <View style={{ alignItems: "center", marginVertical: 10 }}>
             <Text style={{ fontSize: 11, color: "gray" }}>
@@ -182,13 +280,13 @@ export default class RoomScreen extends React.Component {
 
     params.then(async (images) => {
       // for(var i = 0; i < images.length;i++){
-      // console.log("in for loop")
+      // //1 console.log("in for loop")
       this.uriToBlob(images[0].uri).then((blob) => {
-        //   console.log("in uritoblob")
+        //   //1 console.log("in uritoblob")
         const name = this.generateRandomString();
-        console.log("name ", name);
+        //1 console.log("name ", name);
         this.uploadToFirebase(blob, name).then((snapshot) => {
-          console.log("in snapshot");
+          //1 console.log("in snapshot");
 
           snapshot.ref.getDownloadURL().then((url) => {
             var message = {
@@ -199,10 +297,10 @@ export default class RoomScreen extends React.Component {
               user: { _id: firebase.auth().currentUser.uid },
             };
 
-            console.log("message", message);
+            //1 console.log("message", message);
             this.append(message);
           });
-          console.log("Hi there");
+          //1 console.log("Hi there");
         });
       });
       // }
@@ -213,7 +311,7 @@ export default class RoomScreen extends React.Component {
   // Promise.all(uploadToFirebasePromises).then(() => {
   //   params.then(async (images) =>{
   //     for(var i = 0; i < images.length;i++){
-  //         console.log("imageHappened")
+  //         //1 console.log("imageHappened")
   //         let name = this.generateRandomString();
   //         await firebase.storage().ref(`/chats/${this.state.domain}/${this.state.thread}/${name}.jpg`).getDownloadURL().then((foundURL) =>{
   //           let name = foundURL
@@ -225,16 +323,16 @@ export default class RoomScreen extends React.Component {
   //             user:{_id:notification.data.data.uid}
   //           }
 
-  //           console.log("message", message)
+  //           //1 console.log("message", message)
   //           this.append(message);
 
-  //         }).catch((error) => console.log(error))
+  //         }).catch((error) => //1 console.log(error))
   //     }
   // })
   // params.then(async (images) =>{
   //   for(var i = 0; i < images.length;i++){
   //     this.uriToBlob(images[i].uri).then(async(blob) =>{
-  //       console.log("oh man")
+  //       //1 console.log("oh man")
   //       this.uploadToFirebase(blob )
   //      await firebase.storage().ref(`/chats/${this.state.domain}/${this.state.thread}/${this.state.name}.jpg`).getDownloadURL().then(onResolve, onReject);
 
@@ -243,9 +341,9 @@ export default class RoomScreen extends React.Component {
   //       }
 
   //       function onReject(error) {
-  //           console.log(error.code);
+  //           //1 console.log(error.code);
   //       }
-  //       console.log("here i am")
+  //       //1 console.log("here i am")
   //       var message = {
   //           text:"",
   //           image:name,
@@ -257,7 +355,7 @@ export default class RoomScreen extends React.Component {
   //       if(thisClass.state.profileImage){
   //           message.user.avatar = thisClass.state.profileImage
   //       }
-  //       console.log("message", message)
+  //       //1 console.log("message", message)
   //       this.append(message);
   //     })
   //   }
@@ -289,7 +387,7 @@ export default class RoomScreen extends React.Component {
   };
 
   uploadToFirebase = (blob, name) => {
-    console.log("in upload");
+    //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
@@ -307,42 +405,44 @@ export default class RoomScreen extends React.Component {
   renderComposer = (props) => {
     return (
       <>
-      {this.state.historyOrderKey == "" && 
-      <View
-        style={{
-          flexDirection: "row",
-          borderBottomWidth: 0.5,
-          borderTopWidth: 0.2,
-        }}
-      >
-        <TouchableOpacity
-          style={{ paddingHorizontal: 10, justifyContent: "flex-end" }}
-          onPress={() => this.setState({ uploadImagesVisible: true })}
-        >
-          <UploadImages
-            isVisible={this.state.uploadImagesVisible}
-            photoCallb={this.photoCallback}
-          />
-          <Entypo name="camera" size={30} color="black" />
-        </TouchableOpacity>
-        <View
-          style={{
-            alignItems: "flex-end",
-            flexDirection: "row",
-            justifyContent: "center",
-            width: windowWidth - 50,
-          }}
-        >
-          <Composer {...props} />
-          {props.text.length != 0 && 
-          <TouchableOpacity
-            style={{ marginRight: 5, marginBottom: 10 }}
-            onPress={() => this.send(props.user, props.text)}
+        {this.state.historyOrderKey == "" && (
+          <View
+            style={{
+              flexDirection: "row",
+              borderBottomWidth: 0.5,
+              borderTopWidth: 0.2,
+            }}
           >
-            <Text style={{ color: "#0A9CBF", fontSize: 20 }}>Send</Text>
-          </TouchableOpacity>}
-        </View>
-      </View>}
+            <TouchableOpacity
+              style={{ paddingHorizontal: 10, justifyContent: "flex-end" }}
+              onPress={() => this.setState({ uploadImagesVisible: true })}
+            >
+              <UploadImages
+                isVisible={this.state.uploadImagesVisible}
+                photoCallb={this.photoCallback}
+              />
+              <Entypo name="camera" size={30} color="black" />
+            </TouchableOpacity>
+            <View
+              style={{
+                alignItems: "flex-end",
+                flexDirection: "row",
+                justifyContent: "center",
+                width: windowWidth - 50,
+              }}
+            >
+              <Composer {...props} />
+              {props.text.length != 0 && (
+                <TouchableOpacity
+                  style={{ marginRight: 5, marginBottom: 10 }}
+                  onPress={() => this.send(props.user, props.text)}
+                >
+                  <Text style={{ color: "#0A9CBF", fontSize: 20 }}>Send</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
       </>
     );
   };
@@ -358,7 +458,7 @@ export default class RoomScreen extends React.Component {
   };
 
   refCheckChatter = () => {
-    console.log("this.state.thread ", this.state.thread);
+    //1 console.log("this.state.thread ", this.state.thread);
     return firebase
       .database()
       .ref("/chats/" + this.state.domain + "/" + this.state.thread + "/");
@@ -372,17 +472,17 @@ export default class RoomScreen extends React.Component {
     var messageDate = new Date(timestamp);
     var hour, minute, seconds;
     hour = messageDate.getHours();
-    var afterNoon = hour  > 11 ? "PM" : "AM";
-    hour = hour == 0 || hour == 12 ? "12" : (hour > 12 ? hour - 12 : hour)
+    var afterNoon = hour > 11 ? "PM" : "AM";
+    hour = hour == 0 || hour == 12 ? "12" : hour > 12 ? hour - 12 : hour;
 
     minute = "0" + messageDate.getMinutes();
     return hour + ":" + minute.substr(-2) + " " + afterNoon;
   };
 
   displayTime = (timestamp) => {
-    // console.log("-----------------Display Time----------")
-    // console.log("current",this.state.date)
-    // console.log("timestamp",timestamp)
+    // //1 console.log("-----------------Display Time----------")
+    // //1 console.log("current",this.state.date)
+    // //1 console.log("timestamp",timestamp)
     const dayOfTheWeek = [
       "Sunday",
       "Monday",
@@ -394,12 +494,12 @@ export default class RoomScreen extends React.Component {
     ];
     var messageDate = new Date(timestamp);
     var currentDate = this.state.date;
-    //console.log("getHours ",messageDate.getHours())
+    ////1 console.log("getHours ",messageDate.getHours())
     var hour, minute, seconds;
     hour = messageDate.getHours();
 
-    var afterNoon = hour  > 11 ? "PM" : "AM";
-    hour = hour == 0 || hour == 12 ? "12" : (hour > 12 ? hour - 12 : hour)
+    var afterNoon = hour > 11 ? "PM" : "AM";
+    hour = hour == 0 || hour == 12 ? "12" : hour > 12 ? hour - 12 : hour;
 
     minute = "0" + messageDate.getMinutes();
     const time = hour + ":" + minute.substr(-2) + " " + afterNoon;
@@ -431,6 +531,10 @@ export default class RoomScreen extends React.Component {
       user,
       image,
       confirmAnswer,
+      confirmationId,
+      noteInputted,
+      priceInputted,
+      paymentOptions,
       read,
       readTime,
     } = snapshot.val();
@@ -444,14 +548,13 @@ export default class RoomScreen extends React.Component {
       user,
       image,
     };
-
     if (!loadEarlier && user._id == firebase.auth().currentUser.uid) {
-      // console.log("user._id ", user._id)
-      // console.log("firebase.auth",firebase.auth().currentUser.uid)
-      // console.log("readTime",readTime)
-      // console.log("read", read)
+      // //1 console.log("user._id ", user._id)
+      // //1 console.log("firebase.auth",firebase.auth().currentUser.uid)
+      // //1 console.log("readTime",readTime)
+      // //1 console.log("read", read)
       const readTimeStamp = readTime ? readTime : new Date().getTime();
-      console.log("readTimeStamp ", readTimeStamp);
+      //1 console.log("readTimeStamp ", readTimeStamp);
       this.setState({
         read,
         lastMessageId: _id,
@@ -460,12 +563,12 @@ export default class RoomScreen extends React.Component {
         deliveredTime: this.displayTime(message.timestamp),
       });
     }
-    if (text == "" && image == undefined && confirmAnswer == undefined) {
+    if (text == "" && image == undefined ) {
       this.setState((previousState) => {
         let opacities = previousState.opacities;
         opacities[[_id]] = {
-          animatedValue: new Animated.Value(1),
-          confirmedOpacity: new Animated.Value(0),
+          animatedValue: new Animated.Value(confirmAnswer == undefined ? 1 : 0),
+          confirmedOpacity: new Animated.Value(confirmAnswer == undefined ? 0 : 1),
         };
 
         return { opacities };
@@ -473,13 +576,17 @@ export default class RoomScreen extends React.Component {
     }
     this.setState((previousState) => {
       let messagess = previousState.messagess;
-      if(!messagess[[_id]]){
-          messagess[[_id]] = {
+      if (!messagess[[_id]]) {
+        messagess[[_id]] = {
           confirmAnswer,
+          confirmationId,
           centerTimestamp,
+          noteInputted,
+          priceInputted,
+          paymentOptions,
         };
-      }else{
-        messagess[[_id]].confirmAnswer = confirmAnswer
+      } else {
+        messagess[[_id]].confirmAnswer = confirmAnswer;
       }
       return { messagess };
     });
@@ -491,7 +598,7 @@ export default class RoomScreen extends React.Component {
     //   this.setState({ imageUris, imageCount });
     // }
 
-    // console.log("opacities1",this.state.messagess)
+    // //1 console.log("opacities1",this.state.messagess)
     return message;
   };
 
@@ -515,8 +622,8 @@ export default class RoomScreen extends React.Component {
         count < 20
           ? this.historyObject.endIndex - count
           : this.historyObject.endIndex - 20;
-      console.log(this.historyObject.startIndex);
-      console.log("endIndex ", this.historyObject.endIndex);
+      //1 console.log(this.historyObject.startIndex);
+      //1 console.log("endIndex ", this.historyObject.endIndex);
       for (
         var i = this.historyObject.startIndex;
         i <= this.historyObject.endIndex;
@@ -537,14 +644,19 @@ export default class RoomScreen extends React.Component {
   on = (callback) => {
     this.ref()
       .limitToLast(this.state.count)
-      .on("child_added", (snapshot) => callback(this.parse(snapshot, false)));
+      .on("child_added", (snapshot) => {
+        // const impact = Object.keys(snapshot.val())
+        // for(var i = 0; i < impact.length; i++){
+        callback(this.parse(snapshot, false));
+        // }
+      });
   };
 
   onCheckOtherChatter = (callback) => {
     this.refCheckChatter()
       .child(this.state.otherChatterEmail)
       .on("value", (snapshot) => {
-        console.log("NOT IN RHYTHM ", snapshot.val());
+        //1 console.log("NOT IN RHYTHM ", snapshot.val());
         this.setState({
           otherChatterOnline:
             snapshot.val() && snapshot.val()[[this.state.otherChatterEmail]]
@@ -557,7 +669,7 @@ export default class RoomScreen extends React.Component {
       });
   };
   // send the message to the Backend
-  send = (user, text) => {
+  send = (user, text,confirmationId) => {
     // for (let i = 0; i < messages.length; i++) {
     //   const { text, user } = messages[i];
     //   const message = {
@@ -565,8 +677,8 @@ export default class RoomScreen extends React.Component {
     //     user,
     //     timestamp: this.timestamp(),
     //   };
-    //   console.log("message in send")
-    //   console.log(message)
+    //   //1 console.log("message in send")
+    //   //1 console.log(message)
     //   this.append(message);
     // }
     const message = {
@@ -576,13 +688,31 @@ export default class RoomScreen extends React.Component {
       timestamp: this.timestamp(),
     };
 
+    if (text == ""){
+      if(confirmationId == undefined) {
+        message.priceInputted = this.state.priceInputted;
+        message.paymentOptions = this.state.chosenPaymentOptions;
+        message.noteInputted = this.state.noteInputted;
+      }else{
+        message.confirmationId = confirmationId
+      }
+    }
+
     this.setState({ text: "" });
 
     this.append(message);
   };
 
-  sendSingleNotification = async ( text) => {
-    console.log("sendSingle")
+  _payment = (payment, value) => {
+    //1 console.log("oooooooooo");
+    Animated.timing(payment, {
+      toValue: value,
+      duration: 50,
+    }).start();
+  };
+
+  sendSingleNotification = async (text) => {
+    //1 console.log("sendSingle")
     const message = {
       to: this.state.otherChatterToken,
       sound: "default",
@@ -590,9 +720,9 @@ export default class RoomScreen extends React.Component {
       body: text,
       data: {
         data: {
-          thread : this.state.thread,
-          name : this.state.chattingUser,
-          otherChatterEmail : this.state.otherChatterEmail,
+          thread: this.state.thread,
+          name: this.state.chattingUser,
+          otherChatterEmail: this.state.otherChatterEmail,
         },
       },
       _displayInForeground: true,
@@ -638,8 +768,10 @@ export default class RoomScreen extends React.Component {
           delivered: true,
           deliveredTime: this.displayTime(new Date().getTime()),
         });
-        if(this.state.notificationsOn && this.state.otherChatterToken != ""){
-          this.sendSingleNotification(this.whatIsMessage(message.image,message.text))
+        if (this.state.notificationsOn && this.state.otherChatterToken != "") {
+          this.sendSingleNotification(
+            this.whatIsMessage(message.image, message.text)
+          );
         }
         firebase
           .database()
@@ -686,79 +818,85 @@ export default class RoomScreen extends React.Component {
     const end = user.email.indexOf(".com");
     const email = user.email.substring(0, end);
     const isBuyer =
-      this.state.thread.substring(0, email.length) == email ? "buyer" : "seller"
-    let allChats = await AsyncStorage.getItem('allChats')
+      this.state.thread.substring(0, email.length) == email
+        ? "buyer"
+        : "seller";
+    let allChats = await AsyncStorage.getItem("allChats");
     allChats = JSON.parse(allChats);
-    if(!allChats){
-      allChats = {[[isBuyer]] : {[[this.state.thread]] : {}}}
-    }else if(!allChats[[isBuyer]]){
-      let newObject  = {[[isBuyer]] : {[[this.state.thread]] : {}}}
-      allChats = {...allChats,...newObject}
-    }else if(!allChats[[isBuyer]][[this.state.thread]]){
-      allChats[[isBuyer]] = {[[this.state.thread]] : {}}
+    if (!allChats) {
+      allChats = { [[isBuyer]]: { [[this.state.thread]]: {} } };
+    } else if (!allChats[[isBuyer]]) {
+      let newObject = { [[isBuyer]]: { [[this.state.thread]]: {} } };
+      allChats = { ...allChats, ...newObject };
+    } else if (!allChats[[isBuyer]][[this.state.thread]]) {
+      allChats[[isBuyer]] = { [[this.state.thread]]: {} };
     }
-    console.log("allChats ",allChats)
-    await this.setState({allChats,isBuyer})
-
+    //1 console.log("allChats ",allChats)
+    await this.setState({ allChats, isBuyer });
+    this.getOtherChatterProfileImage();
     // firebase.storage().ref("/chats/@gmail/fakedafi2@gmailfakedafi@gmail/0405095287031324.jpg").getDownloadURL().then(() => {
     //   this.setState({profileImage : foundURL})
-    //   console.log("found profile image")
-    // }).catch((error) => {console.log("no profileeeeeeee image")})
+    //   //1 console.log("found profile image")
+    // }).catch((error) => {//1 console.log("no profileeeeeeee image")})
 
-    // //firebase.storage().ref("profilePics/@gmail/fakedafi@gmail/profilePic.jpg").once("value",(snapshot) => {console.log("snapshot",snapshot)})
+    // //firebase.storage().ref("profilePics/@gmail/fakedafi@gmail/profilePic.jpg").once("value",(snapshot) => {//1 console.log("snapshot",snapshot)})
     // await firebase.storage().ref(path).getDownloadURL().then(() => {
     //   this.setState({profileImage : foundURL})
-    //   console.log("found profile image")
-    // }).catch((error) => {console.log("no profile image")})
+    //   //1 console.log("found profile image")
+    // }).catch((error) => {//1 console.log("no profile image")})
 
-    if(this.state.historyOrderKey != ""){
+    if (this.state.historyOrderKey != "") {
       this.historyFinder();
-    }else{
+    } else {
+      this.refCheckChatter()
+        .child(email + "/" + email + "_hasSentMessage")
+        .once("value", (snapshot) => {
+          this.setState({ hasSentMessage: snapshot.val() });
+        });
+      this.refCheckChatter()
+        .child("orderNumber")
+        .once("value", (snapshot) => {
+          this.setState({ orderNumber: snapshot.val() });
+        });
 
-          this.refCheckChatter()
-      .child(email + "/" + email + "_hasSentMessage")
-      .once("value", (snapshot) => {
-        this.setState({ hasSentMessage: snapshot.val() });
-      });
-      this.refCheckChatter().child("orderNumber").once("value",(snapshot) => {
-        this.setState({orderNumber : snapshot.val()})
-      })
+      this.refCheckChatter()
+        .child(email)
+        .update({ [email]: true });
 
-    this.refCheckChatter()
-      .child(email)
-      .update({ [email]: true });
+      firebase
+        .database()
+        .ref(
+          "users/" +
+            this.state.domain +
+            "/" +
+            email +
+            "/chats/" +
+            isBuyer +
+            "/" +
+            this.state.thread
+        )
+        .update({
+          read: true,
+        });
 
-    firebase
-      .database()
-      .ref(
-        "users/" +
-          this.state.domain +
-          "/" +
-          email +
-          "/chats/" +
-          isBuyer +
-          "/" +
-          this.state.thread
-      )
-      .update({
-        read: true,
-      });
-
-    firebase
-      .database()
-      .ref("users/" + this.state.domain + "/" + this.state.otherChatterEmail)
-      .once("value", (snapshot) => {
-        this.setState({ otherChatterToken: snapshot.val().expoToken, notificationsOn : snapshot.val()["notifications"].notifications && snapshot.val()["notifications"].newMessages });
-      });
-
-
+      firebase
+        .database()
+        .ref("users/" + this.state.domain + "/" + this.state.otherChatterEmail)
+        .once("value", (snapshot) => {
+          this.setState({
+            otherChatterToken: snapshot.val().expoToken,
+            notificationsOn:
+              snapshot.val()["notifications"].notifications &&
+              snapshot.val()["notifications"].newMessages,
+          });
+        });
 
       this.on(async (message) => {
-        const allChats = this.state.allChats
-        await this.getUpdatedImage(message)
-        const messagesObject = this.state.messagesObject
-        messagesObject[[message._id]] = message
-        // console.log("tempCount ",this.state.tempCount)
+        const allChats = this.state.allChats;
+        await this.getUpdatedImage(message, true);
+        const messagesObject = this.state.messagesObject;
+        messagesObject[[message._id]] = message;
+        // //1 console.log("tempCount ",this.state.tempCount)
         // if(this.state.tempCount - this.state.count == -1){
         //   const currentArray = Object.values(this.state.messagesObject).sort(function(a, b) {
         //     return b["timestamp"] - a["timestamp"];
@@ -770,10 +908,12 @@ export default class RoomScreen extends React.Component {
         // }else{
         //   this.setState({tempCount : this.state.tempCount + 1 })
         // }
-          const currentArray = Object.values(this.state.messagesObject).sort(function(a, b) {
+        const currentArray = Object.values(this.state.messagesObject).sort(
+          function (a, b) {
             return b["timestamp"] - a["timestamp"];
-          });
-        this.setState({messages : currentArray,messagesObject})
+          }
+        );
+        this.setState({ messages: currentArray, messagesObject });
 
         // this.setState((previousState) => ({
         //   messages : GiftedChat.append(previousState.messages,message)
@@ -785,7 +925,7 @@ export default class RoomScreen extends React.Component {
           read: otherChatterOnline[[this.state.otherChatterEmail]],
         });
         if (otherChatterOnline && !this.state.read) {
-          console.log("NOOOO");
+          //1 console.log("NOOOO");
           this.ref()
             .child(key)
             .update({
@@ -796,18 +936,22 @@ export default class RoomScreen extends React.Component {
       });
     }
   }
-  downloadUrl = async (url,messageId) => {
+  downloadUrl = async (url, messageId) => {
     // return new Promise(async() => {
-    const callback = downloadProgress => {
-    const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-    // this.setState({
-    //   downloadProgress: progress,
-    // });
-    }
-     
+    const callback = (downloadProgress) => {
+      const progress =
+        downloadProgress.totalBytesWritten /
+        downloadProgress.totalBytesExpectedToWrite;
+      // this.setState({
+      //   downloadProgress: progress,
+      // });
+    };
 
-    console.log("url ", url)
-    await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +this.state.thread +"/",{intermediates:true})
+    //1 console.log("url ", url)
+    await FileSystem.makeDirectoryAsync(
+      FileSystem.documentDirectory + this.state.thread + "/",
+      { intermediates: true }
+    );
     // const downloadResumable = FileSystem.createDownloadResumable(
     //     url,
     //     FileSystem.documentDirectory  + name + ".png",
@@ -817,13 +961,17 @@ export default class RoomScreen extends React.Component {
 
     try {
       const { uri } = await FileSystem.downloadAsync(
-              url,
-      FileSystem.documentDirectory  + this.state.thread +"/" + messageId + ".png",
-      {},
-      callback
+        url,
+        FileSystem.documentDirectory +
+          this.state.thread +
+          "/" +
+          messageId +
+          ".png",
+        {},
+        callback
       );
-      console.log('Finished downloading to ', uri);
-      return uri
+      //1 console.log('Finished downloading to ', uri);
+      return uri;
     } catch (e) {
       console.error(e);
     }
@@ -831,7 +979,7 @@ export default class RoomScreen extends React.Component {
 
     // try {
     //   await downloadResumable.pauseAsync();
-    //   console.log('Paused download operation, saving for future retrieval');
+    //   //1 console.log('Paused download operation, saving for future retrieval');
     //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
     // } catch (e) {
     //   console.error(e);
@@ -839,7 +987,7 @@ export default class RoomScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     //   this.setState({imageUrl :uri})
     // } catch (e) {
     //   console.error(e);
@@ -858,11 +1006,11 @@ export default class RoomScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     // } catch (e) {
     //   console.error(e);
     // }
-  }
+  };
 
   componentWillUnmount() {
     const user = firebase.auth().currentUser;
@@ -877,97 +1025,106 @@ export default class RoomScreen extends React.Component {
 
   updatedMessageConfirmAnswer = (_id, answer) => {
     this.ref().child(_id).update({ confirmAnswer: answer });
+
   };
 
-  _start = (_id, answer) => {
-    Animated.parallel([
+  _start = async (_id, answer) => {
+          this.setState((previousState) => {
+        let messagess = previousState.messagess;
+        messagess[[_id]].confirmAnswer = answer
+        return { messagess };
+      });
+    await Animated.parallel([
       Animated.timing(this.state.opacities[[_id]].animatedValue, {
         toValue: 0,
-        duration: 300,
+        duration: 500,
       }),
       Animated.timing(this.state.opacities[_id].confirmedOpacity, {
         toValue: 1,
-        duration: 300,
+        duration: 500,
       }),
     ]).start();
-    this.setState((previousState) => {
-      let messagess = previousState.messagess;
-      messagess[[_id]] = { confirmAnswer: answer };
-      return { messagess };
-    });
-    console.log("in _sstart")
-    this.updatedMessageConfirmAnswer(_id, answer);
-      this.addToHistory(_id)
+    setTimeout(() => {
+      this.updatedMessageConfirmAnswer(_id, answer);
+      this.send(answer ? {_id} : this.state.user,"",answer ? _id : "")
+      this.addToHistory(_id);
+    }, 750);
   };
 
   addToHistory = (_id) => {
-        const user = firebase.auth().currentUser;
+    const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const email = user.email.substring(0, end);
-        const isBuyer =
+    const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;
+    const orderNumber = (this.state.orderNumber != "" && this.state.orderNumber != null && this.state.orderNumber != undefined) ? this.generateRandomString() : this.generateRandomString()
+    // firebase
+    //   .database()
+    //   .ref("orders/" + domain + "/currentOrders/" + this.state.orderNumber)
+    //   .once("value", (snapshot) => {
+        //1 console.log('sna' ,snapshot.val())
+        console.log("this.state.messagess[[_id]].priceInputted ", this.state.messagess[[_id]].priceInputted)
+        const order = {
+          price: this.state.messagess[[_id]].priceInputted,
+          timestamp: new Date().getTime(),
+          chatId: this.state.thread,
+          historyOrderKey: _id,
+        };
+        console.log("order ",order)
+        console.log("orderNumber ",orderNumber)
+        firebase
+          .database()
+          .ref(
+            "users/" +
+              domain +
+              "/" +
+              email +
+              "/historyOrders/" +
+              (isBuyer ? "buyer" : "seller")
+          )
+          .update({
+            [[orderNumber]]: order,
+          });
+        firebase
+          .database()
+          .ref(
+            "users/" +
+              domain +
+              "/" +
+              this.state.otherChatterEmail +
+              "/historyOrders/" +
+              (isBuyer ? "seller" : "buyer")
+          )
+          .update({
+            [[orderNumber]]: order,
+          });
+      // });
+  };
 
-    firebase.database().ref("orders/" + domain + "/currentOrders/" + this.state.orderNumber).once("value",snapshot =>{
-      console.log('sna' ,snapshot.val())
-      const order = {
-        price : snapshot.val().rangeSelected,
-        timestamp : this.timestamp(),
-        chatId : this.state.thread,
-        title : snapshot.val().title || "",
-        historyOrderKey : _id
-      }
-      firebase.database().ref("users/" + domain + "/" + email + "/historyOrders/" + (isBuyer ? "buyer" : "seller")).update({
-        [[this.state.orderNumber]] : order
-      })
-            firebase.database().ref("users/" + domain + "/" + this.state.otherChatterEmail + "/historyOrders/" + (isBuyer ? "seller" : "buyer" )).update({
-        [[this.state.orderNumber]] : order
-      })
-    })
-  }
-
-  initialConfirmMessage = (_id, confirmAnswer, timestamp) => {
+  initialBuyerConfirmMessage = (_id, confirmAnswer) => {
     return (
-      <View style={{ width: windowWidth - 80, height: 150 }}>
+      <View style={{ width: (windowWidth * 2) / 3, height: 150 }}>
         <View style={{ alignItems: "center" }}>
-          <Text>Confirm Order</Text>
+          <Text style={{ fontSize: 17, fontWeight: "bold" }}>
+            Confirm Order
+          </Text>
         </View>
         <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
-            marginHorizontal: 30,
+            marginLeft: 5,
           }}
         >
           <Animated.View
             style={{
-              transform: [
-                {
-                  translateX: this.state.opacities[
-                    [_id]
-                  ].animatedValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [(windowWidth - 250) / 2, 0],
-                  }),
-                },
-              ],
-              opacity: this.state.opacities[[_id]].animatedValue,
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={0.5}
-              style={styles.confirmButton}
-              onPress={async () => {
-                this._start(_id, false);
-              }}
-            >
-              <Text>NO</Text>
-            </TouchableOpacity>
-          </Animated.View>
-          <Animated.View
-            style={{
-              translateX: -(windowWidth - 315) / 2,
+              position: "absolute",
+              justifyContent: "center",
+              alignItems: "center",
+              width: (windowWidth * 2) / 3,
+              // translateX: -(windowWidth - 315) / 2,
               opacity: this.state.opacities[[_id]].confirmedOpacity,
             }}
           >
@@ -988,10 +1145,7 @@ export default class RoomScreen extends React.Component {
                     [_id]
                   ].animatedValue.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [
-                      -((windowWidth - 150) / 2),
-                      -(windowWidth - 250) / 2,
-                    ],
+                    outputRange: [((windowWidth * 2) / 3 - 100) / 2, 0],
                   }),
                 },
               ],
@@ -999,7 +1153,43 @@ export default class RoomScreen extends React.Component {
             }}
           >
             <TouchableOpacity
-              activeOpacity={0.5}
+              style={styles.confirmButton}
+              onPress={async () => {
+                this._start(_id, false);
+              }}
+            >
+              <Text>NO</Text>
+            </TouchableOpacity>
+          </Animated.View>
+          <View
+            style={{
+              justifyContent: "flex-end",
+              position: "absolute",
+              left: ((windowWidth * 2 / 3) / 2) - 27,
+              bottom: 10,
+            }}
+          >
+            {/* {console.log(this.state.messagess[[_id]])} */}
+            <Text style={{ fontSize: (this.state.messagess[[_id]].priceInputted || "").toString().length == 5 ? 17 : 19, color: "#FFDB0C" }}>
+              ${this.state.messagess[[_id]].priceInputted}
+            </Text>
+          </View>
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  translateX: this.state.opacities[
+                    [_id]
+                  ].animatedValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-(((windowWidth * 2) / 3 - 100) / 2), 0],
+                  }),
+                },
+              ],
+              opacity: this.state.opacities[[_id]].animatedValue,
+            }}
+          >
+            <TouchableOpacity
               style={[styles.confirmButton, { backgroundColor: "green" }]}
               onPress={() => {
                 this._start(_id, true);
@@ -1009,44 +1199,290 @@ export default class RoomScreen extends React.Component {
             </TouchableOpacity>
           </Animated.View>
         </View>
+        <View style={{ alignItems: "center" }}>
+          <Text style={{ fontSize: 13, fontWeight: "bold" }}>
+            By Accepting, You Will See How to Pay
+          </Text>
+        </View>
       </View>
     );
   };
 
-  selectedConfirmMessage = (confirmAnswer, timestamp) => {
+  initialSellerConfirmMessage = () => {
     return (
-      <View
-        style={{
-          width: windowWidth - 80,
-          height: 150,
-          alignItems: "center",
-          marginRight: 200,
-        }}
-      >
+      <View style={{ width: (windowWidth * 2) / 3, height: 110 }}>
         <View style={{ alignItems: "center" }}>
-          <Text>Confirm Order</Text>
+          <Text style={{ fontSize: 17, fontWeight: "bold" }}>
+            Confirm Order
+          </Text>
+          <Text style={{ fontSize: 15, fontWeight: "bold" }}>
+            Sent Order Confirmation
+          </Text>
+          <Text style={{marginTop:5}}>
+            Will Receive Confirmation Text. Buyer Accepting makes Payment Options visible
+          </Text>
         </View>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginHorizontal: 30,
-          }}
-        >
-          <View
+      </View>
+    );
+  };
+
+  selectedSellerConfirmMessage = (confirmationId) => {
+    return(
+            <View
+        style={{
+          justifyContent:"center",
+          alignItems:"center",
+          width: (windowWidth * 2) / 3,
+          height:180}}
+      >
+        <View style={{ alignItems: "center",marginTop:1 }}>
+          <Text style={{ fontSize: 17, fontWeight: "bold" }}>
+            Confirm Order
+            
+          </Text>
+        </View>
+                <Animated.View
             style={{
-              opacity: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              width: (windowWidth * 2) / 3,
             }}
           >
             <View
               style={[
                 styles.confirmButton,
-                { backgroundColor: confirmAnswer ? "green" : "red" },
+                { backgroundColor: confirmationId != "" ? "green" : "red"},
               ]}
             >
-              <Text>Hioo</Text>
+              <Text style={{fontWeight:"900",fontSize:17,textAlign:"center"}}>{confirmationId != "" ? "Buyer Accepted!" : "Buyer Rejected"}</Text>
+            </View>
+          </Animated.View>
+                  <View style={{ alignItems: "center" }}>
+          <Text style={{ fontSize: 12, fontWeight: "bold",marginHorizontal:2 }}>
+            {confirmationId == "" ? "Buyer Rejected. Speak with Buyer Again." :
+            "Buyer Accepted. Proof of Payment will be sent soon. Once recieved, make the purchase and send proof of purchase(screenshot)."}
+          </Text>
+        </View>
+          </View>
+    )
+  }
+
+  selectedBuyerConfirmMessage = (_id) => {
+    // console.log("this.state.messagess[[_id]] ", this.state.messagess[[_id]]);
+    if(_id == ""){
+      return          (   <View
+        style={{
+          justifyContent:"center",
+          alignItems:"center",
+          width: (windowWidth * 2) / 3,
+          height:75}}
+      >
+        <View style={{ alignItems: "center",marginTop:1 }}>
+          <Text style={{ fontSize: 17, fontWeight: "bold" }}>
+            Confirm Order
+          </Text>
+        </View>
+                {/* <Animated.View
+            style={{
+              justifyContent: "center",
+              alignItems: "center",
+              width: (windowWidth * 2) / 3,
+            }}
+          >
+            <View
+              style={[
+                styles.confirmButton,
+                { backgroundColor: confirmationId != "" ? "green" : "red"},
+              ]}
+            >
+              <Text style={{fontWeight:"900",fontSize:17,textAlign:"center"}}>{confirmationId != "" ? "Buyer Accepted!" : "Buyer Rejected"}</Text>
+            </View>
+          </Animated.View> */}
+                  <View style={{ alignItems: "center" }}>
+          <Text style={{ fontSize: 12, fontWeight: "bold",marginHorizontal:2 }}>
+            System Message: Clarify to Seller what the issue was
+          </Text>
+        </View>
+          </View>)
+    }
+    return (
+      <View
+        style={{
+          width: (windowWidth * 2) / 3,
+          height:
+            180 +
+            (this.state.messagess[[_id]].paymentOptions
+              ? this.state.messagess[[_id]].paymentOptions.length * 30
+              : 0) +
+            (this.state.messagess[[_id]].noteInputted ? 100 : 0),
+        }}
+      >
+        <View style={{ alignItems: "center" }}>
+          <Text style={{ fontSize: 17, fontWeight: "bold" }}>
+            Confirm Order
+          </Text>
+        </View>
+        {this.state.messagess[[_id]].priceInputted && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginHorizontal: 10,
+              marginTop: 10,
+            }}
+          >
+            <View style={{ flexDirection: "col", alignItems: "center" }}>
+              <Text style={{ fontSize: 24 }}>Price You Pay:</Text>
+              <View style={{flexDirection:"row"}}>
+                                                  <TouchableOpacity
+                        onPress={() =>{
+                          const possibleProfit = {actualPrice: this.state.messagess[[_id]].priceInputted/0.8,newPrice:this.state.messagess[[_id]].priceInputted }
+                          this.setState({ possibleProfitVisible: true,possibleProfit })
+                        }}
+                                                  style={{flexDirection:"row",alignItems:"center"}}
+                      >
+              <Text style={{ fontSize: 13 }}>
+                You Saved{" "}
+                <Text style={{ color: "#0DCC0D", fontWeight: "800" }}>{ "$" + ((this.state.messagess[[_id]].priceInputted / 0.8) - this.state.messagess[[_id]].priceInputted).toFixed(2)}</Text>
+              </Text>
+
+                                        <Entypo
+                            name="info-with-circle"
+                            size={12}
+                            color="black"
+                          />
+                          </TouchableOpacity>
+                          </View>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <LottieView
+                style={{
+                  position: "absolute",
+                  width:
+                    75 +(this.state.messagess[[_id]].priceInputted.length == 5 ? 50 :
+                    (this.state.messagess[[_id]].priceInputted.length - 1) * 20
+                    ),
+                  height:
+                    75 +(this.state.messagess[[_id]].priceInputted.length == 5 ? 50 :
+                    (this.state.messagess[[_id]].priceInputted.length - 1) * 20
+                    ),
+                }}
+                source={require("../assets/yellowCircle.json")}
+                autoPlay
+              />
+              <Text style={{ fontSize: 10 }}>$</Text>
+              <Text style={{ fontSize: (this.state.messagess[[_id]].priceInputted || "").toString().length == 5 ? 27 : 35 }}>
+                {this.state.messagess[[_id]].priceInputted}
+              </Text>
             </View>
           </View>
+        )}
+        <View
+          style={{
+            flexDirection: "col",
+            marginHorizontal: 10,
+          }}
+        >
+          {this.state.messagess[[_id]].paymentOptions && (
+            <View style={{ marginTop: 5 }}>
+              <Text style={{ fontSize: 24 }}>Pay Options:</Text>
+              {this.state.messagess[[_id]].paymentOptions.map((x, i) => (
+                <AwesomeButton
+                  // style={{
+                  //   position: "absolute",
+                  //   left: windowWidth / 2 - 90,
+                  //   top: windowHeight / 2 - 180,
+                  // }}
+                  onPress={() => Clipboard.setString(x)}
+                  width={(windowWidth * 2) / 3 - 20}
+                  height={30}
+                  ripple={true}
+                  borderColor="black"
+                  borderWidth={1}
+                  raiseLevel={4}
+                  borderRadius={180}
+                  backgroundColor="#FFDA00"
+                  backgroundShadow="#B79D07"
+                  backgroundDarker="#B79D07"
+                  textSize={30}
+                  textColor="black"
+
+                >
+                  <View
+                    style={{
+                      width: (windowWidth * 2) / 3 - 30,
+                      marginHorizontal:5,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <View style={{width:(windowWidth * 2) / 3 - 75    ,               flexDirection:"row",alignItems: "center"}}>
+                      <MaterialCommunityIcons
+                        name="venmo"
+                        size={25}
+                        color="black"
+                      />
+                      <Text
+                        style={{
+                          fontSize: 20,
+                        }}
+                        adjustsFontSizeToFit={true}
+                        numberOfLines={1}
+
+                      >
+                        {x}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={{textDecorationLine:"underline",fontSize:15}}>Copy</Text>
+                    </View>
+                  </View>
+                </AwesomeButton>
+              ))}
+            </View>
+          )}
+        </View>
+        <View
+          style={{
+            marginHorizontal: 10,
+          }}
+        >
+          <Text style={{ fontSize: 24 }}>
+            {(this.state.messagess[[_id]].noteInputted != undefined && this.state.messagess[[_id]].noteInputted != "")
+              ? "Seller's Notes:"
+              : "No Notes From Seller"}
+          </Text>
+          {console.log(this.state.messagess[[_id]].noteInputted)}
+          {this.state.messagess[[_id]].noteInputted != undefined &&
+            this.state.messagess[[_id]].noteInputted != "" && (
+              <View
+                style={{
+                  width: (windowWidth * 2) / 3 - 20,
+                  height: 105,
+                  padding:2,
+                  borderColor: "black",
+                  borderWidth: 3,
+                  borderRadius: 10,
+                  backgroundColor: "rgba(240,244,240,1)",
+                }}
+              >
+                <Text style={{ fontSize: 20, color: "rgba(150,150,150,1)" }}>
+                  {this.state.messagess[[_id]].noteInputted}
+                </Text>
+              </View>
+            )}
+        </View>
+                <View style={{ alignItems: "center" }}>
+          <Text style={{ fontSize: 13, fontWeight: "bold" }}>
+            Send Screenshot of Proof of Payment in Chat to complete order.
+          </Text>
         </View>
       </View>
     );
@@ -1059,20 +1495,35 @@ export default class RoomScreen extends React.Component {
   renderConfirm = (props) => {
     const message = props.currentMessage;
     const confirmAnswer = this.state.messagess[[message._id]].confirmAnswer;
+    const confirmationId = this.state.messagess[[message._id]].confirmationId
     if (message.text == "" && message.image == undefined) {
-      if (confirmAnswer == undefined) {
-        return this.initialConfirmMessage(
+      if (confirmationId == undefined) {
+        if(message.user._id == this.state.user._id){
+          return this.initialSellerConfirmMessage(
+            message._id,
+            confirmAnswer
+          )
+        }else{
+        return this.initialBuyerConfirmMessage(
           message._id,
-          confirmAnswer,
-          message.timestamp
+          confirmAnswer
         );
-      } else {
-        return this.selectedConfirmMessage(confirmAnswer, message.timestamp);
+        }
+      } 
+
+      if(message.user._id == this.state.user._id){
+        return this.selectedBuyerConfirmMessage(confirmationId)
       }
+        return this.selectedSellerConfirmMessage(confirmationId);
     }
   };
 
   renderNavigation = () => {
+    const user = firebase.auth().currentUser;
+    const end = user.email.indexOf(".com");
+    const email = user.email.substring(0, end);
+    const isBuyer =
+      this.state.thread.substring(0, email.length) == email ? true : false;
     return (
       <View
         style={{
@@ -1087,14 +1538,46 @@ export default class RoomScreen extends React.Component {
         <TouchableOpacity onPress={() => this.props.navigation.goBack(null)}>
           <AntDesign name="arrowleft" size={30} color="black" />
         </TouchableOpacity>
-        <Text>{this.state.chattingUser}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            this.send(this.state.user, "");
-          }}
-        >
-          <Text>Confirm Order</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Image
+            source={{ uri: this.state.otherChatterProfileImage }}
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 50,
+              borderWidth: 2,
+              borderColor: "#E2E2E2",
+            }}
+          />
+          <Text style={{ fontSize: 20 }} numberOfLines={1}>
+            {" "}
+            {this.state.chattingUser}
+          </Text>
+        </View>
+        <View style={{alignItems:"center",flexDirection:"row"}}>
+                  <TouchableOpacity
+            onPress={() => {
+            }}
+            style={{flexDirection:"col",alignItems:"center"}}
+          >
+                      <MaterialIcons name="error" size={27} color="black" />
+              <Text style={{fontSize:13}}>Report</Text>
+              </TouchableOpacity>
+        {(this.state.historyOrderKey == undefined || !isBuyer) ? (
+          <TouchableOpacity
+            onPress={() => {
+              this.setState({ confirmModalViewer: true });
+            }}
+            style={{flexDirection:"row",alignItems:"center"}}
+          >
+            <Text style={{fontSize:25,fontWeight:"700"}}>/</Text>
+            <View style={{alignItems:"center"}}>
+            <Text>Confirm</Text>
+            <Text>Order</Text>
+            </View>
+          </TouchableOpacity>
+        ) :null}
+        </View>
       </View>
     );
   };
@@ -1103,13 +1586,19 @@ export default class RoomScreen extends React.Component {
     if (this.state.read && this.state.hasSentMessage) {
       return (
         <View style={{ alignItems: "flex-end", marginRight: 5 }}>
-          <Text style={{fontSize:10,color:"gray"}}><Text style={{fontWeight:"bold"}}>Read</Text> {this.state.readTime}</Text>
+          <Text style={{ fontSize: 10, color: "gray" }}>
+            <Text style={{ fontWeight: "bold" }}>Read</Text>{" "}
+            {this.state.readTime}
+          </Text>
         </View>
       );
     } else if (this.state.delivered && this.state.hasSentMessage) {
       return (
         <View style={{ alignItems: "flex-end", marginRight: 5 }}>
-          <Text style={{fontSize:10,color:"gray"}}><Text style={{fontWeight:"bold"}}>Delivered</Text> {this.state.deliveredTime}</Text>
+          <Text style={{ fontSize: 10, color: "gray" }}>
+            <Text style={{ fontWeight: "bold" }}>Delivered</Text>{" "}
+            {this.state.deliveredTime}
+          </Text>
         </View>
       );
     } else {
@@ -1118,121 +1607,136 @@ export default class RoomScreen extends React.Component {
   };
 
   onLoadingEarlier = async () => {
-    // console.log("oldMessages",this.state.messages)
-    console.log("------------------------------------");
+    // //1 console.log("oldMessages",this.state.messages)
+    //1 console.log("------------------------------------");
     var originalCount = 1;
     await this.setState((previousState) => ({
       count: previousState.count + 20,
     }));
     var possible = true;
-    var atLeastOneNewText = false
-    var messagesObject = this.state.messagesObject
+    var atLeastOneNewText = false;
+    var messagesObject = this.state.messagesObject;
     const n = this.state.messages.length;
-    const promises = []
+    const promises = [];
     const lastMessage = this.state.messages.slice(n - 1, n)[0];
     await this.ref()
       .limitToLast(this.state.count)
       .once("value", (snapshot) => {
-        const array = []
+        const array = [];
         snapshot.forEach((premessage) => {
-          // console.log("premessage ",premessage)
+          // //1 console.log("premessage ",premessage)
           if (originalCount <= 20 && possible) {
             const message = this.parse(premessage, true);
 
             if (lastMessage && message._id != lastMessage._id) {
-
               if (this.state.messagess[[message._id]] != undefined) {
-                atLeastOneNewText = true
-                array.push(message)
+                atLeastOneNewText = true;
+                array.push(message);
                 // promises.push(this.getUpdatedImage(message))
-                // console.log("called message")
+                // //1 console.log("called message")
               }
             } else {
               possible = false;
             }
             originalCount += 1;
-          } 
+          }
         });
-        console.log('array')
-        for(var i = 0; i < array.length; i++){
-                const message = array[i]
-                atLeastOneNewText = true
-                messagesObject[[message._id]] = message
-                promises.push(this.getUpdatedImage(message))
-                console.log("called message")
-
+        //1 console.log('array')
+        for (var i = 0; i < array.length; i++) {
+          const message = array[i];
+          atLeastOneNewText = true;
+          messagesObject[[message._id]] = message;
+          promises.push(this.getUpdatedImage(message, false));
+          //1 console.log("called message")
         }
       });
 
-    await Promise.all(promises)
-    console.log("Done")
-    messagesObject = Object.values(messagesObject)
-    console.log("messagesObject ", messagesObject)
+    await Promise.all(promises);
+    //1 console.log("Done")
+    messagesObject = Object.values(messagesObject);
+    //1 console.log("messagesObject ", messagesObject)
     if (atLeastOneNewText) {
-      messagesObject = messagesObject.sort(function(a, b) {
+      messagesObject = messagesObject.sort(function (a, b) {
         return b["timestamp"] - a["timestamp"];
       });
       this.setState((previousState) => ({
-        messages: messagesObject
+        messages: messagesObject,
       }));
       // });
       // this.setState({
       //   messages:newMessages.reverse()
       // })
-      // console.log("MESSAGES ", this.state.messages);
+      // //1 console.log("MESSAGES ", this.state.messages);
     }
   };
 
-getUpdatedImage = async(message) =>{
+  getUpdatedImage = async (message, isANewImage) => {
     if (message.image != undefined) {
-    const allChats = this.state.allChats
-    console.log("there is image ", message.image)
-    var doesExist = true
-    if(!allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] || !allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri){
-      const uri = await this.downloadUrl(message.image,message._id)
-      doesExist = false
-      allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {uri}
-      console.log("had to download")
-    }
-      // console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]])
-      message.image = allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
-      const promises = []
-      if(!doesExist){
-        promises.push(
-          this.setState({allChats})
-        )
-        promises.push(
-          AsyncStorage.setItem('allChats',JSON.stringify(allChats))
-        )
-        await Promise.all(promises)
+      const allChats = this.state.allChats;
+      //1 console.log("there is image ", message.image)
+      var doesExist = true;
+      if (
+        !allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] ||
+        !allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
+      ) {
+        const uri = await this.downloadUrl(message.image, message._id);
+        doesExist = false;
+        allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {
+          uri,
+        };
+        //1 console.log("had to download")
       }
-    const imageUris = this.state.imageUris;
-    const messagess = this.state.messagess
-
-    if(!messagess[[message._id]]){
-      messagess[[message._id]] = {
-        centerTimestamp : this.worthPuttingCenterTimestamp(message.timestamp, message.text),
-        confirmAnswer : "",
+      // //1 console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]])
+      message.image =
+        allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri;
+      console.log("message image ", message.image);
+      const promises = [];
+      if (!doesExist) {
+        promises.push(this.setState({ allChats }));
+        promises.push(
+          AsyncStorage.setItem("allChats", JSON.stringify(allChats))
+        );
+        await Promise.all(promises);
       }
+      const imageUris = this.state.imageUris;
+      const messagess = this.state.messagess;
+
+      if (!messagess[[message._id]]) {
+        messagess[[message._id]] = {
+          centerTimestamp: this.worthPuttingCenterTimestamp(
+            message.timestamp,
+            message.text
+          ),
+          confirmAnswer: "",
+        };
+      }
+
+      messagess[[message._id]].index = this.state.imageCount;
+
+      const imageCount = (this.state.imageCount += 1);
+      const uri =
+        allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri;
+      //1 console.log("uri ", uri)
+      if (isANewImage) {
+        imageUris.unshift({ url: uri });
+        const keys = Object.keys(messagess);
+        for (var i = 0; i < keys.length; i++) {
+          messagess[[keys[i]]].index = messagess[[keys[i]]].index + 1;
+        }
+        messagess[[message._id]].index = 0;
+      } else {
+        imageUris.push({ url: uri });
+      }
+      await this.setState({ imageUris, imageCount, messagess });
     }
-    
-    messagess[[message._id]].index = this.state.imageCount
+    //1 console.log("done with single message")
+    return true;
+  };
 
-
-    const imageCount = (this.state.imageCount += 1);
-    const uri = allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
-    console.log("uri ", uri)
-    imageUris.push({ url: uri});
-    await this.setState({ imageUris, imageCount,messagess });
-  }
-  console.log("done with single message")
-  return true
-}
-  
-/*
+  /*
 onLoadingEarlier = async () => {
-    // console.log("oldMessages",this.state.messages)
-    console.log("------------------------------------");
+    // //1 console.log("oldMessages",this.state.messages)
+    //1 console.log("------------------------------------");
     var originalCount = 1;
     await this.setState((previousState) => ({
       count: previousState.count + 20,
@@ -1246,28 +1750,28 @@ onLoadingEarlier = async () => {
       .once("value", (snapshot) => {
 
         snapshot.forEach(async (premessage) => {
-          console.log("premessage ", premessage)
+          //1 console.log("premessage ", premessage)
           if (originalCount <= 20 && possible) {
             const message = this.parse(premessage, true);
-            console.log("actually ", message)
+            //1 console.log("actually ", message)
             if (lastMessage && message._id != lastMessage._id) {
 
               if (this.state.messagess[[message._id]] != undefined) {
                 const allChats = this.state.allChats
                 // if (message.image != undefined) {
-                //   console.log("there is image ", message.image)
+                //   //1 console.log("there is image ", message.image)
                 //   if(!allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] || !allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri){
                 //     const uri = await this.downloadUrl(message.image,message._id)
-                //     console.log("uri ",uri)
+                //     //1 console.log("uri ",uri)
                 //     var doesExist = true
                 //     if(!allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]]){
-                //       console.log("doesn't exist message ")
+                //       //1 console.log("doesn't exist message ")
                 //       doesExist = false
                 //       allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {uri}
                 //     }else{
                 //       allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri = uri
                 //     }
-                //     console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]])
+                //     //1 console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]])
                 //     message.image = allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
                 //     const promises = []
                 //     if(!doesExist){
@@ -1285,12 +1789,12 @@ onLoadingEarlier = async () => {
                 //   messagess[[message._id]].index = this.state.imageCount
                 //   const imageCount = (this.state.imageCount += 1);
                 //   const uri = allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
-                //   console.log("uri ", uri)
+                //   //1 console.log("uri ", uri)
                 //   imageUris.push({ url: uri});
                 //   this.setState({ imageUris, imageCount,messagess });
                 // }
                 messagesObject[[message._id]] = message
-                console.log("newMessage ",message)
+                //1 console.log("newMessage ",message)
               }
             } else {
               possible = false;
@@ -1300,7 +1804,7 @@ onLoadingEarlier = async () => {
         });
       });
               if(originalCount > 1){
-                console.log()
+                //1 console.log()
                 const currentArray = Object.values(messagesObject).sort(function(a, b) {
                   return b["timestamp"] - a["timestamp"];
                 });
@@ -1323,13 +1827,12 @@ onLoadingEarlier = async () => {
       // this.setState({
       //   messages:newMessages.reverse()
       // })
-      // console.log("MESSAGES ", this.state.messages);
+      // //1 console.log("MESSAGES ", this.state.messages);
   };
 
 */
 
-
-  onLoadHistory = async(earlier) => {
+  onLoadHistory = async (earlier) => {
     const amount = 20;
     if (earlier) {
       const newStart =
@@ -1337,22 +1840,24 @@ onLoadingEarlier = async () => {
           ? this.historyObject.startIndex - amount
           : 0;
       if (newStart != this.historyObject.startIndex) {
-        console.log();
-        const messagesObject = this.state.messagesObject
-        const promises = []
+        //1 console.log();
+        const messagesObject = this.state.messagesObject;
+        const promises = [];
         for (var i = newStart; i < this.historyObject.startIndex; i++) {
-          if(!messagesObject[[this.historyObject.historyMessages[i]]]){
-            messagesObject[[this.historyObject.historyMessages[i]]] 
-            this.historyObject.historyMessages[i]= this.parse(
+          if (!messagesObject[[this.historyObject.historyMessages[i]]]) {
+            messagesObject[[this.historyObject.historyMessages[i]]];
+            this.historyObject.historyMessages[i] = this.parse(
               this.snapshot.child(this.historyObject.historyMessages[i]),
               true
             );
-            promises.push(this.getUpdatedImage(this.historyObject.historyMessages[i]))
+            promises.push(
+              this.getUpdatedImage(this.historyObject.historyMessages[i], false)
+            );
           }
         }
 
-        await Promise.all(promises)
-        
+        await Promise.all(promises);
+
         this.setState((previousState) => ({
           messages: GiftedChat.prepend(
             previousState.messages,
@@ -1371,28 +1876,30 @@ onLoadingEarlier = async () => {
         this.historyObject.historyMessages.length
           ? this.historyObject.endIndex + amount
           : this.historyObject.historyMessages.length - 1;
-      console.log("newEnd ", newEnd)
-      console.log("absolue last ",this.historyObject.historyMessages.length - 1)
-      console.log("end index ", this.historyObject.endIndex)
-      console.log("would be first item ",this.historyObject.historyMessages[this.historyObject.endIndex + 1] )
+      //1 console.log("newEnd ", newEnd)
+      //1 console.log("absolue last ",this.historyObject.historyMessages.length - 1)
+      //1 console.log("end index ", this.historyObject.endIndex)
+      //1 console.log("would be first item ",this.historyObject.historyMessages[this.historyObject.endIndex + 1] )
       if (newEnd != this.historyObject.endIndex) {
-        const messagesObject = this.state.messagesObject
-        const promises = []
+        const messagesObject = this.state.messagesObject;
+        const promises = [];
         for (var i = this.historyObject.endIndex + 1; i <= newEnd; i++) {
-          console.log("in loop", this.historyObject.historyMessages[i]);
-          if(!messagesObject[[this.historyObject.historyMessages[i]]]){
-            messagesObject[[this.historyObject.historyMessages[i]]] 
-            this.historyObject.historyMessages[i]= this.parse(
+          //1 console.log("in loop", this.historyObject.historyMessages[i]);
+          if (!messagesObject[[this.historyObject.historyMessages[i]]]) {
+            messagesObject[[this.historyObject.historyMessages[i]]];
+            this.historyObject.historyMessages[i] = this.parse(
               this.snapshot.child(this.historyObject.historyMessages[i]),
               true
             );
-            promises.push(this.getUpdatedImage(this.historyObject.historyMessages[i]))
+            promises.push(
+              this.getUpdatedImage(this.historyObject.historyMessages[i], false)
+            );
           }
         }
-        console.log("last message possible ", this.historyObject.historyMessages[this.historyObject.historyMessages.length - 1])
-        await Promise.all(promises)
-        //console.log("last message possible ", this.snapshot.child(this.historyObject.historyMessages[this.historyObject.historyMessages.length - 1]))
-        // console.log(
+        //1 console.log("last message possible ", this.historyObject.historyMessages[this.historyObject.historyMessages.length - 1])
+        await Promise.all(promises);
+        ////1 console.log("last message possible ", this.snapshot.child(this.historyObject.historyMessages[this.historyObject.historyMessages.length - 1]))
+        // //1 console.log(
         //   "sliced ",
         //   this.historyObject.historyMessages
         //     .slice(this.historyObject.endIndex + 1, newEnd)
@@ -1413,13 +1920,13 @@ onLoadingEarlier = async () => {
     if (contentOffset.y < 10) {
       return false;
     }
-    console.log(contentOffset);
+    //1 console.log(contentOffset);
     const paddingToTop = 80;
-    console.log(
-      "calculation ",
-      contentSize.height - layoutMeasurement.height - paddingToTop
-    );
-    console.log("offset.y ", contentOffset.y);
+    //1 console.log(
+    //1   "calculation ",
+    //1   contentSize.height - layoutMeasurement.height - paddingToTop
+    //1 );
+    //1 console.log("offset.y ", contentOffset.y);
     return (
       contentSize.height - layoutMeasurement.height - paddingToTop <=
       contentOffset.y
@@ -1448,8 +1955,8 @@ onLoadingEarlier = async () => {
 
   renderMessageImage(props) {
     const id = props.currentMessage._id;
-    console.log("index ", this.state.messagess[[id]].index);
-    console.log(this.displayTime(props.currentMessage.timestamp));
+    //1 console.log("index ", this.state.messagess[[id]].index);
+    //1 console.log(this.displayTime(props.currentMessage.timestamp));
     return (
       <TouchableOpacity
         activeOpacity={1}
@@ -1471,11 +1978,97 @@ onLoadingEarlier = async () => {
     );
   }
 
+  possibleProfit = () => {
+    const actualPrice = this.state.possibleProfit.actualPrice.toFixed().toString()
+    const newPrice = this.state.possibleProfit.newPrice.toFixed().toString()
+    return (
+      <View
+        style={{
+          position: "absolute",
+          width: windowWidth,
+          height: windowHeight,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "rgba(0,0,0,0.8)",
+        }}
+      >
+        <View
+          style={{
+            width: 250,
+            height: 200,
+            flexDirection: "column",
+            justifyContent: "space-between",
+            backgroundColor: "white",
+            borderRadius: 20,
+          }}
+        >
+          <View
+            style={{
+              height: 30,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>How Much You Saved</Text>
+          </View>
+          <View
+            style={{
+              alignItems: "center",
+              marginHorizontal: 10,
+              justifyContent: "center",
+              height: 100,
+              flexDirection:"col",
+            }}
+          >
+            <Text style={{ fontSize: 15 }}>
+            The actual price was
+            <Text style={{color:"red"}}>{" $" + actualPrice}</Text>. So you pay the seller 80% (
+              <Text style={{color:"#4CBB17"}}>{"$" + newPrice }</Text>
+              ). 
+            </Text>
+            <Text style={{marginTop:5}}>
+              They used Dining Dollars.
+            </Text>
+            <Text>  
+              You saved Money.
+            </Text>
+            <Text>
+             Win win.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => this.setState({ possibleProfitVisible: false })}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.2,
+                height: 50,
+                borderColor: "gray",
+              }}
+            >
+              <Text>Dismiss</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   render() {
-    // console.log("imageUris ",this.state.imageUris)
-    // console.log("this.state.index ", this.state.index)
-    //console.log("messages", this.state.messages)
+    // //1 console.log("imageUris ",this.state.imageUris)
+    // //1 console.log("this.state.index ", this.state.index)
+    ////1 console.log("messages", this.state.messages)
     const thisClass = this;
+    const paymentOptions = [
+      {
+        label: "Price (High to Low)ffffffffffffffffffff",
+        value: "price0",
+      },
+      { label: "Price (Low to High)", value: "price1" },
+      { label: "Date (Most Recent)", value: "date1" },
+    ];
     const mainContent = (
       <GiftedChat
         renderLoadEarlier={this.renderLoadEarlier}
@@ -1515,7 +2108,7 @@ onLoadingEarlier = async () => {
               this.state.historyOrderKey != "" &&
               this.isCloseToBottom(nativeEvent)
             ) {
-              console.log("SCROLLED DOWN");
+              //1 console.log("SCROLLED DOWN");
               await this.onLoadHistory(false);
             }
           },
@@ -1523,7 +2116,7 @@ onLoadingEarlier = async () => {
       />
     );
 
-    const model = (
+    const imageModel = (
       <Modal
         testID={"modal"}
         isVisible={this.state.showImageViewer}
@@ -1536,11 +2129,7 @@ onLoadingEarlier = async () => {
           index={this.state.index}
           enablePreload
           imageUrls={this.state.imageUris}
-          renderImage={(props) => (
-            <Image
-              {...props}/>
-        
-            )}
+          renderImage={(props) => <Image {...props} />}
           enableSwipeDown
           onSwipeDown={() => this.handleImageViewer(0, true)}
         />
@@ -1549,6 +2138,318 @@ onLoadingEarlier = async () => {
             <AntDesign name="close" size={35} color="white" />
           </TouchableOpacity>
         </View>
+      </Modal>
+    );
+
+    const confirmModal = (
+      <Modal
+        testID={"modal"}
+        isVisible={true}
+        // onBackdropPress={() => {this.props.togglePopupVisibility(false);}}
+        animationIn="slideInUp"
+        animationInTiming={500}
+        style={{
+          margin: 0,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(0,0,0,0.4)",
+        }}
+      >
+        <Animated.View
+          style={{
+            width: windowWidth - 50,
+            height: this.state.confirmModalHeight,
+            marginTop: this.state.notes || this.state.priceInputtedSelected ? -200 : 0,
+          }}
+        >
+          <Grid
+            style={{
+              justifyContent: "flex-start",
+              backgroundColor: "white",
+              borderRadius: 75,
+              overflow: "hidden",
+            }}
+          >
+            <Row
+              style={{
+                justifyContent: "center",
+                flexDirection: "col",
+                alignItems: "center",
+                height: 50,
+              }}
+            >
+              <Text style={{ fontSize: 28, fontWeight: "bold" }}>
+                Confirm Order
+              </Text>
+              <Text style={{ fontSize: 15 }}>
+                {" "}
+                To Buyer: {this.state.chattingUser}
+              </Text>
+            </Row>
+            <Row
+              style={{
+                justifyContent: "center",
+                height: 50,
+                alignItems: "center",
+                marginTop: 5,
+                justifyContent: "space-between",
+                paddingLeft: 20,
+                paddingRight: 20,
+                flexDirection: "row",
+              }}
+            >
+              <Text style={{ fontSize: 25 }}>Confirm Price: </Text>
+              <View style={{flexDirection:"row",alignItems: 'center',}}>
+              <Text style={{ fontSize: 28 }}>$</Text>
+              <TextInput
+                style={{
+                  backgroundColor: "white",
+                  borderRadius: 4,
+                  padding: 8,
+                  paddingRight:0,
+                  width: 75,
+                  borderWidth: 3,
+                  height: 50,
+                  borderColor: this.state.confirmOrderError.priceInputtedError
+                    ? "red"
+                    : "#FFDB0C",
+                  shadowColor: this.state.confirmOrderError.priceInputtedError
+                    ? "red"
+                    : "#FFDB0C",
+                  shadowOffset: {
+                    width: 0,
+                    height: 6,
+                  },
+                  fontSize: 20,
+                  shadowOpacity: 0.39,
+                  shadowRadius: 10,
+                }}
+                onFocus={() => {
+                  
+                  this.setState({ priceInputted: "",priceInputtedSelected:true });
+                }}
+                value={this.state.priceInputted}
+                onEndEditing={() => {
+                  const actualPrice = (parseInt(this.state.priceInputted) * 0.8).toFixed(2).toString()
+                  this.setState({priceInputtedSelected : false})
+                  if (isNaN(this.state.priceInputted)) {
+                    this.setState({ priceInputted: "" });
+                  } else if (parseInt(this.state.priceInputted) < 1) {
+                    this.setState({ priceInputted: "1" });
+                  } else if (parseInt(this.state.priceInputted) > 100) {
+                    this.setState({ priceInputted: "80" });
+                  }else{
+                    this.setState({ priceInputted: isNaN(this.state.priceInputted) ? "" : actualPrice  });
+                  }
+                }}
+                autoCapitalize="none"
+                onSubmitEditing={Keyboard.dismiss}
+                onChangeText={(field) => {
+                  if (parseInt(field) < 1) {
+                    this.setState({ priceInputted: "1" });
+                  } else if (parseInt(field) > 100) {
+                    this.setState({ priceInputted: "100" });
+                  } else {
+                    this.setState({ priceInputted: field });
+                  }
+                }}
+              />
+              </View>
+            </Row>
+            <Animated.View
+              style={{
+                justifyContent: "center",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                width: windowWidth - 50,
+                paddingRight: 80,
+                paddingLeft: 20,
+                height: this.state.paymentDropdown,
+                marginTop: 5,
+                flexDirection: "row",
+              }}
+            >
+              <View style={{ justifyContent: "center", alignItems: "center" }}>
+                <Text style={{ fontSize: 25 }}>Payment: </Text>
+              </View>
+              <DropDownPicker
+                onOpen={() => {
+                  this._payment(this.state.paymentDropdown, 150);
+                  this._payment(this.state.confirmModalHeight, 460);
+                }}
+                onClose={() => {
+                  this._payment(this.state.paymentDropdown, 30);
+                  this._payment(this.state.confirmModalHeight, 330);
+                }}
+                style={{
+                  width: 180,
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  borderBottomLeftRadius: 20,
+                  borderBottomRightRadius: 20,
+                  borderColor: this.state.confirmOrderError.paymentOptionsError
+                    ? "red"
+                    : "gray",
+                  borderWidth: this.state.confirmOrderError.paymentOptionsError
+                    ? 3
+                    : 1,
+                }}
+                items={[
+                  { label: "Select All", value: "Select All" },
+                  ...paymentOptions,
+                ]}
+                min={1}
+                max={5}
+                multiple
+                multipleText="%d items have been selected."
+                placeholder="Select 1+"
+                arrowStyle={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: 30,
+                }}
+                defaultValue={this.state.chosenPaymentOptions}
+                containerStyle={{ height: 30, numberOfLines: 1, width: 180 }}
+                onChangeItem={async (items) => {
+                  console.log("before ", this.state.chosenPaymentOptions);
+                  console.log("items ", items);
+                  for (var i = 0; i < items.length; i++) {
+                    if (items[i] == "Select All") {
+                      console.log("payment ", paymentOptions);
+                      const values = [
+                        "Select All",
+                        ...paymentOptions.map((x) => x.value),
+                      ];
+                      console.log("values ", values);
+                      this.setState({ chosenPaymentOptions: values });
+                      return;
+                    }
+                  }
+                  for (
+                    var i = 0;
+                    i < this.state.chosenPaymentOptions.length;
+                    i++
+                  ) {
+                    if (this.state.chosenPaymentOptions[i] == "Select All") {
+                      this.setState({ chosenPaymentOptions: [] });
+                      return;
+                    }
+                  }
+
+                  this.setState({ chosenPaymentOptions: items });
+                }}
+              />
+            </Animated.View>
+            <Row
+              style={{
+                alignItems: "flex-start",
+                flexDirection: "col",
+                width: windowWidth - 50,
+                paddingHorizontal: 20,
+                marginTop: 10,
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>Notes: </Text>
+              <TextInput
+                style={{
+                  backgroundColor: "white",
+                  justifyContent: "flex-start",
+                  alignItems: "flex-start",
+                  borderRadius: 4,
+                  paddingHorizontal: 8,
+                  height: 100,
+                  width: windowWidth - 90,
+                  borderWidth: 3,
+                  borderColor: "#FFDB0C",
+                  shadowColor: "#FFDB0C",
+                  shadowOffset: {
+                    width: 0,
+                    height: 6,
+                  },
+                  fontSize: 20,
+                  shadowOpacity: 0.39,
+                  shadowRadius: 10,
+                }}
+                onFocus={() => {
+                  this.setState({ notes: true });
+                }}
+                onEndEditing={() => {
+                  this.setState({ notes: false });
+                }}
+                multiline
+                value={this.state.noteInputted}
+                autoCapitalize="none"
+                onSubmitEditing={Keyboard.dismiss}
+                onChangeText={(field) => {
+                  this.setState({ noteInputted: field });
+                }}
+              />
+            </Row>
+
+            <View style={{ position: "absolute", right: 0, top: -30 }}>
+              <TouchableOpacity onPress={() => this.handleImageViewer(0, true)}>
+                <AntDesign name="close" size={35} color="white" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: "row" }}>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                style={{
+                  height: 50,
+                  width: (windowWidth - 50) / 2,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "red",
+                }}
+                onPress={() => {
+                  this.setState({
+                    chosenPaymentOptions: [],
+                    confirmModalViewer: false,
+                    priceInputted: "",
+                    noteInputted: "",
+                  });
+                  this._payment(this.state.paymentDropdown, 30);
+                  this._payment(this.state.confirmModalHeight, 330);
+                }}
+              >
+                <Text style={{ fontSize: 25 }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                style={{
+                  height: 50,
+                  width: (windowWidth - 50) / 2,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "#4cBB17",
+                }}
+                onPress={() => {
+                  const priceInputtedInvalid =
+                    this.state.priceInputted == "" ? true : false;
+                  const paymentOptionsInvalid =
+                    this.state.chosenPaymentOptions.length == 0 ? true : false;
+                  const confirmOrderError = this.state.confirmOrderError;
+                  confirmOrderError.priceInputtedError = priceInputtedInvalid;
+                  confirmOrderError.paymentOptionsError = paymentOptionsInvalid;
+                  this.setState({ confirmOrderError });
+                  if (!priceInputtedInvalid && !paymentOptionsInvalid) {
+                    this.send(this.state.user, "");
+                    this.setState({
+                      chosenPaymentOptions: [],
+                      confirmModalViewer: false,
+                      priceInputted: "",
+                      noteInputted: "",
+                    });
+                  this._payment(this.state.paymentDropdown, 30);
+                  this._payment(this.state.confirmModalHeight, 330);
+                  }
+                }}
+              >
+                <Text style={{ fontSize: 25 }}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </Grid>
+        </Animated.View>
       </Modal>
     );
 
@@ -1562,7 +2463,9 @@ onLoadingEarlier = async () => {
         >
           {thisClass.renderNavigation()}
           {mainContent}
-          {model}
+          {this.state.showImageViewer && imageModel}
+          {this.state.confirmModalViewer && confirmModal}
+          {this.state.possibleProfitVisible && this.possibleProfit()}
         </KeyboardAvoidingView>
       );
     } else {
@@ -1570,7 +2473,9 @@ onLoadingEarlier = async () => {
         <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
           {thisClass.renderNavigation()}
           {mainContent}
-          {model}
+          {this.state.showImageViewer && imageModel}
+          {this.state.confirmModalViewer && confirmModal}
+          {this.state.possibleProfitVisible && this.possibleProfit()}
         </SafeAreaView>
       );
     }

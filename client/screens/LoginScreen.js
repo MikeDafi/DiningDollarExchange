@@ -6,6 +6,7 @@ import * as Permissions from 'expo-permissions';
 import Constants from 'expo-constants';
 import UserPermissions from "../../utilities/UserPermissions"
 import * as FileSystem from 'expo-file-system';
+import Loading from "./LoadingScreen"
 export default class LoginScreen extends React.Component{
 
     state = {
@@ -20,7 +21,7 @@ export default class LoginScreen extends React.Component{
     handleLogin = async () => {
         const {email,password} = this.state
         const token = await UserPermissions.getDeviceToken()
-        console.log("woohoo")
+        //1 console.log("woohoo")
         firebase.auth().signInWithEmailAndPassword(email,password).then( async usercredentials =>{
             if(firebase.auth().currentUser.emailVerified){
                 await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"accountObject/",{intermediates:true})
@@ -29,8 +30,8 @@ export default class LoginScreen extends React.Component{
                                 const start = user.email.indexOf("@")
                 const end = user.email.indexOf(".com")
                 const domain = user.email.substring(start,end)
-                console.log("domain ", domain)
-                console.log("expoToken", token)
+                //1 console.log("domain ", domain)
+                //1 console.log("expoToken", token)
                 firebase.database().ref('users/' + domain +'/' + this.state.email.substring(0,end)).update({
                     expoToken : token,
                     active : true,

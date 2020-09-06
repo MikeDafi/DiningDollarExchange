@@ -102,13 +102,13 @@ export default class RoomScreen extends React.Component {
   };
 
   renderBubble = (props) => {
-    console.log("currentMessage ",props.currentMessage)
+    //1 console.log("currentMessage ",props.currentMessage)
     const currentTimestamp = props.currentMessage.timestamp;
     const messageId = props.currentMessage._id;
     const userId = props.currentMessage.user._id;
-    // console.log("messageId ",messageId )
-    // console.log("all messagess", this.state.messagess)
-    //     console.log("messagess ",this.state.messagess[[messageId]])
+    // //1 console.log("messageId ",messageId )
+    // //1 console.log("all messagess", this.state.messagess)
+    //     //1 console.log("messagess ",this.state.messagess[[messageId]])
     const centerTimestamp = this.state.messagess[[messageId]] ? this.state.messagess[[messageId]].centerTimestamp : "";
     // const centerTimestamp = ""
     return (
@@ -188,13 +188,13 @@ export default class RoomScreen extends React.Component {
 
     params.then(async (images) => {
       // for(var i = 0; i < images.length;i++){
-      // console.log("in for loop")
+      // //1 console.log("in for loop")
       this.uriToBlob(images[0].uri).then((blob) => {
-        //   console.log("in uritoblob")
+        //   //1 console.log("in uritoblob")
         const name = this.generateRandomString();
-        console.log("name ", name);
+        //1 console.log("name ", name);
         this.uploadToFirebase(blob, name).then((snapshot) => {
-          console.log("in snapshot");
+          //1 console.log("in snapshot");
 
           snapshot.ref.getDownloadURL().then((url) => {
             var message = {
@@ -205,10 +205,10 @@ export default class RoomScreen extends React.Component {
               user: { _id: firebase.auth().currentUser.uid },
             };
 
-            console.log("message", message);
+            //1 console.log("message", message);
             this.append(message);
           });
-          console.log("Hi there");
+          //1 console.log("Hi there");
         });
       });
       // }
@@ -219,7 +219,7 @@ export default class RoomScreen extends React.Component {
   // Promise.all(uploadToFirebasePromises).then(() => {
   //   params.then(async (images) =>{
   //     for(var i = 0; i < images.length;i++){
-  //         console.log("imageHappened")
+  //         //1 console.log("imageHappened")
   //         let name = this.generateRandomString();
   //         await firebase.storage().ref(`/chats/${this.state.domain}/${this.state.thread}/${name}.jpg`).getDownloadURL().then((foundURL) =>{
   //           let name = foundURL
@@ -231,16 +231,16 @@ export default class RoomScreen extends React.Component {
   //             user:{_id:notification.data.data.uid}
   //           }
 
-  //           console.log("message", message)
+  //           //1 console.log("message", message)
   //           this.append(message);
 
-  //         }).catch((error) => console.log(error))
+  //         }).catch((error) => //1 console.log(error))
   //     }
   // })
   // params.then(async (images) =>{
   //   for(var i = 0; i < images.length;i++){
   //     this.uriToBlob(images[i].uri).then(async(blob) =>{
-  //       console.log("oh man")
+  //       //1 console.log("oh man")
   //       this.uploadToFirebase(blob )
   //      await firebase.storage().ref(`/chats/${this.state.domain}/${this.state.thread}/${this.state.name}.jpg`).getDownloadURL().then(onResolve, onReject);
 
@@ -249,9 +249,9 @@ export default class RoomScreen extends React.Component {
   //       }
 
   //       function onReject(error) {
-  //           console.log(error.code);
+  //           //1 console.log(error.code);
   //       }
-  //       console.log("here i am")
+  //       //1 console.log("here i am")
   //       var message = {
   //           text:"",
   //           image:name,
@@ -263,7 +263,7 @@ export default class RoomScreen extends React.Component {
   //       if(thisClass.state.profileImage){
   //           message.user.avatar = thisClass.state.profileImage
   //       }
-  //       console.log("message", message)
+  //       //1 console.log("message", message)
   //       this.append(message);
   //     })
   //   }
@@ -280,7 +280,7 @@ export default class RoomScreen extends React.Component {
     }
      
 
-    console.log("url ", url)
+    //1 console.log("url ", url)
     await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +this.state.thread +"/",{intermediates:true})
     // const downloadResumable = FileSystem.createDownloadResumable(
     //     url,
@@ -296,7 +296,7 @@ export default class RoomScreen extends React.Component {
       {},
       callback
       );
-      console.log('Finished downloading to ', uri);
+      //1 console.log('Finished downloading to ', uri);
       return uri
     } catch (e) {
       console.error(e);
@@ -305,7 +305,7 @@ export default class RoomScreen extends React.Component {
 
     // try {
     //   await downloadResumable.pauseAsync();
-    //   console.log('Paused download operation, saving for future retrieval');
+    //   //1 console.log('Paused download operation, saving for future retrieval');
     //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
     // } catch (e) {
     //   console.error(e);
@@ -313,7 +313,7 @@ export default class RoomScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     //   this.setState({imageUrl :uri})
     // } catch (e) {
     //   console.error(e);
@@ -332,7 +332,7 @@ export default class RoomScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     // } catch (e) {
     //   console.error(e);
     // }
@@ -363,7 +363,7 @@ export default class RoomScreen extends React.Component {
   };
 
   uploadToFirebase = (blob, name) => {
-    console.log("in upload");
+    //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
     const end = user.email.indexOf(".com");
@@ -432,7 +432,7 @@ export default class RoomScreen extends React.Component {
   };
 
   refCheckChatter = () => {
-    console.log("this.state.thread ", this.state.thread);
+    //1 console.log("this.state.thread ", this.state.thread);
     return firebase
       .database()
       .ref("/chats/" + this.state.domain + "/" + this.state.thread + "/");
@@ -455,9 +455,9 @@ export default class RoomScreen extends React.Component {
   };
 
   displayTime = (timestamp) => {
-    // console.log("-----------------Display Time----------")
-    // console.log("current",this.state.date)
-    // console.log("timestamp",timestamp)
+    // //1 console.log("-----------------Display Time----------")
+    // //1 console.log("current",this.state.date)
+    // //1 console.log("timestamp",timestamp)
     const dayOfTheWeek = [
       "Sunday",
       "Monday",
@@ -469,7 +469,7 @@ export default class RoomScreen extends React.Component {
     ];
     var messageDate = new Date(timestamp);
     var currentDate = this.state.date;
-    //console.log("getHours ",messageDate.getHours())
+    ////1 console.log("getHours ",messageDate.getHours())
     var hour, minute, seconds;
     hour = messageDate.getHours();
 
@@ -511,10 +511,10 @@ export default class RoomScreen extends React.Component {
     } = snapshot.val();
     const { key: _id } = snapshot;
     const centerTimestamp = this.worthPuttingCenterTimestamp(timestamp, text);
-    // console.log("messages in parse ", this.state.messagess)
+    // //1 console.log("messages in parse ", this.state.messagess)
 
 
-        console.log("adjusting messagess ",_id)
+        //1 console.log("adjusting messagess ",_id)
     let messagess = this.state.messagess
       messagess[[_id]] = {
         confirmAnswer,
@@ -522,21 +522,21 @@ export default class RoomScreen extends React.Component {
         index: this.state.imageCount - 1,//even if there is no image at this text, it's okay
       }
       this.setState({messagess})
-      console.log("come on ", this.state.messagess)
+      //1 console.log("come on ", this.state.messagess)
 
     const allChats = this.state.allChats
     // if ( image != undefined) {
-    //   console.log("there is image ", image)
+    //   //1 console.log("there is image ", image)
     //   if(!allChats[[this.state.isBuyer]][[this.state.thread]][[_id]] || !allChats[[this.state.isBuyer]][[this.state.thread]][[_id]].uri){
     //     const uri = await this.downloadUrl(image,_id)
-    //     console.log("uri ",uri)
+    //     //1 console.log("uri ",uri)
     //     if(!allChats[[this.state.isBuyer]][[this.state.thread]][[_id]]){
-    //       console.log("doesn't exist message ")
+    //       //1 console.log("doesn't exist message ")
     //       allChats[[this.state.isBuyer]][[this.state.thread]][[_id]] = {uri}
     //     }else{
     //       allChats[[this.state.isBuyer]][[this.state.thread]][[_id]].uri = uri
     //     }
-    //     console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[_id]])
+    //     //1 console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[_id]])
     //     const promises = []
     //     promises.push(
     //       this.setState({allChats})
@@ -561,12 +561,12 @@ export default class RoomScreen extends React.Component {
     };
 
     if (!loadEarlier && user._id == firebase.auth().currentUser.uid) {
-      // console.log("user._id ", user._id)
-      // console.log("firebase.auth",firebase.auth().currentUser.uid)
-      // console.log("readTime",readTime)
-      // console.log("read", read)
+      // //1 console.log("user._id ", user._id)
+      // //1 console.log("firebase.auth",firebase.auth().currentUser.uid)
+      // //1 console.log("readTime",readTime)
+      // //1 console.log("read", read)
       const readTimeStamp = readTime ? readTime : new Date().getTime();
-      console.log("readTimeStamp ", readTimeStamp);
+      //1 console.log("readTimeStamp ", readTimeStamp);
       this.setState({
         read,
         lastMessageId: _id,
@@ -587,7 +587,7 @@ export default class RoomScreen extends React.Component {
       });
     }
 
-    // console.log("opacities1",this.state.messagess)
+    // //1 console.log("opacities1",this.state.messagess)
     return message;
   };
 
@@ -611,8 +611,8 @@ export default class RoomScreen extends React.Component {
         count < 20
           ? this.historyObject.endIndex - count
           : this.historyObject.endIndex - 1;
-      console.log(this.historyObject.startIndex);
-      console.log("endIndex ", this.historyObject.endIndex);
+      //1 console.log(this.historyObject.startIndex);
+      //1 console.log("endIndex ", this.historyObject.endIndex);
       for (
         var i = this.historyObject.startIndex;
         i <= this.historyObject.endIndex;
@@ -640,7 +640,7 @@ export default class RoomScreen extends React.Component {
     this.refCheckChatter()
       .child(this.state.otherChatterEmail)
       .on("value", (snapshot) => {
-        console.log("NOT IN RHYTHM ", snapshot.val());
+        //1 console.log("NOT IN RHYTHM ", snapshot.val());
         this.setState({
           otherChatterOnline:
             snapshot.val() && snapshot.val()[[this.state.otherChatterEmail]]
@@ -661,8 +661,8 @@ export default class RoomScreen extends React.Component {
     //     user,
     //     timestamp: this.timestamp(),
     //   };
-    //   console.log("message in send")
-    //   console.log(message)
+    //   //1 console.log("message in send")
+    //   //1 console.log(message)
     //   this.append(message);
     // }
     const message = {
@@ -678,7 +678,7 @@ export default class RoomScreen extends React.Component {
   };
 
   sendSingleNotification = async ( text) => {
-    console.log("sendSingle")
+    //1 console.log("sendSingle")
     const message = {
       to: this.state.otherChatterToken,
       sound: "default",
@@ -795,18 +795,18 @@ export default class RoomScreen extends React.Component {
     }else if(!allChats[[isBuyer]][[this.state.thread]]){
       allChats[[isBuyer]] = {[[this.state.thread]] : {}}
     }
-    console.log("allChats ",allChats)
+    //1 console.log("allChats ",allChats)
     await this.setState({allChats,isBuyer})
     // firebase.storage().ref("/chats/@gmail/fakedafi2@gmailfakedafi@gmail/0405095287031324.jpg").getDownloadURL().then(() => {
     //   this.setState({profileImage : foundURL})
-    //   console.log("found profile image")
-    // }).catch((error) => {console.log("no profileeeeeeee image")})
+    //   //1 console.log("found profile image")
+    // }).catch((error) => {//1 console.log("no profileeeeeeee image")})
 
-    // //firebase.storage().ref("profilePics/@gmail/fakedafi@gmail/profilePic.jpg").once("value",(snapshot) => {console.log("snapshot",snapshot)})
+    // //firebase.storage().ref("profilePics/@gmail/fakedafi@gmail/profilePic.jpg").once("value",(snapshot) => {//1 console.log("snapshot",snapshot)})
     // await firebase.storage().ref(path).getDownloadURL().then(() => {
     //   this.setState({profileImage : foundURL})
-    //   console.log("found profile image")
-    // }).catch((error) => {console.log("no profile image")})
+    //   //1 console.log("found profile image")
+    // }).catch((error) => {//1 console.log("no profile image")})
 
     if(this.state.historyOrderKey != ""){
       this.historyFinder();
@@ -858,7 +858,7 @@ export default class RoomScreen extends React.Component {
           read: otherChatterOnline[[this.state.otherChatterEmail]],
         });
         if (otherChatterOnline && !this.state.read) {
-          console.log("NOOOO");
+          //1 console.log("NOOOO");
           this.ref()
             .child(key)
             .update({
@@ -1096,8 +1096,8 @@ export default class RoomScreen extends React.Component {
   };
 
   onLoadingEarlier = async () => {
-    // console.log("oldMessages",this.state.messages)
-    console.log("------------------------------------");
+    // //1 console.log("oldMessages",this.state.messages)
+    //1 console.log("------------------------------------");
     var originalCount = 1;
     await this.setState((previousState) => ({
       count: previousState.count + 20,
@@ -1105,23 +1105,23 @@ export default class RoomScreen extends React.Component {
     var possible = true;
     var newMessages = [];
     const n = this.state.messages.length;
-    //console.log("HI THERE",this.state.messages)
+    ////1 console.log("HI THERE",this.state.messages)
     const lastMessage = this.state.messages.slice(n - 1, n)[0];
     await this.ref()
       .limitToLast(this.state.count)
       .once("value", (snapshot) => {
-        //console.log("lastMessage ", lastMessage)
+        ////1 console.log("lastMessage ", lastMessage)
         snapshot.forEach((premessage) => {
-          // console.log("premessage ",premessage)
+          // //1 console.log("premessage ",premessage)
           if (originalCount <= 20 && possible) {
             const message = this.parse(premessage, true);
-            console.log(message._id);
-            console.log("last ", lastMessage._id);
+            //1 console.log(message._id);
+            //1 console.log("last ", lastMessage._id);
             if (message._id != lastMessage._id) {
-              console.log(this.state.messagess[[message._id]]);
+              //1 console.log(this.state.messagess[[message._id]]);
               if (this.state.messagess[[message._id]] != undefined) {
-                console.log("THERES ANOTHER");
-                console.log(message._id);
+                //1 console.log("THERES ANOTHER");
+                //1 console.log(message._id);
                 // setTimeout(() => {
                 newMessages.push(message);
                 // }, 20000);
@@ -1148,7 +1148,7 @@ export default class RoomScreen extends React.Component {
       // this.setState({
       //   messages:newMessages.reverse()
       // })
-      console.log("MESSAGES ", this.state.messages);
+      //1 console.log("MESSAGES ", this.state.messages);
     }
   };
 
@@ -1160,7 +1160,7 @@ export default class RoomScreen extends React.Component {
           ? this.historyObject.startIndex - amount
           : 0;
       if (newStart != this.historyObject.startIndex) {
-        console.log();
+        //1 console.log();
         for (var i = newStart; i < this.historyObject.startIndex; i++) {
           this.historyObject.historyMessages[i] = this.parse(
             this.snapshot.child(this.historyObject.historyMessages[i]),
@@ -1184,16 +1184,16 @@ export default class RoomScreen extends React.Component {
         this.historyObject.historyMessages.length
           ? this.historyObject.endIndex + amount
           : this.historyObject.historyMessages.length - 1;
-      console.log("not earlier");
+      //1 console.log("not earlier");
       if (newEnd != this.historyObject.endIndex) {
         for (var i = this.historyObject.endIndex + 1; i < newEnd; i++) {
-          console.log("in loop", this.historyObject.historyMessages[i]);
+          //1 console.log("in loop", this.historyObject.historyMessages[i]);
           this.historyObject.historyMessages[i] = this.parse(
             this.snapshot.child(this.historyObject.historyMessages[i]),
             false
           );
         }
-        console.log(
+        //1 console.log(
           "sliced ",
           this.historyObject.historyMessages
             .slice(this.historyObject.endIndex + 1, newEnd)
@@ -1213,13 +1213,13 @@ export default class RoomScreen extends React.Component {
     if (contentOffset.y < 10) {
       return false;
     }
-    console.log(contentOffset);
+    //1 console.log(contentOffset);
     const paddingToTop = 80;
-    console.log(
+    //1 console.log(
       "calculation ",
       contentSize.height - layoutMeasurement.height - paddingToTop
     );
-    console.log("offset.y ", contentOffset.y);
+    //1 console.log("offset.y ", contentOffset.y);
     return (
       contentSize.height - layoutMeasurement.height - paddingToTop <=
       contentOffset.y
@@ -1248,8 +1248,8 @@ export default class RoomScreen extends React.Component {
 
   renderMessageImage(props) {
     const id = props.currentMessage._id;
-    console.log("index ", this.state.messagess[[id]].index);
-    console.log(this.displayTime(props.currentMessage.timestamp));
+    //1 console.log("index ", this.state.messagess[[id]].index);
+    //1 console.log(this.displayTime(props.currentMessage.timestamp));
     return (
       <TouchableOpacity
         activeOpacity={1}
@@ -1315,7 +1315,7 @@ export default class RoomScreen extends React.Component {
               this.state.historyOrderKey != "" &&
               this.isCloseToBottom(nativeEvent)
             ) {
-              console.log("SCROLLED DOWN");
+              //1 console.log("SCROLLED DOWN");
               await this.onLoadHistory(false);
             }
           },

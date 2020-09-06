@@ -4,14 +4,20 @@
   "expo": {
     "name": "DDE",
     "slug": "DDE",
+    "owner":"mike0264",
     "orientation": "portrait",
     "icon": "./client/assets/AppIconSquare1.png",
     "version": "1.0.0",
+    "backgroundColor":"#AAAAAA",
     "platforms": [
       "ios",
       "android",
       "web"
     ],
+    "splash":{
+      "image":"./client/assets/SplashWithJustIcon1.png",
+      "resizeMode":"cover"
+    },
     "ios": {
       "bundleIdentifier": "com.michaelaskndafi.DDE"
     }

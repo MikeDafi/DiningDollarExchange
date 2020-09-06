@@ -28,7 +28,7 @@ class UserPermissions{
                 return;
             }
             token = await Notifications.getExpoPushTokenAsync();
-            console.log(token);
+            //1 console.log(token);
             return token
         }
     }

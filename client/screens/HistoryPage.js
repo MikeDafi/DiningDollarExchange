@@ -9,7 +9,8 @@ import {
   LayoutAnimation,
   Dimensions,
   TouchableWithoutFeedback,
-  AsyncStorage
+  AsyncStorage,
+  TextInput,
 } from "react-native";
 import { Ionicons, FontAwesome5, FontAwesome,AntDesign } from "@expo/vector-icons";
 import { List, Divider } from "react-native-paper";
@@ -69,13 +70,13 @@ export default class MessageScreen extends React.Component {
 
   merge = (left,right,orderBy,ascending) => {
     let resultArray = [], leftIndex = 0, rightIndex = 0;
-      console.log("----------")
+      //1 console.log("----------")
     // We will concatenate values into the resultArray in order
     while (leftIndex < left.length && rightIndex < right.length) {
-      console.log("leftIndex ", left[leftIndex][[orderBy]] )
-      console.log("rightIndex ", right[rightIndex][[orderBy]])
-      console.log("order ", orderBy)
-      console.log("ascending ", ascending)
+      //1 console.log("leftIndex ", left[leftIndex][[orderBy]] )
+      //1 console.log("rightIndex ", right[rightIndex][[orderBy]])
+      //1 console.log("order ", orderBy)
+      //1 console.log("ascending ", ascending)
 
       const leftOperand = left[leftIndex][[orderBy]]
       const rightOperand = right[rightIndex][[orderBy]]
@@ -107,8 +108,8 @@ export default class MessageScreen extends React.Component {
     // This is where we will be dividing the array into left and right
     const left = unsortedArray.slice(0, middle);
     const right = unsortedArray.slice(middle);
-    console.log("left ", left);
-    console.log("right ",right)
+    //1 console.log("left ", left);
+    //1 console.log("right ",right)
     // Using recursion to combine the left and right
     return this.merge(
       this.mergeSort(left,orderBy,ascending), this.mergeSort(right,orderBy,ascending),orderBy,ascending
@@ -125,7 +126,7 @@ export default class MessageScreen extends React.Component {
 
     let historyOrders = await AsyncStorage.getItem('otherChattersProfileImages')
     historyOrders = JSON.parse(historyOrders);
-    console.log("before history ", historyOrders)
+    //1 console.log("before history ", historyOrders)
     if(!historyOrders){
       historyOrders = {}
     }
@@ -139,7 +140,7 @@ export default class MessageScreen extends React.Component {
         ordersSnapshot.forEach((chat) => {
           var otherChatterEmail;
         
-           console.log("CHATTTTTTTTTTTTTTTTTTTTT", chat);
+           //1 console.log("CHATTTTTTTTTTTTTTTTTTTTT", chat);
           if (chat.val().chatId.indexOf(email) == 0) {
             otherChatterEmail = chat
               .val()
@@ -149,37 +150,37 @@ export default class MessageScreen extends React.Component {
               .val()
               .chatId.substring(0, chat.val().chatId.length - email.length);
           }
-          console.log("otherChatterEmail", otherChatterEmail);
+          //1 console.log("otherChatterEmail", otherChatterEmail);
 
           const realCount = count;
           promises.push(
             firebase.database().ref("users/" + domain + "/" + otherChatterEmail).once("value",async (snapshot) => {
             threadss[realCount].name = snapshot.val().name
-             console.log("historyOrders",historyOrders)
-             console.log("otherChatterEmail ", otherChatterEmail)
-             console.log("profileImageUrl ",snapshot.val().profileImageUrl)
+             //1 console.log("historyOrders",historyOrders)
+             //1 console.log("otherChatterEmail ", otherChatterEmail)
+             //1 console.log("profileImageUrl ",snapshot.val().profileImageUrl)
               if(snapshot.val().profileImageUrl){
                 if(historyOrders[[otherChatterEmail]] == undefined || !historyOrders[[otherChatterEmail]].uri || historyOrders[[otherChatterEmail]].url != snapshot.val().profileImageUrl){
-                  console.log("trying to download")
+                  //1 console.log("trying to download")
                     if(!historyOrders[[otherChatterEmail]] && !historyOrders[[otherChatterEmail]].uri){
-                      console.log("delete")
+                      //1 console.log("delete")
                       this.deleteUri(historyOrders[[otherChatterEmail]].uri)
                     }
                   try{
-                    console.log("start downloading")
+                    //1 console.log("start downloading")
                     const uri = await this.downloadUrl(snapshot.val().profileImageUrl,otherChatterEmail)
                     const newProfileObject = {uri,url : snapshot.val().profileImageUrl}
                     historyOrders[[otherChatterEmail]] = newProfileObject
-                    console.log("WOOOHOOO",historyOrders[[otherChatterEmail]])
-                    console.log("uri ", uri)
+                    //1 console.log("WOOOHOOO",historyOrders[[otherChatterEmail]])
+                    //1 console.log("uri ", uri)
                     threadss[realCount].avatar = historyOrders[[otherChatterEmail]].uri
                     AsyncStorage.setItem("otherChattersProfileImages", JSON.stringify(historyOrders))
                   }catch(e){
-                      console.log(e)
+                      //1 console.log(e)
                   }
                 }else{
-                  console.log("already defined")
-                  console.log(historyOrders[[otherChatterEmail]])
+                  //1 console.log("already defined")
+                  //1 console.log(historyOrders[[otherChatterEmail]])
                   threadss[realCount].avatar = historyOrders[[otherChatterEmail]].uri
                 }
               }
@@ -195,12 +196,13 @@ export default class MessageScreen extends React.Component {
           thread.title = chat.val().title;
           thread.rating= chat.val().rating;
           thread.historyOrderKey = chat.val().historyOrderKey
+          thread.editing = false
           thread.key = chat.key;
           if(thread.rating == undefined){
             thread.daysLeftToReview = this.daysLeftToReview(thread.date)
           }
           this.displayTime(thread);
-          console.log("thread ",thread)
+          //1 console.log("thread ",thread)
           threadss.push(thread);
           thread = {};
           // this.sortThreads(threadss)
@@ -218,7 +220,7 @@ export default class MessageScreen extends React.Component {
         threadss = this.mergeSort(threadss,"price",true)
 
         const responses = await Promise.all(promises);
-        console.log("threadssss",threadss)
+        //1 console.log("threadssss",threadss)
         if (isBuyer) {
           this.setState({
             threadsBuyer: threadss.reverse(),
@@ -235,13 +237,13 @@ export default class MessageScreen extends React.Component {
     try{
       await FileSystem.deleteAsync(path, {})
     }catch(e){
-      console.log("ERROR deleting profile image in profile screen")
+      //1 console.log("ERROR deleting profile image in profile screen")
     }
     
   }
 
   downloadUrl = async (url,name) => {
-    console.log("in download url")
+    //1 console.log("in download url")
     const callback = downloadProgress => {
     const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
     // this.setState({
@@ -249,7 +251,7 @@ export default class MessageScreen extends React.Component {
     // });
   }
 
-   console.log("url ", url)
+   //1 console.log("url ", url)
   await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory +"otherChattersProfileImages/",{intermediates:true})
   // const downloadResumable = FileSystem.createDownloadResumable(
   //     url,
@@ -265,7 +267,7 @@ export default class MessageScreen extends React.Component {
       {},
       callback
       );
-      console.log('Finished downloading to ', uri);
+      //1 console.log('Finished downloading to ', uri);
       return uri;
     } catch (e) {
       console.error(e);
@@ -274,7 +276,7 @@ export default class MessageScreen extends React.Component {
 
     // try {
     //   await downloadResumable.pauseAsync();
-    //   console.log('Paused download operation, saving for future retrieval');
+    //   //1 console.log('Paused download operation, saving for future retrieval');
     //   AsyncStorage.setItem('pausedDownload', JSON.stringify(downloadResumable.savable()));
     // } catch (e) {
     //   console.error(e);
@@ -282,7 +284,7 @@ export default class MessageScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     //   this.setState({imageUrl :uri})
     // } catch (e) {
     //   console.error(e);
@@ -301,7 +303,7 @@ export default class MessageScreen extends React.Component {
 
     // try {
     //   const { uri } = await downloadResumable.resumeAsync();
-    //   console.log('Finished downloading to ', uri);
+    //   //1 console.log('Finished downloading to ', uri);
     // } catch (e) {
     //   console.error(e);
     // }
@@ -414,7 +416,7 @@ export default class MessageScreen extends React.Component {
           this.ref().child(buyer ? "buyer" : "seller").child(key).update({rating})
           threadNew[[index]].daysLeftToReview = null
           this.setState({[(buyer ? "threadsBuyer" : "threadsSeller")] : thread})
-          console.log("in rating")
+          //1 console.log("in rating")
                 var otherChatterEmail = ""
               if (thread[[index]]["chatId"].indexOf(email) == 0) {
             otherChatterEmail = thread[[index]]["chatId"].substring(email.length, thread[[index]]["chatId"].length);
@@ -477,7 +479,7 @@ export default class MessageScreen extends React.Component {
           try{
           this._swiper.scrollBy(1);
           }catch(e){
-            console.log("history page scroll by" ,e)
+            //1 console.log("history page scroll by" ,e)
           }
         }, 100);
       }
@@ -650,8 +652,66 @@ export default class MessageScreen extends React.Component {
                         <View
                           style={{flexDirection:"column",justifyContent:"space-between",
                                   width:windowWidth/2, height:80}}>
-                          <View style={{justifyContent:"center",alignItems:"center"}}>    
+                          <View style={{justifyContent:"center",alignItems:"center"}}>
+                                                    {item.editing ?
+                                                    <>
+                          <TouchableOpacity onPress={() => {
+                            const threadsBuyer = this.state.threadsBuyer
+                            threadsBuyer[index].editing = false
+                            threadsBuyer[index].title = threadsBuyer[index].oldTitle
+                            threadsBuyer[index].oldTitle = ""
+                            this.setState({threadsBuyer})
+                          }}>
+                          <AntDesign name="close" size={15} color="black" /> 
+                          </TouchableOpacity>
+                                                <TextInput
+                        style={{
+                          backgroundColor: "white",
+                          borderRadius: 4,
+                          padding: 8,
+                          borderWidth: 3,
+                          height: 50,
+                          borderColor: "#FFDB0C",
+                          shadowColor: "#FFDB0C",
+                          shadowOffset: {
+                            width: 0,
+                            height: 6,
+                          },
+                          fontSize: 40,
+                          shadowOpacity: 0.39,
+                          shadowRadius: 10,
+                        }}
+                        onChangeText={(field) => {
+                          const threadsBuyer = this.state.threadsBuyer
+                          threadsBuyer[index].title = field
+                          this.setState({ threadsBuyer });
+                        }}
+                        value={item.title}
+                      />
+                          <TouchableOpacity onPress={() => {
+                            const threadsBuyer = this.state.threadsBuyer
+                            threadsBuyer[index].editing = false
+                            threadsBuyer[index].oldTitle = ""
+                            this.setState({threadsBuyer})
+                            this.ref().child("buyer").child(threadsBuyer[index].key).update({
+                              title : threadsBuyer[index].title
+                            })
+                          }}>
+                          <AntDesign name="check" size={20} color="black" /> 
+                          </TouchableOpacity>
+                          </>
+                          : 
+                          <>
                           <Text numberOfLines={1} style={{fontSize:20}}>{item.title}</Text>
+                          <TouchableOpacity onPress={() => {
+                            const threadsBuyer = this.state.threadsBuyer
+                            threadsBuyer[index].editing = true
+                            threadsBuyer[index].oldTitle = threadsBuyer[index].title
+                            this.setState({threadsBuyer})
+                          }}>
+                          <AntDesign name="edit" size={15} color="black" />
+                          </TouchableOpacity>
+                          </>}
                           </View>
                             <View style={{justifyContent:"flex-end",alignItems:"center",marginBottom:5}}>
                             {item.rating != undefined && item.daysLeftToReview == null ? 
@@ -756,10 +816,70 @@ export default class MessageScreen extends React.Component {
                             <Text numberOfLines={1} style={{fontSize:13}}>{item.name}</Text>
                         </View>
                         <View
-                          style={{flexDirection:"column",justifyContent:"space-between",
+                          style={{flexDirection:"column",justifyContent:"space-around",
                                   width:windowWidth/2, height:80}}>
-                          <View style={{justifyContent:"center",alignItems:"center"}}>    
+                          <View style={{justifyContent:"center",alignItems:"center",flexDirection:"row"}}>    
+                                                                              {item.editing ?
+                                                    <>
+                          <TouchableOpacity onPress={() => {
+                            const threadsSeller = this.state.threadsSeller
+                            threadsSeller[index].editing = false
+                            threadsSeller[index].title = threadsSeller[index].oldTitle
+                            threadsSeller[index].oldTitle = ""
+                            this.setState({threadsSeller})
+                          }}>
+                          <AntDesign name="close" size={30} color="black" /> 
+                          </TouchableOpacity>
+                          <View style={{width: (windowWidth/2) - 50}}>
+                                                <TextInput
+                        style={{
+                          backgroundColor: "white",
+                          borderRadius: 4,
+                          paddingHorizontal: 8,
+                          borderWidth: 3,
+                          height: 40,
+                          borderColor: "#FFDB0C",
+                          shadowColor: "#FFDB0C",
+                          shadowOffset: {
+                            width: 0,
+                            height: 6,
+                          },
+                          fontSize: 20,
+                          shadowOpacity: 0.39,
+                          shadowRadius: 10,
+                        }}
+                        onChangeText={(field) => {
+                          const threadsSeller = this.state.threadsSeller
+                          threadsSeller[index].title = field
+                          this.setState({ threadsSeller });
+                        }}
+                        value={item.title}
+                      />
+                      </View>
+                          <TouchableOpacity onPress={() => {
+                            const threadsSeller = this.state.threadsSeller
+                            threadsSeller[index].editing = false
+                            threadsSeller[index].oldTitle = ""
+                            this.setState({threadsSeller})
+                            this.ref().child("seller").child(threadsSeller[index].key).update({
+                              title : threadsSeller[index].title
+                            })
+                          }}>
+                          <AntDesign name="check" size={30} color="black" /> 
+                          </TouchableOpacity>
+                          </>
+                          : 
+                          <>
                           <Text numberOfLines={1} style={{fontSize:20}}>{item.title}</Text>
+                          <TouchableOpacity onPress={() => {
+                            const threadsSeller = this.state.threadsSeller
+                            threadsSeller[index].editing = true
+                            threadsSeller[index].oldTitle = threadsSeller[index].title
+                            this.setState({threadsSeller})
+                          }}>
+                          <AntDesign name="edit" size={20} color="black" />
+                          </TouchableOpacity>
+                          </>}
                           </View>
                             <View style={{justifyContent:"flex-end",alignItems:"center",marginBottom:5}}>
                             {item.rating != undefined && item.daysLeftToReview == null ? 

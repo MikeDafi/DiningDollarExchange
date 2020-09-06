@@ -25,13 +25,13 @@ export default class SellerHomeScreen extends React.Component {
     getTime = (timestamp) => {
         const orderDate = new Date(timestamp)
         const AM = orderDate.getHours() < 12 ? true : false
-        const hour = AM ? orderDate.getHours() : orderDate.getHours()  - 12
+        const hour = orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
         const minute =  "0" + orderDate.getMinutes()
         return hour + ":" + minute.substr(-2) + (AM ? "am" : "pm")
     }
 
     _change = (variable,value) => {
-        console.log("oooooooooo");
+        //1 console.log("oooooooooo");
         Animated.timing(variable, {
         toValue: value,
         duration: 50,
@@ -47,8 +47,8 @@ export default class SellerHomeScreen extends React.Component {
         firebase.database().ref("orders/"+domain +"/currentOrders").on("value", async (orderSnapshot) =>{
             var orders = this.state.orders
             const numbOfOrders = (Object.keys(orderSnapshot)).length
-            console.log("row " , windowWidth/50)
-            console.log("col ", (windowHeight - 300)/50)
+            //1 console.log("row " , windowWidth/50)
+            //1 console.log("col ", (windowHeight - 300)/50)
             var multiArray = [...Array(Math.floor(windowWidth/50))].map((e,i) => Array(Math.floor((windowHeight -300)/50)).fill(false))
             // for(var i = 0; i < windowWidth/50;i++){
             //     for(var j = 0; j < (windowHeight - 300)/50; j++){
@@ -57,36 +57,38 @@ export default class SellerHomeScreen extends React.Component {
             //     }
             // }
 
-            console.log("rowLength", multiArray.length)
-            console.log("colLength ", multiArray[0].length)
+            //1 console.log("rowLength", multiArray.length)
+            //1 console.log("colLength ", multiArray[0].length)
             const shouldBeKept = {}
             const shouldBeDeleted = []
             var count = 0 
+            //1 console.log("orders",orders )
             orderSnapshot.forEach(element => {
                 count+=1
-                console.log("KEY ", element.key)
-                console.log(element.timeSelected)
-                if(count <=30 && !(element.key in orders)){
+                //1 console.log("KEY ", element.key)
+                const date = new Date().getTime + 60000
+                const difference = ((this.state.timestamp - date) >= 0) ? true : false
+                if(count <=30 && !(element.key in orders) && difference){
                   var timeSelected = element.val().timeSelected
                   timeSelected = timeSelected.toString(10).substring(0,13)
                     const stillExists = parseInt(timeSelected) - new Date().getTime() + 60000
-                    console.log(stillExists)
+                    //1 console.log(stillExists)
                     if(stillExists > 0 && element.val().status == "searching" ){
                         var randomX,randomY
                         shouldBeKept[[element.key]] = true
                         while(true){
                             randomX = Math.floor(Math.random() * ((windowWidth/50) - 1))
                             randomY =  Math.floor(Math.random() * (((windowHeight - 300)/50) - 1))
-                            console.log("x " + randomX + " y " + randomY)
-                            console.log(multiArray[randomX][randomY])
+                            //1 console.log("x " + randomX + " y " + randomY)
+                            //1 console.log(multiArray[randomX][randomY])
                             if(!multiArray[randomX][randomY]){
                                 break
                             }
                         }
-                        console.log("GOOOOOO")
-                        console.log(element.val().timeSelected)
-                        console.log(element.val().buyer)
-                        console.log((element.val().rangeSelected || "").substring((element.val().rangeSelected != undefined ? element.val().rangeSelected.length : 2) - 2))
+                        //1 console.log("GOOOOOO")
+                        //1 console.log(element.val().timeSelected)
+                        //1 console.log(element.val().buyer)
+                        //1 console.log((element.val().rangeSelected || "").substring((element.val().rangeSelected != undefined ? element.val().rangeSelected.length : 2) - 2))
                         const possibleProfit = element.val().rangeSelected.includes("+") ? 12 : 
                                                 (element.val().rangeSelected.includes("to") ?
                                                 parseInt(element.val().rangeSelected.substring(element.val().rangeSelected.length - 2).split(' ').join('')) * 0.8 
@@ -111,13 +113,13 @@ export default class SellerHomeScreen extends React.Component {
             viewedOrders = JSON.parse(viewedOrders);
             const fireBasePromises = []
             const deleteStoragePromises = []
-            console.log("shouldBeDeleted " ,shouldBeKept)
+            //1 console.log("shouldBeDeleted " ,shouldBeKept)
             for(var i = 0; i < shouldBeDeleted.length ; i++){
                 fireBasePromises.push(
-                    firebase.database().ref("orders/"+domain +"/currentOrders/").set({[[shouldBeDeleted[i]]] : null})
+                    firebase.database().ref("orders/"+domain +"/currentOrders/").update({[[shouldBeDeleted[i]]] : null})
                 )
             }
-            Object.keys(viewedOrders).map(key => {
+            Object.keys(viewedOrders || []).map(key => {
               if(shouldBeKept[[key]] != true){
                 deleteStoragePromises.push(() => {
                   this.deleteUri(viewedOrders[[shouldBeDeleted[i]]].uri)
@@ -125,22 +127,22 @@ export default class SellerHomeScreen extends React.Component {
                 })
               }
             })
-
+            //1 console.log("orders after ",orders)
             Promise.all(fireBasePromises)
             await Promise.all(deleteStoragePromises)
             AsyncStorage.setItem("viewedOrders",JSON.stringify(viewedOrders))
-            console.log("set item")
+            //1 console.log("set item")
         })
     }
 
     deleteUri = async(path) => {
     try{
       await FileSystem.deleteAsync(path, {})
-                        console.log("truly deleted")
+                        //1 console.log("truly deleted")
       return true
     }catch(e){
       return false
-      console.log("ERROR deleting profile image in profile screen")
+      //1 console.log("ERROR deleting profile image in profile screen")
     }
     
   }
@@ -200,7 +202,7 @@ export default class SellerHomeScreen extends React.Component {
                 onPress={() => {
                     this.props.navigation.navigate("SelectedOrderModal",{
                         BuyerUid : this.state.orders[[element]].BuyerUid,
-                        orderNumber  : element
+                        orderNumber  : element,
                     })
                 
                 }}
@@ -232,7 +234,7 @@ export default class SellerHomeScreen extends React.Component {
           </>
           )
           })}
-        </ImageBackground>
+      </ImageBackground>
       </View>
     );
   }
