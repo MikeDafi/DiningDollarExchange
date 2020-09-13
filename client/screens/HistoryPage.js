@@ -16,6 +16,7 @@ import { Ionicons, FontAwesome5, FontAwesome,AntDesign } from "@expo/vector-icon
 import { List, Divider } from "react-native-paper";
 import firebase from "../../config";
 import Loading from "./LoadingScreen";
+import PopupOrder from "./PopupOrder";
 import Swiper from "react-native-swiper/src";
 import RatingUser from "./RatingUser"
 import QuickOrder from "./QuickOrder";
@@ -41,10 +42,10 @@ export default class MessageScreen extends React.Component {
 
   setPage = (index) => {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     this.setState({ page: index });
 
     firebase
@@ -59,10 +60,10 @@ export default class MessageScreen extends React.Component {
 
   ref = () => {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     return firebase
       .database()
       .ref("/users/" + domain + "/" + email + "/historyOrders");
@@ -78,10 +79,24 @@ export default class MessageScreen extends React.Component {
       //1 console.log("order ", orderBy)
       //1 console.log("ascending ", ascending)
 
-      const leftOperand = left[leftIndex][[orderBy]]
-      const rightOperand = right[rightIndex][[orderBy]]
-      const result = ascending ? (leftOperand < rightOperand) : (leftOperand >=rightOperand)
-
+      var leftOperand = left[leftIndex][[orderBy]]
+      var rightOperand = right[rightIndex][[orderBy]]
+      if(orderBy == "price"){
+        leftOperand = parseInt(leftOperand)
+        rightOperand = parseInt(rightOperand)
+      }
+      var result;
+      if(orderBy == "title"){
+        if(leftOperand == undefined){
+          result = false
+        }else if(rightOperand == undefined){
+          result = true
+        }else{
+          result = ascending ? (leftOperand < rightOperand) : (leftOperand >=rightOperand)
+        }
+      }else{
+        result = ascending ? (leftOperand < rightOperand) : (leftOperand >=rightOperand)
+      }
       if (result) {
         resultArray.push(left[leftIndex]);
         leftIndex++; // move left array cursor
@@ -116,13 +131,75 @@ export default class MessageScreen extends React.Component {
     );
   }
 
+    setInfoModal = (buyer) => {
+    if(buyer == 0){
+      
+      this.setState({buyerInfoVisible:true})
+    }else{
+      this.setState({sellerInfoVisible:true})
+    }
+  }
+
+  // componentDidMount() {
+  //     //1 console.log("uid",firebase.auth().currentUser.uid)
+  //     const images = firebase.storage().ref().child('profilePics');
+  //     //1 console.log("images",images)
+  //     const image = images.child(firebase.auth().currentUser.uid + ".jpg");
+  //     image.getDownloadURL().then((url) =>  this.setState({ avatar: url }));
+  // }
+
+infoModal = () =>{
+    return(
+      <View style={{width:windowWidth,height:windowHeight,justifyContent:"center",alignItems:"center",backgroundColor:"rgba(0,0,0,0.8)",position:"absolute"}}>
+        <View style={{width:windowWidth - 50,height:300,backgroundColor: "white",borderRadius:50,justifyContent:'space-between'}}>
+              <View style={{alignItems:"center"}}>
+              <Text style={{fontSize:20,fontWeight:"bold"}}>{this.state.buyerInfoVisible ? "What Buyer Means?" : "What Seller Means"}</Text>   
+              </View>
+            <View style={{alignItems:"center"}}>
+              {this.state.buyerInfoVisible ?
+                <View style={{marginTop:5}}>
+                <Text style={{fontSize:17}}>As Buyer, you pay 80% of any food you want in cash.</Text>
+                <Text style={{fontSize:13}}>1. Make a "Buy Now" Request with images of Order</Text>
+                <Text style={{fontSize:13}}>2. Seller will Accept and Confirm Order in your Messages.</Text>
+                <Text style={{fontSize:13}}>3. Pay Seller 80% of actual price. Go pick up your food!</Text>
+                </View>
+              :
+              
+                <View style={{marginTop:5}}>
+                <Text style={{fontSize:17}}>As Seller, You pay for the Buyer's meal. Buyer pays you 80% back. Better than 50% by UCSD's rate.</Text>
+                <Text style={{fontSize:13}}>1. Accept an order in Seller Home Screen</Text>
+                <Text style={{fontSize:13}}>2. Prepare to buy Order on Grubhub then Confirm Order Price with Buyer in Messages.</Text>
+                <Text style={{fontSize:13}}>3. Wait for Buyer to Pay you, then purchase Meal</Text>
+                </View>
+              }
+            </View>
+                              <TouchableOpacity
+            onPress={() => this.setState({ buyerInfoVisible: false,sellerInfoVisible:false })}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.2,
+                height: 50,
+                borderColor: "gray",
+              }}
+            >
+              <Text>Dismiss</Text>
+            </View>
+          </TouchableOpacity>
+          </View>
+      </View>
+    )
+  }
+
   keepUpdatedList = async (isBuyer) => {
     const buyer = isBuyer ? "buyer" : "seller";
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
 
     let historyOrders = await AsyncStorage.getItem('otherChattersProfileImages')
     historyOrders = JSON.parse(historyOrders);
@@ -313,10 +390,10 @@ export default class MessageScreen extends React.Component {
     this.keepUpdatedList(true);
     this.keepUpdatedList(false);
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const realEmail = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
 
     firebase
       .database()
@@ -399,15 +476,17 @@ export default class MessageScreen extends React.Component {
 
   setRating = (buyer,key,index,rating) => {
         const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     const thread = buyer ? this.state.threadsBuyer : this.state.threadsSeller
-      if(rating ==  thread[[index]].rating){
-         thread[[index]].rating = null;
+    console.log("key ", key )
+    console.log("index ",index)
+      if(rating ==  thread[index].rating){
+         thread[index].rating = null;
       }else{
-        thread[[index]].rating = rating
+        thread[index].rating = rating
       }
       this.setState({[(buyer ? "threadsBuyer" : "threadsSeller")] : thread})
       setTimeout(() => {
@@ -446,21 +525,6 @@ export default class MessageScreen extends React.Component {
         
   }
 
-  formatSorter = () => {
-    var orderBy = this.state.orderBy.charAt(0).toUpperCase() + this.state.orderBy.slice(1)
-    switch(orderBy){
-      case "Price":
-        orderBy += (this.state.ascending ? " (Low to High)" : " (High to Low)")
-        break;
-      case "Date":
-        orderBy += (this.state.ascending ? " (Newest)" : " (Oldest)")
-        break;
-      default:
-        orderBy += (this.state.asecnding ? " (A to Z)" : " (Z to A)")
-    }
-    
-    return orderBy;
-  }
 
   render() {
     if (this.state.loading) {
@@ -491,6 +555,7 @@ export default class MessageScreen extends React.Component {
           blackBackground={false}
           setPage={this.setPage}
           page={this.state.page}
+          setInfoModal={this.setInfoModal}
           togglePopupVisibility={this.togglePopupVisibility}
         />
         <View style={{marginTop:50,marginHorizontal:10,height:20,alignItems:"center",flexDirection:"row",justifyContent:"space-between"}}>
@@ -566,9 +631,9 @@ export default class MessageScreen extends React.Component {
               <Text style={{fontSize:15}}>/</Text>
               <TouchableOpacity activeOpacity={0.6} onPress={() => {
                 const ascending = this.state.orderBy == "date" ? !this.state.ascending : false
-                this.setState({orderBy:"date",ascending});
+                this.setState({orderBy:"date",ascending });
                 const isBuyer = this.state.page ? "threadsSeller": "threadsBuyer"
-                const arr = this.mergeSort(this.state[[isBuyer]],"date",ascending)
+                const arr = this.mergeSort(this.state[[isBuyer]],"date",!ascending)
                 this.setState({[isBuyer] : arr})  
               
               }}>
@@ -652,7 +717,7 @@ export default class MessageScreen extends React.Component {
                         <View
                           style={{flexDirection:"column",justifyContent:"space-between",
                                   width:windowWidth/2, height:80}}>
-                          <View style={{justifyContent:"center",alignItems:"center"}}>
+                          <View style={{flexDirection:"row:",justifyContent:"center",alignItems:"center"}}>
                                                     {item.editing ?
                                                     <>
                           <TouchableOpacity onPress={() => {
@@ -719,7 +784,7 @@ export default class MessageScreen extends React.Component {
                                 (item.daysLeftToReview ? (
                                   <>
                                     <RatingUser starSize={30} 
-                                                selected={(rating) => this.setRating(true,item.key,item.index,rating)}
+                                                selected={(rating) => this.setRating(true,item.key,index,rating)}
                                                 halfStarEnabled={true}
                                                 starCount={item.rating}/>
                                     <Text style={styles.daysLeft}>{item.daysLeftToReview}</Text>
@@ -887,7 +952,7 @@ export default class MessageScreen extends React.Component {
                                 (item.daysLeftToReview ? (
                                   <>
                                     <RatingUser starSize={30} 
-                                                selected={(rating) => this.setRating(false,item.key,item.index,rating)}
+                                                selected={(rating) => this.setRating(false,item.key,index,rating)}
                                                 halfStarEnabled={true}
                                                 starCount={item.rating}/>
                                     <Text style={styles.daysLeft}>{item.daysLeftToReview}</Text>
@@ -961,6 +1026,12 @@ export default class MessageScreen extends React.Component {
             />
           </View>
         </View> */}
+                {(this.state.buyerInfoVisible || this.state.sellerInfoVisible) && this.infoModal()}
+        <PopupOrder
+          navigation={this.props.navigation}
+          popupVisible={this.state.popupVisible}
+          togglePopupVisibility={this.togglePopupVisibility}
+        />
       </View>
     );
   }

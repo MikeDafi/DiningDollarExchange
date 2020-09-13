@@ -3,12 +3,16 @@ import { View, Text, StyleSheet, Dimensions,TouchableOpacity,TouchableWithoutFee
 import * as firebase from "firebase";
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { FontAwesome5, Ionicons,Entypo } from "@expo/vector-icons";
 export default class QuickOrder extends React.Component {
 
   state={
     isClickedBuyNow : false,
   }
+  componentDidMount(){
+    console.log("jo")
+  }
+
 
   nextButton = () => {
     return (
@@ -22,7 +26,14 @@ export default class QuickOrder extends React.Component {
           },
         ]}
       >
-        <Text style={{color : (!this.props.blackBackground && this.props.page == 0 ? "white" : "black" )}}>SELLER</Text>
+        <Text style={{color : (!this.props.blackBackground && this.props.page == 0 ? "white" : "black"),fontSize:18 }}>SELLER</Text>
+                        <TouchableOpacity style={{marginLeft:5}} onPress={() => this.props.setInfoModal(1)}>
+                                                        <Entypo
+                            name="info-with-circle"
+                            size={18}
+                            color={(!this.props.blackBackground && this.props.page == 0 ? "white" : "black")}
+                          />
+                          </TouchableOpacity>
       </View>
     );
   };
@@ -36,10 +47,18 @@ export default class QuickOrder extends React.Component {
             backgroundColor: this.props.page == 0 ? "#FFE300" : (this.props.blackBackground ? "white" :"black"),
             marginRight: -5,
             width: windowWidth / 2 - 60,
+            zIndex:999,
           },
         ]}
       >
-        <Text style={{color:(!this.props.blackBackground && this.props.page == 1 ? "white" : "black" )}}>BUYER</Text>
+        <Text style={{color:(!this.props.blackBackground && this.props.page == 1 ? "white" : "black" ),fontSize:18}}>BUYER</Text>
+                              <TouchableOpacity style={{marginLeft:5}} onPress={() => this.props.setInfoModal(0)}>
+                                                        <Entypo
+                            name="info-with-circle"
+                            size={18}
+                            color={(!this.props.blackBackground && this.props.page == 1 ? "white" : "black" )}
+                          />
+                          </TouchableOpacity>
       </View>
     );
   };
@@ -93,6 +112,7 @@ export default class QuickOrder extends React.Component {
             <Text> BUY NOW</Text>
             </View>
           </TouchableWithoutFeedback>
+          {(this.state.buyerInfoVisible || this.state.sellerInfoVisible) && this.infoModal()}
         </View>
     );
   }
@@ -111,12 +131,14 @@ header: {
     marginTop: 50,
   },
     nextButton: {
-    height: 20,
+      flexDirection:"row",
+    height: 30,
     justifyContent: "center",
     alignItems: "center",
   },
   prevButton: {
-    height: 20,
+    flexDirection:"row",
+    height: 30,
     justifyContent: "center",
     alignItems: "center",
   },

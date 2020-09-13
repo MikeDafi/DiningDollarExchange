@@ -33,7 +33,8 @@ import SavedOrders from "./client/screens/SavedOrders";
 import PendingOrders from "./client/screens/PendingOrders";
 import firebase from "./config";
 import NotificationIcon from "./client/screens/NotificationIcon"
-
+import PaymentOptions from "./client/screens/PaymentOptions"
+import TutorialScreen from "./client/screens/TutorialScreen"
 const AppContainer = createStackNavigator(
   {
     default: createBottomTabNavigator(
@@ -145,6 +146,12 @@ const AppContainer = createStackNavigator(
     PendingOrders: {
       screen: PendingOrders,
     },
+    PaymentOptions:{
+      screen:PaymentOptions,
+    },
+    Tutorial : {
+      screen : TutorialScreen,
+    }
   },
   {
     mode: "modal",

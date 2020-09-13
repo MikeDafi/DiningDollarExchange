@@ -34,19 +34,15 @@ export default class HomeScreen extends React.Component {
   };
 
   async componentDidMount() {
-    // this.props.navigation.navigate("SelectedOrderModal",{
-    //   BuyerUid : "123",
-    //   orderNumber  : 55,
-    // })
     const { email, displayName } = firebase.auth().currentUser;
     this.setState({ email, displayName });
     const thisClass = this;
 
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const realEmail = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
     const token = await UserPermissions.getDeviceToken()
     firebase
       .database()
@@ -135,7 +131,7 @@ export default class HomeScreen extends React.Component {
     // //1 console.log("in notification", notification.data.data.orderNumber);
     // const myUser = firebase
     //   .auth()
-    //   .currentUser.email.substring(
+    //   .current(user || {}).email.substring(
     //     0,
     //     firebase.auth().currentUser.email.length - 4
     //   );
@@ -297,10 +293,10 @@ export default class HomeScreen extends React.Component {
 
   setPage = (index) => {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     this.setState({ page: index });
 
     firebase
@@ -311,7 +307,16 @@ export default class HomeScreen extends React.Component {
 
   togglePopupVisibility = (value) => {
     this.setState({ popupVisible: value });
+    
   };
+    setInfoModal = (buyer) => {
+    if(buyer == 0){
+      
+      this.setState({buyerInfoVisible:true})
+    }else{
+      this.setState({sellerInfoVisible:true})
+    }
+  }
 
   // componentDidMount() {
   //     //1 console.log("uid",firebase.auth().currentUser.uid)
@@ -320,6 +325,51 @@ export default class HomeScreen extends React.Component {
   //     const image = images.child(firebase.auth().currentUser.uid + ".jpg");
   //     image.getDownloadURL().then((url) =>  this.setState({ avatar: url }));
   // }
+
+infoModal = () =>{
+    return(
+      <View style={{width:windowWidth,height:windowHeight,justifyContent:"center",alignItems:"center",backgroundColor:"rgba(0,0,0,0.8)",position:"absolute"}}>
+        <View style={{width:windowWidth - 50,height:300,backgroundColor: "white",borderRadius:50,justifyContent:'space-between'}}>
+              <View style={{alignItems:"center"}}>
+              <Text style={{fontSize:20,fontWeight:"bold"}}>{this.state.buyerInfoVisible ? "What Buyer Means?" : "What Seller Means"}</Text>   
+              </View>
+            <View style={{alignItems:"center"}}>
+              {this.state.buyerInfoVisible ?
+                <View style={{marginTop:5}}>
+                <Text style={{fontSize:17}}>As Buyer, you pay 80% of any food you want in cash.</Text>
+                <Text style={{fontSize:13}}>1. Make a "Buy Now" Request with images of Order</Text>
+                <Text style={{fontSize:13}}>2. Seller will Accept and Confirm Order in your Messages.</Text>
+                <Text style={{fontSize:13}}>3. Pay Seller 80% of actual price. Go pick up your food!</Text>
+                </View>
+              :
+              
+                <View style={{marginTop:5}}>
+                <Text style={{fontSize:17}}>As Seller, You pay for the Buyer's meal. Buyer pays you 80% back. Better than 50% by UCSD's rate.</Text>
+                <Text style={{fontSize:13}}>1. Accept an order in Seller Home Screen</Text>
+                <Text style={{fontSize:13}}>2. Prepare to buy Order on Grubhub then Confirm Order Price with Buyer in Messages.</Text>
+                <Text style={{fontSize:13}}>3. Wait for Buyer to Pay you, then purchase Meal</Text>
+                </View>
+              }
+            </View>
+                              <TouchableOpacity
+            onPress={() => this.setState({ buyerInfoVisible: false,sellerInfoVisible:false })}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.2,
+                height: 50,
+                borderColor: "gray",
+              }}
+            >
+              <Text>Dismiss</Text>
+            </View>
+          </TouchableOpacity>
+          </View>
+      </View>
+    )
+  }
 
 
   render() {
@@ -342,6 +392,7 @@ export default class HomeScreen extends React.Component {
           blackBackground={true}
           setPage={this.setPage}
           page={this.state.page}
+          setInfoModal={this.setInfoModal}
           togglePopupVisibility={this.togglePopupVisibility}
         />
 
@@ -367,6 +418,8 @@ export default class HomeScreen extends React.Component {
           popupVisible={this.state.popupVisible}
           togglePopupVisibility={this.togglePopupVisibility}
         />
+        {(this.state.buyerInfoVisible || this.state.sellerInfoVisible) && this.infoModal()}
+      
       </View>
     );
   }

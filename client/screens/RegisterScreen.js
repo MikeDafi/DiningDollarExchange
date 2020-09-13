@@ -26,7 +26,7 @@ export default class RegisterScreen extends React.Component{
         UserPermissions.getCameraPermission()
         try {
             let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.All,
+            mediaTypes: ImagePicker.MediaTypeOptions.Image,
             allowsEditing: true,
             aspect: [4, 3],
             quality: 1,
@@ -153,8 +153,8 @@ export default class RegisterScreen extends React.Component{
         this.setState({email: email})
         if(email.length == 0){
             this.setState({emailError : "*Email is empty"})
-        // }else if(!email.endsWith(".com") || !email.includes("@")){
-        //     this.setState({emailError : "*Email isn't a valid school email*"})
+        }else if(!email.endsWith(".com") || !email.includes("@")){
+            this.setState({emailError : "*Email isn't a valid school email*"})
         }else{
             this.setState({emailError : ""})
         }
@@ -192,7 +192,7 @@ export default class RegisterScreen extends React.Component{
 
     handleConfirmPassword = (confirmPassword) => {
         if(confirmPassword != this.state.password){
-            this.setState({confirmPasswordError : "Passwords do not match"})
+            this.setState({confirmPasswordError : "*Passwords do not match*"})
         }
         this.setState({confirmPassword})
     }
@@ -202,7 +202,7 @@ export default class RegisterScreen extends React.Component{
         return(
             <View style={styles.container}>
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <ImageBackground source={require('../assets/SignUpPage.png')} style={styles.image}>
+                    <ImageBackground source={require('../assets/yellowGradient1.jpg')} style={styles.image}>
                         <KeyboardAvoidingView
                         behavior={Platform.OS == "ios" ? "padding" : "height"}
                         style={{flex : 1,height:200}}
@@ -210,10 +210,10 @@ export default class RegisterScreen extends React.Component{
                         >
                             <View style={styles.header}>
                                 <TouchableOpacity onPress={() => this.props.navigation.goBack(null)}>
-                                    <AntDesign name="arrowleft" size={40} color="white" />
+                                    <AntDesign name="arrowleft" size={50} color="white" />
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={this.handleSignUp}>
-                                    <Text style={styles.headerNext}>Finish</Text>
+                                    <Text style={styles.headerNext}>Sign Up</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -221,7 +221,7 @@ export default class RegisterScreen extends React.Component{
                             <View style={{alignItems:"center",justifyContent:"flex-end",marginBottom:30}}>
                             <TouchableOpacity style={styles.avatarPlaceholder} onPress={this.handlePickAvatar}>
                                 {this.state.avatar ? <Image source={{uri : this.state.avatar}} style={styles.avatar}/> :
-                                <Octicons name="person" size= {50} color="#FFF" />}
+                                <Octicons name="person" size= {75} color="#FFF" />}
                             </TouchableOpacity>
                             </View>
                                 <View>
@@ -294,6 +294,7 @@ const styles = StyleSheet.create({
     image: {
         flex: 1,
         resizeMode: "contain",
+
         width:'100%',
         height: '100%'
     },
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
         marginTop:5
     },
     error:{
-        color:"white",
+        color:"black",
         fontSize:13,
         fontWeight:"600",
         textAlign:"center"
@@ -320,7 +321,8 @@ const styles = StyleSheet.create({
         backgroundColor:"white",
         borderRadius:20,
         height:50,
-        fontSize:15,
+        fontSize:23,
+        paddingHorizontal:10,
         marginBottom:5,
         color:"#161F3D"
     },
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
     },
     headerNext:{
         fontWeight:"bold",
-        fontSize:18,
+        fontSize:25,
         marginTop:5,
         color:"white"
     },
@@ -344,18 +346,18 @@ const styles = StyleSheet.create({
         flexDirection:"row",
         justifyContent:"space-between",
         marginHorizontal:20,
-        marginTop:30
+        marginTop:50
     },
     avatar:{
         position:"absolute",
-        width:100,
-        height:100,
-        borderRadius:50,
+        width:130,
+        height:130,
+        borderRadius:130,
     },
     avatarPlaceholder:{
-        width:100,
-        height:100,
-        borderRadius:50,
+        width:130,
+        height:130,
+        borderRadius:130,
         backgroundColor:"#E1E2E6",
         alignItems:"center",
         justifyContent:"center",

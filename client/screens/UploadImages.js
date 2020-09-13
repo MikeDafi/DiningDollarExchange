@@ -9,7 +9,6 @@ const windowHeight = Dimensions.get('window').height;
 export default class UploadImages extends React.Component{
 
     state = {
-        photoCallb : this.props.photoCallb,
         isVisible : this.props.isVisible,
     }
 
@@ -32,7 +31,7 @@ export default class UploadImages extends React.Component{
                     headerSelectText={'Selected'} // Word when picking.  default is 'n selected'.
                     badgeColor={'blue'} // Badge color when picking.
                     emptyText={'There are no images or no permission granted.'} // Empty Text
-                    callback={(param) => this.state.photoCallb(param)} // Callback functinon on press Done or Cancel Button. A
+                    callback={(param) => this.props.photoCallb(param)} // Callback functinon on press Done or Cancel Button. A
                 />
             </Modal>
         )

@@ -42,10 +42,10 @@ export default class BuyerHomeScreen extends React.Component {
 
   componentDidMount() {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     var reviewAccount = {};
     firebase
       .database()
@@ -297,10 +297,10 @@ export default class BuyerHomeScreen extends React.Component {
 
   setRating = () => {
         const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
 
       this.ref().child(buyer ? "buyer" : "seller").child(this.state.reviewAccount.key).update({rating : this.state.reviewAccount.starRating})
       firebase.database().ref("users/" + domain + "/" + this.state.reviewAccount.otherChatterEmail).once("value",snapshot => {
@@ -338,6 +338,7 @@ export default class BuyerHomeScreen extends React.Component {
         <Text style={{ fontSize: 20, fontWeight: "bold" }}>Saved Orders</Text>
         <Image
           source={require("../assets/savedOrdersIcon.png")}
+          resizeMode="contain"
           style={{
             width: cardHeight > cardWidth ? cardWidth : cardHeight,
             height: cardHeight > cardWidth ? cardWidth : cardHeight,
@@ -433,6 +434,7 @@ export default class BuyerHomeScreen extends React.Component {
             left: windowWidth / 2 - 90,
             top: windowHeight / 2 - 180,
           }}
+          onPress={() =>     this.props.navigation.navigate("Tutorial")}
           width={180}
           height={180}
           ripple={true}
@@ -446,7 +448,7 @@ export default class BuyerHomeScreen extends React.Component {
           textSize={30}
           textColor="black"
         >
-          Press to Boost
+          Show Tutorial
         </AwesomeButton>
       </View>
     );

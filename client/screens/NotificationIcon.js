@@ -11,17 +11,15 @@ export default class NotificationIcon extends React.Component{
 
     componentDidMount(){
             const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
         firebase.database().ref("users/" + domain + "/" + email + "/chats/").on("value",snapshot => {
             var totalCount = 0
             const buyerSnapshot = snapshot.child("buyer").val()
-            console.log(buyerSnapshot)
+
             const buyerChats = Object.keys(buyerSnapshot || {})
-            console.log("buyerChats ", buyerChats)
-            console.log(buyerSnapshot[[buyerChats[0]]])
             for(var i = 0; i < buyerChats.length; i++){
                 if(!buyerSnapshot[[buyerChats[i]]].read){
                     totalCount += 1

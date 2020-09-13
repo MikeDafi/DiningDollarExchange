@@ -72,7 +72,7 @@ export default class ProfileScreen extends React.Component {
     UserPermissions.getCameraPermission();
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ImagePicker.MediaTypeOptions.Image,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
@@ -118,6 +118,10 @@ export default class ProfileScreen extends React.Component {
         inEditMode: false,
       },
       {
+        title:"Payment Options",
+        inEditMode:false,
+      },
+      {
         title: "Buyer",
         isBuyer: {},
       },
@@ -158,9 +162,9 @@ export default class ProfileScreen extends React.Component {
         .ref("users/" + realDomain + "/" + email)
         .once("value", (snapshot) => {
           const accountCategory = this.state.accountCategory;
-          accountCategory[1].isBuyer = snapshot.val().isBuyer;
+          accountCategory[2].isBuyer = snapshot.val().isBuyer;
           // //1 console.log(snapshot.val());
-          accountCategory[2].isSeller = {
+          accountCategory[3].isSeller = {
             searching: snapshot.val().isSeller.searching,
             ranges: this.convertToArray(snapshot.val().isSeller.ranges),
           };
@@ -291,8 +295,8 @@ export default class ProfileScreen extends React.Component {
       .database()
       .ref("users/" + realDomain + "/" + email)
       .update({
-        isBuyer: this.state.accountCategory[1].isBuyer,
-        isSeller: this.state.accountCategory[2].isSeller,
+        isBuyer: this.state.accountCategory[2].isBuyer,
+        isSeller: this.state.accountCategory[3].isSeller,
         notifications: this.state.notificationCategory,
         name: this.state.generalCategory[0].field,
       }).catch(() => {
@@ -503,10 +507,10 @@ export default class ProfileScreen extends React.Component {
       ////1 console.log(this.state.generalCategory)
     } else if (category == 1) {
       var accountCategory = this.state.accountCategory;
-      if (index == 0) {
+      if (index < 2) {
         accountCategory[index][[title]] = field;
-      } else {
-        const innerCategory = index == 1 ? "isBuyer" : "isSeller";
+      }else{
+        const innerCategory = index == 2 ? "isBuyer" : "isSeller";
         accountCategory[index][innerCategory][[title]] = field;
       }
       this.setState({ accountCategory });
@@ -771,28 +775,42 @@ export default class ProfileScreen extends React.Component {
                   </View>
                 </TouchableWithoutFeedback>
               </View>
-              <View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginVertical: 10,
+
+                            <View
+                style={{
+                  backgroundColor: this.state.accountCategory[1].inEditMode
+                    ? "#A9A9A9"
+                    : "white",
+                }}
+              >
+                <TouchableWithoutFeedback
+                  style={{ flexDirection: "row" }}
+                  onPressIn={() =>
+                    this.setEditMode(
+                      this.state.accountCategoryIndex,
+                      1,
+                      "inEditMode",
+                      true
+                    )
+                  }
+                  onPressOut={() =>
+                    this.setEditMode(
+                      this.state.accountCategoryIndex,
+                      1,
+                      "inEditMode",
+                      false
+                    )
+                  }
+                  onPress={() => {
+                     this.props.navigation.navigate("PaymentOptions", {});
                   }}
                 >
-                  <Text style={{ fontSize: 20 }}>
-                    {this.state.accountCategory[1].title}
-                  </Text>
-                  <Switch
-                    trackColor={{ false: "#DAD9D7", true: "#FFDA00" }}
-                    thumbColor={"white"}
-                    ios_backgroundColor="#E9E8E7"
-                    onValueChange={(value) => {
-                      this.setEditMode(1, 1, "searching", value);
-                    }}
-                    value={this.state.accountCategory[1].isBuyer.searching}
-                  />
-                </View>
+                  <View style={{ flexDirection: "row", marginVertical: 10 }}>
+                    <Text style={{ fontSize: 17 }}>
+                      {this.state.accountCategory[1].title}
+                    </Text>
+                  </View>
+                </TouchableWithoutFeedback>
               </View>
               <View>
                 <View
@@ -812,12 +830,35 @@ export default class ProfileScreen extends React.Component {
                     ios_backgroundColor="#E9E8E7"
                     onValueChange={(value) => {
                       this.setEditMode(1, 2, "searching", value);
-                      this.setEditMode(1, 2, "ranges", []);
                     }}
-                    value={this.state.accountCategory[2].isSeller.searching}
+                    value={this.state.accountCategory[2].isBuyer.searching}
                   />
                 </View>
-                {this.state.accountCategory[2].isSeller.searching && (
+              </View>
+              <View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginVertical: 10,
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>
+                    {this.state.accountCategory[3].title}
+                  </Text>
+                  <Switch
+                    trackColor={{ false: "#DAD9D7", true: "#FFDA00" }}
+                    thumbColor={"white"}
+                    ios_backgroundColor="#E9E8E7"
+                    onValueChange={(value) => {
+                      this.setEditMode(1, 3, "searching", value);
+                      this.setEditMode(1, 3, "ranges", []);
+                    }}
+                    value={this.state.accountCategory[3].isSeller.searching}
+                  />
+                </View>
+                {this.state.accountCategory[3].isSeller.searching && (
                   <Animated.View
                     style={{
                       flexDirection: "row",
@@ -847,11 +888,11 @@ export default class ProfileScreen extends React.Component {
                       min={0}
                       max={4}
                       defaultValue={
-                        this.state.accountCategory[2].isSeller.ranges
+                        this.state.accountCategory[3].isSeller.ranges
                       }
                       containerStyle={{ height: 40, width: 200 }}
                       onChangeItem={(item) =>
-                        this.setEditMode(1, 2, "ranges", this.convertToNumber(item))
+                        this.setEditMode(1, 3, "ranges", this.convertToNumber(item))
                       }
                     />
                   </Animated.View>
@@ -1204,6 +1245,7 @@ export default class ProfileScreen extends React.Component {
       });
     firebase.auth().signOut();
   };
+
 
   deleteAndSignOut = () => {
     return (

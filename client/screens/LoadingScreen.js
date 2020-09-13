@@ -8,14 +8,14 @@ export default class LoadingScreen extends React.Component {
     if (this.props.navigation) {
       firebase.auth().onAuthStateChanged((user) => {
         this.props.navigation.navigate(
-          user && user.emailVerified ? "App" : "Auth"
+          user && (user || {}).emailVerified ? "App" : "Auth"
         );
       });
     }
   }
   render() {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container,{borderRadius:this.props.borderRadius}]}>
         <View style={{justifyContent:"center",alignItems:"center",width:200,height:200}}>
         <LottieView
           style={{

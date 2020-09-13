@@ -85,7 +85,7 @@ export default class SpecificSavedOrder extends React.Component {
     UserPermissions.getCameraPermission();
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ImagePicker.MediaTypeOptions.Image,
         allowsEditing: true,
         aspect: [4, 3],
       });

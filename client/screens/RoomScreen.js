@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   AsyncStorage,
   Text,
@@ -21,8 +22,16 @@ import {
 } from "react-native";
 import firebase from "../../config";
 import Modal from "react-native-modal";
+import Loading from "./LoadingScreen";
+import * as MailComposer from "expo-mail-composer";
+import DatePicker from "react-native-datepicker";
 import LottieView from "lottie-react-native";
-import { Entypo, AntDesign, MaterialCommunityIcons,MaterialIcons } from "@expo/vector-icons";
+import {
+  Entypo,
+  AntDesign,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { Col, Row, Grid } from "react-native-easy-grid";
 import UploadImages from "./UploadImages";
 import AwesomeButton from "react-native-really-awesome-button";
@@ -32,6 +41,26 @@ import * as FileSystem from "expo-file-system";
 import ToolTip from "react-native-tooltip";
 import DropDownPicker from "react-native-dropdown-picker";
 
+const nameOfImages = [
+  require("../assets/Venmo.png"),
+  require("../assets/GooglePay.png"),
+  require("../assets/ApplePay.png"),
+  require("../assets/Paypal.png"),
+  require("../assets/Skrill.png"),
+  require("../assets/Square.png"),
+  require("../assets/FacebookMessenger.png"),
+  require("../assets/WePay.png"),
+];
+const stringOfImages = [
+  "../assets/Venmo.png",
+  "../assets/GooglePay.png",
+  "../assets/ApplePay.png",
+  "../assets/Paypal.png",
+  "../assets/Skrill.png",
+  "../assets/Square.png",
+  "../assets/FacebookMessenger.png",
+  "../assets/WePay.png",
+];
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 
@@ -55,16 +84,29 @@ export default class RoomScreen extends React.Component {
     const path = "profilePics/" + domain + "/" + email + "/profilePic.jpg";
 
     this.state = {
+      reportDateError: false,
+      reportNotesError: false,
+      reportModalViewer: false,
+      reportNotesSelected: false,
+      reportNotes: "",
+      reportDate: "",
+      reporDateTimestamp: 0,
+      loadingConfirmation: false,
       paymentDropdown: new Animated.Value(30),
-      confirmModalHeight: new Animated.Value(330),
+      confirmModalHeight: new Animated.Value(380),
+      confirmOrderInfo: false,
       confirmOrderError: {
         priceInputtedError: false,
         paymentOptionsError: false,
+        proofOfImagesError: false,
       },
+      confirmPhotoCallback: false,
+      yourPaymentOptions: [],
+      yourPaymentOptionsLength: 0,
       possibleProfitVisible: false,
-      possibleProfit : {
-        actualPrice : 0,
-        newPrice : 0,
+      possibleProfit: {
+        actualPrice: "",
+        newPrice: "",
       },
       chosenPaymentOptions: [],
       allChats: {},
@@ -90,10 +132,12 @@ export default class RoomScreen extends React.Component {
       count: 20,
       // tempCount:0,
       imageUris: [],
+      confirmOrderImageUris: [],
       imageCount: 0,
       index: 0,
       showImageViewer: false,
       confirmModalViewer: false,
+      otherChatterUid: "",
       chattingUser: (this.props.navigation.state.params || {}).chattingUser,
       otherChatterEmail: (this.props.navigation.state.params || {})
         .otherChatterEmail,
@@ -108,10 +152,10 @@ export default class RoomScreen extends React.Component {
 
   getOtherChatterProfileImage = async () => {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     let otherChattersObject = await AsyncStorage.getItem(
       "otherChattersProfileImages"
     );
@@ -176,6 +220,45 @@ export default class RoomScreen extends React.Component {
           }
         }
       });
+  };
+  confirmPhotoCallback = async (params) => {
+    //1 console.log("photoCallback");
+    this.setState({ uploadImagesVisible: false});
+    if (params == null) {
+      return;
+    }
+    var imageUris = [];
+    await params.then(async (images) => {
+      this._payment(
+        this.state.confirmModalHeight,
+        this.state.openedDropdown
+          ? this.state.yourPaymentOptionsLength == 0
+            ? images.length > 0
+              ? 430
+              : 380
+            : this.state.yourPaymentOptionsLength == 2
+            ? images.length > 0
+              ? 480
+              : 440
+            : this.state.yourPaymentOptionsLength == 3
+            ? images.length > 0
+              ? 520
+              : 480
+            : images.length > 0
+            ? 565
+            : 515
+          : images.length > 0
+          ? 430
+          : 380
+      );
+      for (var i = 0; i < images.length; i++) {
+        imageUris.push(images[i].uri);
+      }
+    });
+    //1 console.log("imageNames", imageNames.length);
+    this.setState({
+      confirmOrderImageUris: imageUris,
+    });
   };
 
   worthPuttingCenterTimestamp = (currentTimestamp, text) => {
@@ -389,10 +472,10 @@ export default class RoomScreen extends React.Component {
   uploadToFirebase = (blob, name) => {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     this.setState({ name });
     return firebase
       .storage()
@@ -417,10 +500,11 @@ export default class RoomScreen extends React.Component {
               style={{ paddingHorizontal: 10, justifyContent: "flex-end" }}
               onPress={() => this.setState({ uploadImagesVisible: true })}
             >
+              {console.log(this.state.confirmPhotoCallback)}
               <UploadImages
                 isVisible={this.state.uploadImagesVisible}
-                photoCallb={this.photoCallback}
-              />
+                photoCallb={this.state.confirmPhotoCallback ? this.confirmPhotoCallback : this.photoCallback}
+              /> 
               <Entypo name="camera" size={30} color="black" />
             </TouchableOpacity>
             <View
@@ -548,6 +632,7 @@ export default class RoomScreen extends React.Component {
       user,
       image,
     };
+
     if (!loadEarlier && user._id == firebase.auth().currentUser.uid) {
       // //1 console.log("user._id ", user._id)
       // //1 console.log("firebase.auth",firebase.auth().currentUser.uid)
@@ -558,17 +643,19 @@ export default class RoomScreen extends React.Component {
       this.setState({
         read,
         lastMessageId: _id,
-        readTime: read ? this.displayTime(readTimeStamp) : "User Invalid",
+        readTime: this.displayTime(readTimeStamp),
         delivered: true,
         deliveredTime: this.displayTime(message.timestamp),
       });
     }
-    if (text == "" && image == undefined ) {
+    if (text == "" && image == undefined) {
       this.setState((previousState) => {
         let opacities = previousState.opacities;
         opacities[[_id]] = {
           animatedValue: new Animated.Value(confirmAnswer == undefined ? 1 : 0),
-          confirmedOpacity: new Animated.Value(confirmAnswer == undefined ? 0 : 1),
+          confirmedOpacity: new Animated.Value(
+            confirmAnswer == undefined ? 0 : 1
+          ),
         };
 
         return { opacities };
@@ -579,6 +666,7 @@ export default class RoomScreen extends React.Component {
       if (!messagess[[_id]]) {
         messagess[[_id]] = {
           confirmAnswer,
+          userID: user._id || "",
           confirmationId,
           centerTimestamp,
           noteInputted,
@@ -669,7 +757,7 @@ export default class RoomScreen extends React.Component {
       });
   };
   // send the message to the Backend
-  send = (user, text,confirmationId) => {
+  send = (user, text, confirmationId) => {
     // for (let i = 0; i < messages.length; i++) {
     //   const { text, user } = messages[i];
     //   const message = {
@@ -688,13 +776,36 @@ export default class RoomScreen extends React.Component {
       timestamp: this.timestamp(),
     };
 
-    if (text == ""){
-      if(confirmationId == undefined) {
+    if (text == "") {
+      if (confirmationId == undefined) {
         message.priceInputted = this.state.priceInputted;
-        message.paymentOptions = this.state.chosenPaymentOptions;
+        const paymentOptions = [];
+        console.log("SEND ", this.state.chosenPaymentOptions);
+        for (var i = 0; i < this.state.chosenPaymentOptions.length; i++) {
+          console.log(this.state.chosenPaymentOptions[i]);
+          if (this.state.chosenPaymentOptions[i] != 0) {
+            console.log(
+              "this.state.yourPaymentOptions ",
+              this.state.yourPaymentOptions
+            );
+            console.log(
+              this.state.yourPaymentOptions[this.state.chosenPaymentOptions[i]]
+            );
+            paymentOptions.push({
+              username: this.state.yourPaymentOptions[
+                this.state.chosenPaymentOptions[i]
+              ].username,
+              index: this.state.yourPaymentOptions[
+                this.state.chosenPaymentOptions[i]
+              ].index,
+            });
+          }
+        }
+        console.log("payment ", paymentOptions);
+        message.paymentOptions = paymentOptions;
         message.noteInputted = this.state.noteInputted;
-      }else{
-        message.confirmationId = confirmationId
+      } else {
+        message.confirmationId = confirmationId;
       }
     }
 
@@ -738,10 +849,17 @@ export default class RoomScreen extends React.Component {
     });
   };
 
-  whatIsMessage(image, text) {
+  whatIsMessage(message) {
+    const { image, text, confirmationId } = message;
     if (text == undefined || text == "") {
       if (image == undefined || image == "") {
-        return "Order Confirmation";
+        if (confirmationId == undefined) {
+          return "Order Confirmation";
+        } else {
+          return confirmationId == ""
+            ? "Rejected Confirmation"
+            : "Accepted Confirmation";
+        }
       } else {
         return "Image";
       }
@@ -751,8 +869,8 @@ export default class RoomScreen extends React.Component {
 
   append = (message) => {
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     const hasSentMessage = email + "_hasSentMessage";
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;
@@ -769,9 +887,7 @@ export default class RoomScreen extends React.Component {
           deliveredTime: this.displayTime(new Date().getTime()),
         });
         if (this.state.notificationsOn && this.state.otherChatterToken != "") {
-          this.sendSingleNotification(
-            this.whatIsMessage(message.image, message.text)
-          );
+          this.sendSingleNotification(this.whatIsMessage(message));
         }
         firebase
           .database()
@@ -786,7 +902,7 @@ export default class RoomScreen extends React.Component {
               this.state.thread
           )
           .update({
-            text: this.whatIsMessage(message.image, message.text),
+            text: this.whatIsMessage(message),
             timestamp: message.timestamp,
             read: true,
           });
@@ -803,7 +919,7 @@ export default class RoomScreen extends React.Component {
               this.state.thread
           )
           .update({
-            text: this.whatIsMessage(message.image, message.text),
+            text: this.whatIsMessage(message),
             timestamp: message.timestamp,
             read: this.state.otherChatterOnline,
           });
@@ -815,8 +931,8 @@ export default class RoomScreen extends React.Component {
 
   async componentDidMount() {
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email
         ? "buyer"
@@ -888,6 +1004,51 @@ export default class RoomScreen extends React.Component {
             notificationsOn:
               snapshot.val()["notifications"].notifications &&
               snapshot.val()["notifications"].newMessages,
+          });
+        });
+
+      firebase
+        .database()
+        .ref("users/" + this.state.domain + "/" + email + "/paymentOptions")
+        .once("value", (snapshot) => {
+          const yourPaymentOptions = [];
+          const snapshotVal = snapshot.val() || {};
+          const keys = Object.keys(snapshotVal);
+          for (var i = 0; i < keys.length; i++) {
+            if (i == 0) {
+              yourPaymentOptions.push({
+                label: "Select All",
+                value: 0,
+              });
+            }
+            console.log(
+              "snapshotVal[[keys[i]]].image ",
+              snapshotVal[[keys[i]]].image
+            );
+            const endIndex = (
+              snapshotVal[[keys[i]]].stringOfImage || ""
+            ).indexOf(".png");
+            var index = 0;
+            for (var j = 0; j < stringOfImages.length; j++) {
+              if (stringOfImages[j] == snapshotVal[[keys[i]]].stringOfImage) {
+                index = j;
+                break;
+              }
+            }
+            yourPaymentOptions.push({
+              label:
+                snapshotVal[[keys[i]]].stringOfImage.substring(10, endIndex) +
+                (snapshotVal[[keys[i]]].username.includes("@") ? " " : " @") +
+                snapshotVal[[keys[i]]].username,
+              value: i + 1,
+              username: snapshotVal[[keys[i]]].username,
+              index,
+              image: snapshotVal[[keys[i]]].image,
+            });
+          }
+          this.setState({
+            yourPaymentOptions,
+            yourPaymentOptionsLength: yourPaymentOptions.length,
           });
         });
 
@@ -1014,8 +1175,8 @@ export default class RoomScreen extends React.Component {
 
   componentWillUnmount() {
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     this.ref().off();
     this.refCheckChatter().child(this.state.otherChatterEmail).off();
     this.refCheckChatter()
@@ -1023,17 +1184,80 @@ export default class RoomScreen extends React.Component {
       .update({ [email]: false });
   }
 
+  onDateChange = (date) => {
+    //1 console.log("date ",date)
+    if (!date || date == "") {
+      return;
+    }
+    //1 console.log("date ");
+    const array = date
+      .split(" ")
+      .join(",")
+      .split("/")
+      .join(",")
+      .split("/")
+      .join(",")
+      .split(":")
+      .join(",")
+      .split(",");
+
+    const year = parseInt(array[0]);
+    const month = parseInt(array[1]) - 1;
+    const day = parseInt(array[2]);
+    const hour =
+      array[5] == "AM"
+        ? array[3] == "12"
+          ? 12
+          : parseInt(array[3])
+        : array[3] != "12"
+        ? parseInt(array[3]) + 12
+        : 12;
+    const minute = parseInt(array[4]);
+    //1 console.log("year ", year);
+    //1 console.log("month ", month);
+    //1 console.log("day ", day);
+    //1 console.log("hour ", hour);
+    //1 console.log("minute ", minute);
+    var dateTimeStamp = new Date(year, month, day, hour, minute);
+    dateTimeStamp = dateTimeStamp.getTime();
+    //1 console.log("dateTimeStamp ", dateTimeStamp);
+
+    this.setState({ reportDate: date, reportDateTimestamp: dateTimeStamp });
+    //1 console.log("date", date);
+  };
+
+  getDateTime = (timestamp) => {
+    if (!timestamp) {
+      return "";
+    }
+    const date = new Date(timestamp);
+    const amOrPm = date.getHours() >= 12 ? "PM" : "AM";
+    const hour =
+      date.getHours() == 0
+        ? 0
+        : date.getHours() > 12
+        ? date.getHours() % 12
+        : date.getHours();
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    var minute = "0" + date.getMinutes();
+    minute = minute.substr(-2);
+    return (
+      year + "/" + month + "/" + day + " " + hour + ":" + minute + " " + amOrPm
+    );
+  };
+
   updatedMessageConfirmAnswer = (_id, answer) => {
     this.ref().child(_id).update({ confirmAnswer: answer });
-
   };
 
   _start = async (_id, answer) => {
-          this.setState((previousState) => {
-        let messagess = previousState.messagess;
-        messagess[[_id]].confirmAnswer = answer
-        return { messagess };
-      });
+    this.setState((previousState) => {
+      let messagess = previousState.messagess;
+      messagess[[_id]].confirmAnswer = true;
+      return { messagess };
+    });
     await Animated.parallel([
       Animated.timing(this.state.opacities[[_id]].animatedValue, {
         toValue: 0,
@@ -1046,61 +1270,71 @@ export default class RoomScreen extends React.Component {
     ]).start();
     setTimeout(() => {
       this.updatedMessageConfirmAnswer(_id, answer);
-      this.send(answer ? {_id} : this.state.user,"",answer ? _id : "")
-      this.addToHistory(_id);
+      this.send(answer ? { _id } : this.state.user, "", answer ? _id : "");
+      if (answer) {
+        this.addToHistory(_id);
+      }
     }, 750);
   };
 
   addToHistory = (_id) => {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;
-    const orderNumber = (this.state.orderNumber != "" && this.state.orderNumber != null && this.state.orderNumber != undefined) ? this.generateRandomString() : this.generateRandomString()
+    const orderNumber =
+      this.state.orderNumber != "" &&
+      this.state.orderNumber != null &&
+      this.state.orderNumber != undefined
+        ? this.generateRandomString()
+        : this.generateRandomString();
     // firebase
     //   .database()
     //   .ref("orders/" + domain + "/currentOrders/" + this.state.orderNumber)
     //   .once("value", (snapshot) => {
-        //1 console.log('sna' ,snapshot.val())
-        console.log("this.state.messagess[[_id]].priceInputted ", this.state.messagess[[_id]].priceInputted)
-        const order = {
-          price: this.state.messagess[[_id]].priceInputted,
-          timestamp: new Date().getTime(),
-          chatId: this.state.thread,
-          historyOrderKey: _id,
-        };
-        console.log("order ",order)
-        console.log("orderNumber ",orderNumber)
-        firebase
-          .database()
-          .ref(
-            "users/" +
-              domain +
-              "/" +
-              email +
-              "/historyOrders/" +
-              (isBuyer ? "buyer" : "seller")
-          )
-          .update({
-            [[orderNumber]]: order,
-          });
-        firebase
-          .database()
-          .ref(
-            "users/" +
-              domain +
-              "/" +
-              this.state.otherChatterEmail +
-              "/historyOrders/" +
-              (isBuyer ? "seller" : "buyer")
-          )
-          .update({
-            [[orderNumber]]: order,
-          });
-      // });
+    //1 console.log('sna' ,snapshot.val())
+    console.log(
+      "this.state.messagess[[_id]].priceInputted ",
+      this.state.messagess[[_id]].priceInputted
+    );
+    const order = {
+      price: this.state.messagess[[_id]].priceInputted,
+      timestamp: new Date().getTime(),
+      chatId: this.state.thread,
+      historyOrderKey: _id,
+    };
+    console.log("order ", order);
+    console.log("orderNumber ", orderNumber);
+    firebase
+      .database()
+      .ref(
+        "users/" +
+          domain +
+          "/" +
+          email +
+          "/historyOrders/" +
+          (isBuyer ? "buyer" : "seller")
+      )
+      .update({
+        [[orderNumber]]: order,
+      });
+    firebase
+      .database()
+      .ref(
+        "users/" +
+          domain +
+          "/" +
+          this.state.otherChatterEmail +
+          "/historyOrders/" +
+          (isBuyer ? "seller" : "buyer")
+      )
+      .update({
+        [[orderNumber]]: order,
+      });
+    // });
   };
 
   initialBuyerConfirmMessage = (_id, confirmAnswer) => {
@@ -1165,12 +1399,21 @@ export default class RoomScreen extends React.Component {
             style={{
               justifyContent: "flex-end",
               position: "absolute",
-              left: ((windowWidth * 2 / 3) / 2) - 27,
+              left: (windowWidth * 2) / 3 / 2 - 27,
               bottom: 10,
             }}
           >
             {/* {console.log(this.state.messagess[[_id]])} */}
-            <Text style={{ fontSize: (this.state.messagess[[_id]].priceInputted || "").toString().length == 5 ? 17 : 19, color: "#FFDB0C" }}>
+            <Text
+              style={{
+                fontSize:
+                  (this.state.messagess[[_id]].priceInputted || "").toString()
+                    .length == 5
+                    ? 17
+                    : 19,
+                color: "#FFDB0C",
+              }}
+            >
               ${this.state.messagess[[_id]].priceInputted}
             </Text>
           </View>
@@ -1218,8 +1461,9 @@ export default class RoomScreen extends React.Component {
           <Text style={{ fontSize: 15, fontWeight: "bold" }}>
             Sent Order Confirmation
           </Text>
-          <Text style={{marginTop:5}}>
-            Will Receive Confirmation Text. Buyer Accepting makes Payment Options visible
+          <Text style={{ marginTop: 5 }}>
+            Will Receive Confirmation Text. Buyer Accepting makes Payment
+            Options visible
           </Text>
         </View>
       </View>
@@ -1227,62 +1471,71 @@ export default class RoomScreen extends React.Component {
   };
 
   selectedSellerConfirmMessage = (confirmationId) => {
-    return(
-            <View
+    return (
+      <View
         style={{
-          justifyContent:"center",
-          alignItems:"center",
+          justifyContent: "center",
+          alignItems: "center",
           width: (windowWidth * 2) / 3,
-          height:180}}
+          height: 180,
+        }}
       >
-        <View style={{ alignItems: "center",marginTop:1 }}>
+        <View style={{ alignItems: "center", marginTop: 1 }}>
           <Text style={{ fontSize: 17, fontWeight: "bold" }}>
             Confirm Order
-            
           </Text>
         </View>
-                <Animated.View
-            style={{
-              justifyContent: "center",
-              alignItems: "center",
-              width: (windowWidth * 2) / 3,
-            }}
+        <Animated.View
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            width: (windowWidth * 2) / 3,
+          }}
+        >
+          <View
+            style={[
+              styles.confirmButton,
+              { backgroundColor: confirmationId != "" ? "green" : "red" },
+            ]}
           >
-            <View
-              style={[
-                styles.confirmButton,
-                { backgroundColor: confirmationId != "" ? "green" : "red"},
-              ]}
+            <Text
+              style={{ fontWeight: "900", fontSize: 17, textAlign: "center" }}
             >
-              <Text style={{fontWeight:"900",fontSize:17,textAlign:"center"}}>{confirmationId != "" ? "Buyer Accepted!" : "Buyer Rejected"}</Text>
-            </View>
-          </Animated.View>
-                  <View style={{ alignItems: "center" }}>
-          <Text style={{ fontSize: 12, fontWeight: "bold",marginHorizontal:2 }}>
-            {confirmationId == "" ? "Buyer Rejected. Speak with Buyer Again." :
-            "Buyer Accepted. Proof of Payment will be sent soon. Once recieved, make the purchase and send proof of purchase(screenshot)."}
+              {confirmationId != "" ? "Buyer Accepted!" : "Buyer Rejected"}
+            </Text>
+          </View>
+        </Animated.View>
+        <View style={{ alignItems: "center" }}>
+          <Text
+            style={{ fontSize: 12, fontWeight: "bold", marginHorizontal: 2 }}
+          >
+            {confirmationId == ""
+              ? "Buyer Rejected. Speak with Buyer Again."
+              : "Buyer Accepted. Proof of Payment will be sent soon. Once recieved, make the purchase and send proof of purchase(screenshot)."}
           </Text>
         </View>
-          </View>
-    )
-  }
+      </View>
+    );
+  };
 
   selectedBuyerConfirmMessage = (_id) => {
     // console.log("this.state.messagess[[_id]] ", this.state.messagess[[_id]]);
-    if(_id == ""){
-      return          (   <View
-        style={{
-          justifyContent:"center",
-          alignItems:"center",
-          width: (windowWidth * 2) / 3,
-          height:75}}
-      >
-        <View style={{ alignItems: "center",marginTop:1 }}>
-          <Text style={{ fontSize: 17, fontWeight: "bold" }}>
-            Confirm Order
-          </Text>
-        </View>
-                {/* <Animated.View
+    if (_id == "") {
+      return (
+        <View
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            width: (windowWidth * 2) / 3,
+            height: 75,
+          }}
+        >
+          <View style={{ alignItems: "center", marginTop: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: "bold" }}>
+              Confirm Order
+            </Text>
+          </View>
+          {/* <Animated.View
             style={{
               justifyContent: "center",
               alignItems: "center",
@@ -1298,12 +1551,15 @@ export default class RoomScreen extends React.Component {
               <Text style={{fontWeight:"900",fontSize:17,textAlign:"center"}}>{confirmationId != "" ? "Buyer Accepted!" : "Buyer Rejected"}</Text>
             </View>
           </Animated.View> */}
-                  <View style={{ alignItems: "center" }}>
-          <Text style={{ fontSize: 12, fontWeight: "bold",marginHorizontal:2 }}>
-            System Message: Clarify to Seller what the issue was
-          </Text>
+          <View style={{ alignItems: "center" }}>
+            <Text
+              style={{ fontSize: 12, fontWeight: "bold", marginHorizontal: 2 }}
+            >
+              System Message: Clarify to Seller what the issue was
+            </Text>
+          </View>
         </View>
-          </View>)
+      );
     }
     return (
       <View
@@ -1322,7 +1578,7 @@ export default class RoomScreen extends React.Component {
             Confirm Order
           </Text>
         </View>
-        {this.state.messagess[[_id]].priceInputted && (
+        {!isNaN(this.state.messagess[[_id]].priceInputted) && (
           <View
             style={{
               flexDirection: "row",
@@ -1333,26 +1589,38 @@ export default class RoomScreen extends React.Component {
           >
             <View style={{ flexDirection: "col", alignItems: "center" }}>
               <Text style={{ fontSize: 24 }}>Price You Pay:</Text>
-              <View style={{flexDirection:"row"}}>
-                                                  <TouchableOpacity
-                        onPress={() =>{
-                          const possibleProfit = {actualPrice: this.state.messagess[[_id]].priceInputted/0.8,newPrice:this.state.messagess[[_id]].priceInputted }
-                          this.setState({ possibleProfitVisible: true,possibleProfit })
-                        }}
-                                                  style={{flexDirection:"row",alignItems:"center"}}
-                      >
-              <Text style={{ fontSize: 13 }}>
-                You Saved{" "}
-                <Text style={{ color: "#0DCC0D", fontWeight: "800" }}>{ "$" + ((this.state.messagess[[_id]].priceInputted / 0.8) - this.state.messagess[[_id]].priceInputted).toFixed(2)}</Text>
-              </Text>
+              <View style={{ flexDirection: "row" }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    const possibleProfit = {
+                      actualPrice: parseFloat(
+                        this.state.messagess[[_id]].priceInputted / 0.8
+                      )
+                        .toFixed(2)
+                        .toString(),
+                      newPrice: this.state.messagess[[_id]].priceInputted,
+                    };
+                    this.setState({
+                      possibleProfitVisible: true,
+                      possibleProfit,
+                    });
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center" }}
+                >
+                  <Text style={{ fontSize: 13 }}>
+                    You Saved{" "}
+                    <Text style={{ color: "#0DCC0D", fontWeight: "800" }}>
+                      {"$" +
+                        (
+                          this.state.messagess[[_id]].priceInputted / 0.8 -
+                          this.state.messagess[[_id]].priceInputted
+                        ).toFixed(2)}
+                    </Text>
+                  </Text>
 
-                                        <Entypo
-                            name="info-with-circle"
-                            size={12}
-                            color="black"
-                          />
-                          </TouchableOpacity>
-                          </View>
+                  <Entypo name="info-with-circle" size={12} color="black" />
+                </TouchableOpacity>
+              </View>
             </View>
             <View
               style={{
@@ -1365,24 +1633,37 @@ export default class RoomScreen extends React.Component {
                 style={{
                   position: "absolute",
                   width:
-                    75 +(this.state.messagess[[_id]].priceInputted.length == 5 ? 50 :
-                    (this.state.messagess[[_id]].priceInputted.length - 1) * 20
-                    ),
+                    75 +
+                    (this.state.messagess[[_id]].priceInputted.length == 5
+                      ? 50
+                      : (this.state.messagess[[_id]].priceInputted.length - 1) *
+                        20),
                   height:
-                    75 +(this.state.messagess[[_id]].priceInputted.length == 5 ? 50 :
-                    (this.state.messagess[[_id]].priceInputted.length - 1) * 20
-                    ),
+                    75 +
+                    (this.state.messagess[[_id]].priceInputted.length == 5
+                      ? 50
+                      : (this.state.messagess[[_id]].priceInputted.length - 1) *
+                        20),
                 }}
                 source={require("../assets/yellowCircle.json")}
                 autoPlay
               />
               <Text style={{ fontSize: 10 }}>$</Text>
-              <Text style={{ fontSize: (this.state.messagess[[_id]].priceInputted || "").toString().length == 5 ? 27 : 35 }}>
+              <Text
+                style={{
+                  fontSize:
+                    (this.state.messagess[[_id]].priceInputted || "").toString()
+                      .length == 5
+                      ? 27
+                      : 35,
+                }}
+              >
                 {this.state.messagess[[_id]].priceInputted}
               </Text>
             </View>
           </View>
         )}
+
         <View
           style={{
             flexDirection: "col",
@@ -1399,7 +1680,7 @@ export default class RoomScreen extends React.Component {
                   //   left: windowWidth / 2 - 90,
                   //   top: windowHeight / 2 - 180,
                   // }}
-                  onPress={() => Clipboard.setString(x)}
+                  onPress={() => Clipboard.setString(x.username)}
                   width={(windowWidth * 2) / 3 - 20}
                   height={30}
                   ripple={true}
@@ -1412,22 +1693,26 @@ export default class RoomScreen extends React.Component {
                   backgroundDarker="#B79D07"
                   textSize={30}
                   textColor="black"
-
                 >
                   <View
                     style={{
                       width: (windowWidth * 2) / 3 - 30,
-                      marginHorizontal:5,
+                      marginHorizontal: 5,
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "space-between",
                     }}
                   >
-                    <View style={{width:(windowWidth * 2) / 3 - 75    ,               flexDirection:"row",alignItems: "center"}}>
-                      <MaterialCommunityIcons
-                        name="venmo"
-                        size={25}
-                        color="black"
+                    <View
+                      style={{
+                        width: (windowWidth * 2) / 3 - 130,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Image
+                        source={nameOfImages[x.index]}
+                        style={{ width: 35, height: 35 }}
                       />
                       <Text
                         style={{
@@ -1435,13 +1720,20 @@ export default class RoomScreen extends React.Component {
                         }}
                         adjustsFontSizeToFit={true}
                         numberOfLines={1}
-
                       >
-                        {x}
+                        {(x.username || "").includes("@") ? "" : "@"}
+                        {x.username}
                       </Text>
                     </View>
                     <View>
-                      <Text style={{textDecorationLine:"underline",fontSize:15}}>Copy</Text>
+                      <Text
+                        style={{
+                          textDecorationLine: "underline",
+                          fontSize: 15,
+                        }}
+                      >
+                        Copy
+                      </Text>
                     </View>
                   </View>
                 </AwesomeButton>
@@ -1455,18 +1747,18 @@ export default class RoomScreen extends React.Component {
           }}
         >
           <Text style={{ fontSize: 24 }}>
-            {(this.state.messagess[[_id]].noteInputted != undefined && this.state.messagess[[_id]].noteInputted != "")
+            {this.state.messagess[[_id]].noteInputted != undefined &&
+            this.state.messagess[[_id]].noteInputted != ""
               ? "Seller's Notes:"
               : "No Notes From Seller"}
           </Text>
-          {console.log(this.state.messagess[[_id]].noteInputted)}
           {this.state.messagess[[_id]].noteInputted != undefined &&
             this.state.messagess[[_id]].noteInputted != "" && (
               <View
                 style={{
                   width: (windowWidth * 2) / 3 - 20,
                   height: 105,
-                  padding:2,
+                  padding: 2,
                   borderColor: "black",
                   borderWidth: 3,
                   borderRadius: 10,
@@ -1479,7 +1771,7 @@ export default class RoomScreen extends React.Component {
               </View>
             )}
         </View>
-                <View style={{ alignItems: "center" }}>
+        <View style={{ alignItems: "center" }}>
           <Text style={{ fontSize: 13, fontWeight: "bold" }}>
             Send Screenshot of Proof of Payment in Chat to complete order.
           </Text>
@@ -1495,33 +1787,41 @@ export default class RoomScreen extends React.Component {
   renderConfirm = (props) => {
     const message = props.currentMessage;
     const confirmAnswer = this.state.messagess[[message._id]].confirmAnswer;
-    const confirmationId = this.state.messagess[[message._id]].confirmationId
+    const confirmationId = this.state.messagess[[message._id]].confirmationId;
     if (message.text == "" && message.image == undefined) {
       if (confirmationId == undefined) {
-        if(message.user._id == this.state.user._id){
-          return this.initialSellerConfirmMessage(
-            message._id,
-            confirmAnswer
-          )
-        }else{
-        return this.initialBuyerConfirmMessage(
-          message._id,
-          confirmAnswer
-        );
+        if (message.user._id != this.state.user._id) {
+          return this.initialBuyerConfirmMessage(message._id, confirmAnswer);
+        } else {
+          return this.initialSellerConfirmMessage(message._id, confirmAnswer);
         }
-      } 
-
-      if(message.user._id == this.state.user._id){
-        return this.selectedBuyerConfirmMessage(confirmationId)
       }
+      if (message.user._id == this.state.user._id) {
+        return this.selectedBuyerConfirmMessage(confirmationId);
+      } else if (
+        confirmationId != "" &&
+        confirmationId != undefined &&
+        this.state.user._id !=
+          (this.state.messagess[[confirmationId]] || {}).userID
+      ) {
+        if (this.state.messagess[[confirmationId]] == undefined) {
+          return <View />;
+        }
+        console.log(
+          "this.state.messagess[[confirmationId]] ",
+          this.state.messagess[[confirmationId]]
+        );
+        return this.selectedBuyerConfirmMessage(confirmationId);
+      } else {
         return this.selectedSellerConfirmMessage(confirmationId);
+      }
     }
   };
 
   renderNavigation = () => {
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;
     return (
@@ -1554,29 +1854,28 @@ export default class RoomScreen extends React.Component {
             {this.state.chattingUser}
           </Text>
         </View>
-        <View style={{alignItems:"center",flexDirection:"row"}}>
-                  <TouchableOpacity
-            onPress={() => {
-            }}
-            style={{flexDirection:"col",alignItems:"center"}}
-          >
-                      <MaterialIcons name="error" size={27} color="black" />
-              <Text style={{fontSize:13}}>Report</Text>
-              </TouchableOpacity>
-        {(this.state.historyOrderKey == undefined || !isBuyer) ? (
+        <View style={{ alignItems: "center", flexDirection: "row" }}>
           <TouchableOpacity
-            onPress={() => {
-              this.setState({ confirmModalViewer: true });
-            }}
-            style={{flexDirection:"row",alignItems:"center"}}
+            onPress={() => this.setState({ reportModalViewer: true })}
+            style={{ flexDirection: "col", alignItems: "center" }}
           >
-            <Text style={{fontSize:25,fontWeight:"700"}}>/</Text>
-            <View style={{alignItems:"center"}}>
-            <Text>Confirm</Text>
-            <Text>Order</Text>
-            </View>
+            <MaterialIcons name="error" size={27} color="black" />
+            <Text style={{ fontSize: 13 }}>Report</Text>
           </TouchableOpacity>
-        ) :null}
+          {this.state.historyOrderKey == undefined || !isBuyer ? (
+            <TouchableOpacity
+              onPress={() => {
+                this.setState({ confirmModalViewer: true,confirmPhotoCallback:true });
+              }}
+              style={{ flexDirection: "row", alignItems: "center" }}
+            >
+              <Text style={{ fontSize: 25, fontWeight: "700" }}>/</Text>
+              <View style={{ alignItems: "center" }}>
+                <Text>Confirm</Text>
+                <Text>Order</Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     );
@@ -1674,22 +1973,35 @@ export default class RoomScreen extends React.Component {
     if (message.image != undefined) {
       const allChats = this.state.allChats;
       //1 console.log("there is image ", message.image)
+      console.log("message ", message._id);
       var doesExist = true;
+      console.log(
+        "allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] ",
+        allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]]
+      );
       if (
         !allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] ||
         !allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri
       ) {
-        const uri = await this.downloadUrl(message.image, message._id);
-        doesExist = false;
-        allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {
-          uri,
-        };
+        if (message.image.startsWith("https")) {
+          const uri = await this.downloadUrl(message.image, message._id);
+          doesExist = false;
+          allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {
+            uri,
+          };
+          message.image = uri;
+        } else {
+          message.image = "";
+          message.text = "*Error with Image*";
+        }
         //1 console.log("had to download")
+      } else if (message.image.startsWith("https")) {
+        message.image =
+          allChats[[this.state.isBuyer]][[this.state.thread]][
+            [message._id]
+          ].uri;
       }
       // //1 console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]])
-      message.image =
-        allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri;
-      console.log("message image ", message.image);
       const promises = [];
       if (!doesExist) {
         promises.push(this.setState({ allChats }));
@@ -1715,7 +2027,11 @@ export default class RoomScreen extends React.Component {
 
       const imageCount = (this.state.imageCount += 1);
       const uri =
-        allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri;
+        (
+          allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] ||
+          {}
+        ).uri || "";
+      console.log("ALERT ", uri);
       //1 console.log("uri ", uri)
       if (isANewImage) {
         imageUris.unshift({ url: uri });
@@ -1979,8 +2295,8 @@ onLoadingEarlier = async () => {
   }
 
   possibleProfit = () => {
-    const actualPrice = this.state.possibleProfit.actualPrice.toFixed().toString()
-    const newPrice = this.state.possibleProfit.newPrice.toFixed().toString()
+    const actualPrice = this.state.possibleProfit.actualPrice;
+    const newPrice = this.state.possibleProfit.newPrice;
     return (
       <View
         style={{
@@ -2017,27 +2333,99 @@ onLoadingEarlier = async () => {
               marginHorizontal: 10,
               justifyContent: "center",
               height: 100,
-              flexDirection:"col",
+              flexDirection: "col",
             }}
           >
             <Text style={{ fontSize: 15 }}>
-            The actual price was
-            <Text style={{color:"red"}}>{" $" + actualPrice}</Text>. So you pay the seller 80% (
-              <Text style={{color:"#4CBB17"}}>{"$" + newPrice }</Text>
-              ). 
+              The actual price was
+              <Text style={{ color: "red" }}>{" $" + actualPrice}</Text>. So you
+              pay the seller 80% (
+              <Text style={{ color: "#4CBB17" }}>{"$" + newPrice}</Text>
+              ).
             </Text>
-            <Text style={{marginTop:5}}>
-              They used Dining Dollars.
-            </Text>
-            <Text>  
-              You saved Money.
-            </Text>
-            <Text>
-             Win win.
-            </Text>
+            <Text style={{ marginTop: 5 }}>They used Dining Dollars.</Text>
+            <Text>You saved Money.</Text>
+            <Text>Win win.</Text>
           </View>
           <TouchableOpacity
             onPress={() => this.setState({ possibleProfitVisible: false })}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.2,
+                height: 50,
+                borderColor: "gray",
+              }}
+            >
+              <Text>Dismiss</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  confirmOrderInfo = () => {
+    const actualPrice = parseFloat(this.state.priceInputted)
+      .toFixed(2)
+      .toString();
+    const newPrice = (parseFloat(this.state.priceInputted) * 0.8)
+      .toFixed(2)
+      .toString();
+    return (
+      <View
+        style={{
+          position: "absolute",
+          width: windowWidth,
+          height: windowHeight,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "rgba(0,0,0,0.8)",
+        }}
+      >
+        <View
+          style={{
+            width: 250,
+            height: 200,
+            flexDirection: "column",
+            justifyContent: "space-between",
+            backgroundColor: "white",
+            borderRadius: 20,
+          }}
+        >
+          <View
+            style={{
+              height: 30,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>New Price Info</Text>
+          </View>
+          <View
+            style={{
+              alignItems: "center",
+              marginHorizontal: 10,
+              justifyContent: "center",
+              height: 100,
+              flexDirection: "col",
+            }}
+          >
+            <Text style={{ fontSize: 15 }}>
+              The actual price was
+              <Text style={{ fontWeight: "bold" }}>{" $" + actualPrice}</Text>.
+              So the buyer pays 80% (
+              <Text style={{ fontWeight: "bold" }}>{"$" + newPrice}</Text>
+              ).
+            </Text>
+            <Text style={{ marginTop: 5 }}>You pay with Dining Dollars.</Text>
+            <Text>They pay YOU Money.</Text>
+            <Text>Win win.</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => this.setState({ confirmOrderInfo: false })}
           >
             <View
               style={{
@@ -2128,7 +2516,11 @@ onLoadingEarlier = async () => {
         <ImageViewer
           index={this.state.index}
           enablePreload
-          imageUrls={this.state.imageUris}
+          imageUrls={
+            this.state.confirmModalViewer
+              ? this.state.confirmOrderImageUris.map((x) => ({ url: x }))
+              : this.state.imageUris
+          }
           renderImage={(props) => <Image {...props} />}
           enableSwipeDown
           onSwipeDown={() => this.handleImageViewer(0, true)}
@@ -2141,316 +2533,1163 @@ onLoadingEarlier = async () => {
       </Modal>
     );
 
-    const confirmModal = (
-      <Modal
-        testID={"modal"}
-        isVisible={true}
-        // onBackdropPress={() => {this.props.togglePopupVisibility(false);}}
-        animationIn="slideInUp"
-        animationInTiming={500}
+    const reportModal = (
+      <View
+        // testID={"modal"}
+        // isVisible={true}
+        // // onBackdropPress={() => {this.props.togglePopupVisibility(false);}}
+        // animationIn="slideInUp"
+        // animationInTiming={500}
         style={{
           margin: 0,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "rgba(0,0,0,0.4)",
+          width: windowWidth,
+          height: windowHeight,
+          position: "absolute",
+          backgroundColor: "rgba(0,0,0,0.6)",
         }}
       >
-        <Animated.View
-          style={{
-            width: windowWidth - 50,
-            height: this.state.confirmModalHeight,
-            marginTop: this.state.notes || this.state.priceInputtedSelected ? -200 : 0,
+        <TouchableWithoutFeedback
+          onPress={() => {
+            Keyboard.dismiss();
           }}
         >
-          <Grid
+          <Animated.View
             style={{
-              justifyContent: "flex-start",
+              width: windowWidth - 20,
+              height: 400,
+              marginTop: this.state.reportNotesSelected ? -200 : 0,
+              overflow: "hidden",
               backgroundColor: "white",
               borderRadius: 75,
-              overflow: "hidden",
             }}
           >
-            <Row
-              style={{
-                justifyContent: "center",
-                flexDirection: "col",
-                alignItems: "center",
-                height: 50,
-              }}
-            >
-              <Text style={{ fontSize: 28, fontWeight: "bold" }}>
-                Confirm Order
-              </Text>
-              <Text style={{ fontSize: 15 }}>
-                {" "}
-                To Buyer: {this.state.chattingUser}
-              </Text>
-            </Row>
-            <Row
-              style={{
-                justifyContent: "center",
-                height: 50,
-                alignItems: "center",
-                marginTop: 5,
-                justifyContent: "space-between",
-                paddingLeft: 20,
-                paddingRight: 20,
-                flexDirection: "row",
-              }}
-            >
-              <Text style={{ fontSize: 25 }}>Confirm Price: </Text>
-              <View style={{flexDirection:"row",alignItems: 'center',}}>
-              <Text style={{ fontSize: 28 }}>$</Text>
-              <TextInput
+            {this.state.loadingConfirmation ? (
+              <Loading borderRadius={75} />
+            ) : this.state.reportedSuccess != undefined ? (
+              this.state.reportedSuccess ? (
+                <View
+                  style={{
+                    width: windowWidth - 20,
+                    height: 400,
+                    flexDirection: "col",
+                    alignItems: "center",
+                    justifyContent: "flex-start",
+                  }}
+                >
+                  <View
+                    style={{
+                      justifyContent: "center",
+                      flexDirection: "col",
+                      alignItems: "center",
+                      height: 50,
+                    }}
+                  >
+                    <Text style={{ fontSize: 28, fontWeight: "bold" }}>
+                      Report an Issue
+                    </Text>
+                    <Text style={{ fontSize: 15 }}>
+                      {" "}
+                      Chating With: {this.state.chattingUser}
+                    </Text>
+                  </View>
+                  <LottieView
+                    source={require("../assets/checkMarkAnimation.json")}
+                    autoPlay
+                    style={{ width: 150, height: 150, marginTop: 15 }}
+                    loop={true}
+                  />
+                  <Text style={{ fontSize: 20, marginTop: 20 }}>
+                    The email sent!
+                  </Text>
+                  <View style={{ position: "absolute", bottom: 0 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        this.setState({
+                          reportedSuccess: undefined,
+                          reportModalViewer: false,
+                          reportDateTimestamp: 0,
+                          reportDateError:false,
+                          reportNotesError:false,
+                          reportDate: "",
+                          reportNotes: "",
+                          reportNotesSelected: false,
+                        });
+                      }}
+                    >
+                      <View
+                        style={{
+                          borderTopWidth: 1,
+                          borderColor: "gray",
+                          width: windowWidth - 20,
+                          height: 50,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 25, color: "gray" }}>
+                          Dismiss
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    width: windowWidth - 20,
+                    height: 400,
+                    flexDirection: "col",
+                    alignItems: "center",
+                    justifyContent: "flex-start",
+                  }}
+                >
+                  <View
+                    style={{
+                      justifyContent: "center",
+                      flexDirection: "col",
+                      alignItems: "center",
+                      height: 50,
+                    }}
+                  >
+                    <Text style={{ fontSize: 28, fontWeight: "bold" }}>
+                      Report an Issue
+                    </Text>
+                    <Text style={{ fontSize: 15 }}>
+                      {" "}
+                      Chating With: {this.state.chattingUser}
+                    </Text>
+                  </View>
+                  <LottieView
+                    source={require("../assets/xMarkAnimation.json")}
+                    autoPlay
+                    style={{ width: 150, height: 150, marginTop: 15 }}
+                    loop={true}
+                  />
+                  <Text style={{ fontSize: 20, marginTop: 20 }}>
+                    The email didn't appear to send
+                  </Text>
+                  <View style={{ position: "absolute", bottom: 0 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        this.setState({
+                          reportedSuccess: undefined,
+                          reportNotesSelected: false,
+                        });
+                      }}
+                    >
+                      <View
+                        style={{
+                          borderTopWidth: 1,
+                          borderColor: "gray",
+                          width: windowWidth - 20,
+                          height: 50,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 25, color: "gray" }}>
+                          Dismiss
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )
+            ) : (
+              <Grid
                 style={{
-                  backgroundColor: "white",
-                  borderRadius: 4,
-                  padding: 8,
-                  paddingRight:0,
-                  width: 75,
-                  borderWidth: 3,
-                  height: 50,
-                  borderColor: this.state.confirmOrderError.priceInputtedError
-                    ? "red"
-                    : "#FFDB0C",
-                  shadowColor: this.state.confirmOrderError.priceInputtedError
-                    ? "red"
-                    : "#FFDB0C",
-                  shadowOffset: {
-                    width: 0,
-                    height: 6,
-                  },
-                  fontSize: 20,
-                  shadowOpacity: 0.39,
-                  shadowRadius: 10,
-                }}
-                onFocus={() => {
-                  
-                  this.setState({ priceInputted: "",priceInputtedSelected:true });
-                }}
-                value={this.state.priceInputted}
-                onEndEditing={() => {
-                  const actualPrice = (parseInt(this.state.priceInputted) * 0.8).toFixed(2).toString()
-                  this.setState({priceInputtedSelected : false})
-                  if (isNaN(this.state.priceInputted)) {
-                    this.setState({ priceInputted: "" });
-                  } else if (parseInt(this.state.priceInputted) < 1) {
-                    this.setState({ priceInputted: "1" });
-                  } else if (parseInt(this.state.priceInputted) > 100) {
-                    this.setState({ priceInputted: "80" });
-                  }else{
-                    this.setState({ priceInputted: isNaN(this.state.priceInputted) ? "" : actualPrice  });
-                  }
-                }}
-                autoCapitalize="none"
-                onSubmitEditing={Keyboard.dismiss}
-                onChangeText={(field) => {
-                  if (parseInt(field) < 1) {
-                    this.setState({ priceInputted: "1" });
-                  } else if (parseInt(field) > 100) {
-                    this.setState({ priceInputted: "100" });
-                  } else {
-                    this.setState({ priceInputted: field });
-                  }
-                }}
-              />
-              </View>
-            </Row>
-            <Animated.View
-              style={{
-                justifyContent: "center",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                width: windowWidth - 50,
-                paddingRight: 80,
-                paddingLeft: 20,
-                height: this.state.paymentDropdown,
-                marginTop: 5,
-                flexDirection: "row",
-              }}
-            >
-              <View style={{ justifyContent: "center", alignItems: "center" }}>
-                <Text style={{ fontSize: 25 }}>Payment: </Text>
-              </View>
-              <DropDownPicker
-                onOpen={() => {
-                  this._payment(this.state.paymentDropdown, 150);
-                  this._payment(this.state.confirmModalHeight, 460);
-                }}
-                onClose={() => {
-                  this._payment(this.state.paymentDropdown, 30);
-                  this._payment(this.state.confirmModalHeight, 330);
-                }}
-                style={{
-                  width: 180,
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  borderBottomLeftRadius: 20,
-                  borderBottomRightRadius: 20,
-                  borderColor: this.state.confirmOrderError.paymentOptionsError
-                    ? "red"
-                    : "gray",
-                  borderWidth: this.state.confirmOrderError.paymentOptionsError
-                    ? 3
-                    : 1,
-                }}
-                items={[
-                  { label: "Select All", value: "Select All" },
-                  ...paymentOptions,
-                ]}
-                min={1}
-                max={5}
-                multiple
-                multipleText="%d items have been selected."
-                placeholder="Select 1+"
-                arrowStyle={{
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: 30,
-                }}
-                defaultValue={this.state.chosenPaymentOptions}
-                containerStyle={{ height: 30, numberOfLines: 1, width: 180 }}
-                onChangeItem={async (items) => {
-                  console.log("before ", this.state.chosenPaymentOptions);
-                  console.log("items ", items);
-                  for (var i = 0; i < items.length; i++) {
-                    if (items[i] == "Select All") {
-                      console.log("payment ", paymentOptions);
-                      const values = [
-                        "Select All",
-                        ...paymentOptions.map((x) => x.value),
-                      ];
-                      console.log("values ", values);
-                      this.setState({ chosenPaymentOptions: values });
-                      return;
-                    }
-                  }
-                  for (
-                    var i = 0;
-                    i < this.state.chosenPaymentOptions.length;
-                    i++
-                  ) {
-                    if (this.state.chosenPaymentOptions[i] == "Select All") {
-                      this.setState({ chosenPaymentOptions: [] });
-                      return;
-                    }
-                  }
-
-                  this.setState({ chosenPaymentOptions: items });
-                }}
-              />
-            </Animated.View>
-            <Row
-              style={{
-                alignItems: "flex-start",
-                flexDirection: "col",
-                width: windowWidth - 50,
-                paddingHorizontal: 20,
-                marginTop: 10,
-              }}
-            >
-              <Text style={{ fontSize: 20 }}>Notes: </Text>
-              <TextInput
-                style={{
-                  backgroundColor: "white",
                   justifyContent: "flex-start",
-                  alignItems: "flex-start",
-                  borderRadius: 4,
-                  paddingHorizontal: 8,
-                  height: 100,
-                  width: windowWidth - 90,
-                  borderWidth: 3,
-                  borderColor: "#FFDB0C",
-                  shadowColor: "#FFDB0C",
-                  shadowOffset: {
-                    width: 0,
-                    height: 6,
-                  },
-                  fontSize: 20,
-                  shadowOpacity: 0.39,
-                  shadowRadius: 10,
+                  backgroundColor: "white",
+                  overflow: "hidden",
                 }}
-                onFocus={() => {
-                  this.setState({ notes: true });
-                }}
-                onEndEditing={() => {
-                  this.setState({ notes: false });
-                }}
-                multiline
-                value={this.state.noteInputted}
-                autoCapitalize="none"
-                onSubmitEditing={Keyboard.dismiss}
-                onChangeText={(field) => {
-                  this.setState({ noteInputted: field });
-                }}
-              />
-            </Row>
+              >
+                <Row
+                  style={{
+                    justifyContent: "center",
+                    flexDirection: "col",
+                    alignItems: "center",
+                    height: 50,
+                  }}
+                >
+                  <Text style={{ fontSize: 28, fontWeight: "bold" }}>
+                    Report an Issue
+                  </Text>
+                  <Text style={{ fontSize: 15 }}>
+                    {" "}
+                    Chating With: {this.state.chattingUser}
+                  </Text>
+                </Row>
+                <Row
+                  style={{
+                    height: 50,
+                    paddingHorizontal: 20,
+                    marginTop: 5,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 25 }}>Date Occurred: </Text>
+                  <DatePicker
+                    style={{ width: 145, height: 40 }}
+                    is24Hour={false}
+                    date={this.state.reportDate}
+                    mode="datetime"
+                    placeholder="Select Date"
+                    format={"YYYY/MM/DD HH:mm AA"}
+                    confirmBtnText="Confirm"
+                    cancelBtnText="Cancel"
+                    customStyles={{
+                      dateTouchBody: {
+                        marginLeft: -35,
 
-            <View style={{ position: "absolute", right: 0, top: -30 }}>
+                        width: 180,
+                      },
+                      placeholderText: {
+                        color: this.state.reportDateError ? "red" : "gray",
+                        fontWeight: this.state.reportDateError
+                          ? "600"
+                          : "normal",
+                      },
+                      btnTextConfirm: {
+                        fontWeight: "bold",
+                        color: "#FFE300",
+                      },
+                      dateIcon: {
+                        position: "absolute",
+                        left: 0,
+                        top: 4,
+                        marginLeft: 0,
+                      },
+                      dateInput: {
+                        marginLeft: 36,
+                      },
+                      // ... You can check the source to find the other keys.
+                    }}
+                    showIcon={false}
+                    onDateChange={(date) => {
+                      this.onDateChange(date);
+                    }}
+                    getDateStr={(props) => {
+                      //1 console.log("props ", props);
+                      const date = this.getDateTime(props);
+                      //1 console.log("after getDateStr ", date)
+                      return date;
+                    }}
+                    //   TouchableComponent={() => (
+                    //         <Text>Time Expected</Text>
+                    //   )}
+                  />
+                </Row>
+                <Row
+                  style={{
+                    alignItems: "flex-start",
+                    flexDirection: "col",
+                    width: windowWidth - 20,
+                    paddingHorizontal: 20,
+                    marginTop: 5,
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>Tell Us What Happened: </Text>
+                  <TextInput
+                    style={{
+                      backgroundColor: "white",
+                      justifyContent: "flex-start",
+                      alignItems: "flex-start",
+                      borderRadius: 4,
+                      paddingHorizontal: 8,
+                      height: 170,
+                      width: windowWidth - 60,
+                      borderWidth: 3,
+                      borderColor: this.state.reportNotesError
+                        ? "red"
+                        : "#FFDB0C",
+                      shadowColor: this.state.reportNotesError
+                        ? "red"
+                        : "#FFDB0C",
+                      shadowOffset: {
+                        width: 0,
+                        height: 6,
+                      },
+                      fontSize: 20,
+                      shadowOpacity: 0.39,
+                      shadowRadius: 10,
+                    }}
+                    onFocus={() => {
+                      this.setState({ reportNotesSelected: true });
+                    }}
+                    onEndEditing={() => {
+                      this.setState({ reportNotesSelected: false });
+                    }}
+                    multiline
+                    value={this.state.reportNotes}
+                    autoCapitalize="none"
+                    onSubmitEditing={Keyboard.dismiss}
+                    onChangeText={(field) => {
+                      this.setState({ reportNotes: field });
+                    }}
+                  />
+                </Row>
+                <View style={{ alignItems: "center" }}>
+                  <Text style={{ fontWeight: "bold", fontSize: 17 }}>
+                    We will email you as soon as possible
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row" }}>
+                  <TouchableOpacity
+                    activeOpacity={0.6}
+                    style={{
+                      height: 50,
+                      width: (windowWidth - 20) / 2,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "red",
+                    }}
+                    onPress={() =>
+                      this.setState({
+                        reportModalViewer: false,
+                        reportDateTimestamp: 0,
+                        reportDate: "",
+                        reportNotes: "",
+                        reportNotesSelected: false,
+                        reportNotesError:false,
+                        reportDateError:false,
+                      })
+                    }
+                  >
+                    <Text style={{ fontSize: 25 }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.6}
+                    style={{
+                      height: 50,
+                      width: (windowWidth - 20) / 2,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "#4cBB17",
+                    }}
+                    onPress={() => {
+                      const reportDateError =
+                        this.state.reportDate == "" ? true : false;
+                      const reportNotesError =
+                        this.state.reportNotes == "" ? true : false;
+                      this.setState({ reportDateError, reportNotesError });
+                      if (!reportDateError && !reportNotesError) {
+                        this.setState({ loadingConfirmation: true });
+
+                        const body = `<div>
+                      <h3>Date Occurred:</h3>
+                      <div>${this.state.reportDate}</div>
+                      <h3>Tell Us What Happened:
+                      </h3>
+                      <div>${this.state.reportNotes}</div>
+                      <h3>Chat(Don't Change):</h3>
+                      <div>${this.state.thread}</div>
+                    </div>`;
+
+                        const saveOptions = {
+                          recipients: ["maskndafi@gmail.com"],
+                          subject: "DDE - Reporting an Issue",
+                          body: body,
+                          isHtml: true,
+                        };
+                        MailComposer.composeAsync(saveOptions).then(
+                          (object) => {
+                            this.setState({ loadingConfirmation: false });
+                            console.log(object);
+                            if (object.status == "sent") {
+                              this.setState({ reportedSuccess: true });
+                            } else {
+                              this.setState({ reportedSuccess: false });
+                            }
+                          }
+                        );
+                      }
+                    }}
+                  >
+                    <Text style={{ fontSize: 25 }}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </Grid>
+            )}
+          </Animated.View>
+        </TouchableWithoutFeedback>
+      </View>
+    );
+
+    const confirmModal = (
+      <View
+        // testID={"modal"}
+        // isVisible={true}
+        // // onBackdropPress={() => {this.props.togglePopupVisibility(false);}}
+        // animationIn="slideInUp"
+        // animationInTiming={500}
+        style={{
+          margin: 0,
+          alignItems: "center",
+          justifyContent: "center",
+          width: windowWidth,
+          height: windowHeight,
+          position: "absolute",
+          backgroundColor: "rgba(0,0,0,0.6)",
+        }}
+      >
+        <TouchableWithoutFeedback
+          onPress={() => {
+            this._payment(this.state.paymentDropdown, 30);
+            this._payment(
+              this.state.confirmModalHeight,
+              this.state.confirmOrderImageUris.length > 0 ? 430 : 380
+            );
+            setTimeout(() => {
+              this.setState({
+                confirmOrderError: {},
+                chosenPaymentOptions: [],
+                confirmOrderImageUris: [],
+                confirmModalViewer: false,
+                priceInputted: "",
+                noteInputted: "",
+              });
+            }, 51);
+          }}
+        >
+          <View
+            style={{
+              margin: 0,
+              alignItems: "center",
+              justifyContent: "center",
+              width: windowWidth,
+              height: windowHeight,
+              position: "absolute",
+            }}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <Animated.View
+                style={{
+                  width: windowWidth - 50,
+                  height: this.state.confirmModalHeight,
+                  marginTop:
+                    this.state.notes || this.state.priceInputtedSelected
+                      ? -200
+                      : 0,
+                  overflow: "hidden",
+                }}
+              >
+                {this.state.loadingConfirmation ? (
+                  <Loading borderRadius={75} />
+                ) : (
+                  <Grid
+                    style={{
+                      justifyContent: "flex-start",
+                      backgroundColor: "white",
+                      borderRadius: 75,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Row
+                      style={{
+                        justifyContent: "center",
+                        flexDirection: "col",
+                        alignItems: "center",
+                        height: 50,
+                      }}
+                    >
+                      <Text style={{ fontSize: 28, fontWeight: "bold" }}>
+                        Confirm Order
+                      </Text>
+                      <Text style={{ fontSize: 15 }}>
+                        {" "}
+                        To Buyer: {this.state.chattingUser}
+                      </Text>
+                    </Row>
+                    <Row
+                      style={{
+                        justifyContent: "center",
+                        height: 60,
+                        alignItems: "center",
+                        marginTop: 5,
+                        justifyContent: "space-between",
+                        paddingLeft: 20,
+                        paddingRight: 20,
+                        flexDirection: "row",
+                      }}
+                    >
+                      <Text style={{ fontSize: 20 }}>Confirm Price: </Text>
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
+                        <Text style={{ fontSize: 28 }}>$</Text>
+                        <View
+                          style={{
+                            flexDirection: "col",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: "gray",
+                              fontWeight: "700",
+                            }}
+                          >
+                            Actual Price
+                          </Text>
+                          <TextInput
+                            ref={(input) => {
+                              this.secondTextInput = input;
+                            }}
+                            keyboardType="numeric"
+                            style={{
+                              backgroundColor: "white",
+                              borderRadius: 4,
+                              padding: 8,
+                              paddingRight: 0,
+                              width: 75,
+                              borderWidth: 3,
+                              height: 50,
+                              borderColor: this.state.confirmOrderError
+                                .priceInputtedError
+                                ? "red"
+                                : "#FFDB0C",
+                              shadowColor: this.state.confirmOrderError
+                                .priceInputtedError
+                                ? "red"
+                                : "#FFDB0C",
+                              shadowOffset: {
+                                width: 0,
+                                height: 6,
+                              },
+                              fontSize: 20,
+                              shadowOpacity: 0.39,
+                              shadowRadius: 10,
+                            }}
+                            onFocus={() => {
+                              this.setState({
+                                priceInputted: "",
+                                priceInputtedSelected: true,
+                              });
+                            }}
+                            value={this.state.priceInputted}
+                            onEndEditing={() => {
+                              const actualPrice = parseFloat(
+                                this.state.priceInputted
+                              ).toFixed(2)
+                                .toString()
+                              this.setState({ priceInputtedSelected: false });
+                              if (
+                                this.state.priceInputted == "" ||
+                                isNaN(this.state.priceInputted)
+                              ) {
+                                this.setState({ priceInputted: "" });
+                              } else if (
+                                parseInt(this.state.priceInputted) < 1
+                              ) {
+                                this.setState({ priceInputted: "1" });
+                              } else if (
+                                parseInt(this.state.priceInputted) > 100
+                              ) {
+                                this.setState({ priceInputted: "80" });
+                              } else {
+                                this.setState({ priceInputted: actualPrice });
+                              }
+                            }}
+                            autoCapitalize="none"
+                            onSubmitEditing={Keyboard.dismiss}
+                            onChangeText={(field) => {
+                              if (parseInt(field) < 1) {
+                                this.setState({ priceInputted: "1" });
+                              } else if (parseInt(field) > 100) {
+                                this.setState({ priceInputted: "100" });
+                              } else {
+                                this.setState({ priceInputted: field });
+                              }
+                            }}
+                          />
+                        </View>
+                        {this.state.priceInputted != "" &&
+                          !isNaN(this.state.priceInputted) && (
+                            <View
+                              style={{
+                                marginLeft: 3,
+                                flexDirection: "col",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <View style={{ flexDirection: "row" }}>
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    color: "gray",
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  New Price
+                                </Text>
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    this.setState({
+                                      confirmOrderInfo: true,
+                                      priceInputtedSelected: false,
+                                      notes: false,
+                                    })
+                                  }
+                                >
+                                  <Entypo
+                                    name="info-with-circle"
+                                    size={12}
+                                    color="black"
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                              <TextInput
+                                keyboardType="numeric"
+                                style={{
+                                  backgroundColor: "white",
+                                  borderRadius: 4,
+                                  padding: 8,
+                                  paddingRight: 0,
+                                  width: 75,
+                                  color: "gray",
+                                  borderWidth: 3,
+                                  height: 50,
+                                  borderColor: this.state.confirmOrderError
+                                    .priceInputtedError
+                                    ? "red"
+                                    : "#FFDB0C",
+                                  shadowColor: this.state.confirmOrderError
+                                    .priceInputtedError
+                                    ? "red"
+                                    : "#FFDB0C",
+                                  shadowOffset: {
+                                    width: 0,
+                                    height: 6,
+                                  },
+                                  fontSize: 20,
+                                  shadowOpacity: 0.39,
+                                  shadowRadius: 10,
+                                }}
+                                onFocus={() => {
+                                  this.setState({
+                                    priceInputted: "",
+                                    priceInputtedSelected: true,
+                                  });
+                                }}
+                                value={(
+                                  parseFloat(this.state.priceInputted) * 0.8
+                                )
+                                  .toFixed(2)
+                                  .toString()}
+                                onEndEditing={() => {
+                                  const actualPrice = (
+                                    parseFloat(this.state.priceInputted) * 0.8
+                                  )
+                                    .toFixed(2)
+                                    .toString();
+                                  this.setState({
+                                    priceInputtedSelected: false,
+                                  });
+                                  if (isNaN(this.state.priceInputted)) {
+                                    this.setState({ priceInputted: "" });
+                                  } else if (
+                                    parseInt(this.state.priceInputted) < 1
+                                  ) {
+                                    this.setState({ priceInputted: "1" });
+                                  } else if (
+                                    parseInt(this.state.priceInputted) > 100
+                                  ) {
+                                    this.setState({ priceInputted: "80" });
+                                  } else {
+                                    this.setState({
+                                      priceInputted: isNaN(
+                                        this.state.priceInputted
+                                      )
+                                        ? ""
+                                        : actualPrice,
+                                    });
+                                  }
+                                }}
+                                autoCapitalize="none"
+                                onSubmitEditing={Keyboard.dismiss}
+                                onChangeText={(field) => {
+                                  if (parseInt(field) < 1) {
+                                    this.setState({ priceInputted: "1" });
+                                  } else if (parseInt(field) > 100) {
+                                    this.setState({ priceInputted: "100" });
+                                  } else {
+                                    this.setState({ priceInputted: field });
+                                  }
+                                }}
+                                editable={false}
+                              />
+                            </View>
+                          )}
+                      </View>
+                    </Row>
+                    <Animated.View
+                      style={{
+                        justifyContent: "center",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        width: windowWidth - 50,
+                        paddingRight: 80,
+                        paddingLeft: 20,
+                        height: this.state.paymentDropdown,
+                        marginTop: 5,
+                        flexDirection: "row",
+                      }}
+                    >
+                      <View
+                        style={{
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 25 }}>Payment: </Text>
+                      </View>
+                      <DropDownPicker
+                        onOpen={() => {
+                          this.setState({ openedDropdown: true });
+                          Keyboard.dismiss();
+                          this._payment(
+                            this.state.paymentDropdown,
+                            this.state.yourPaymentOptionsLength == 0
+                              ? 75
+                              : this.state.yourPaymentOptionsLength == 2
+                              ? 100
+                              : this.state.yourPaymentOptionsLength == 3
+                              ? 130
+                              : 165
+                          );
+                          this._payment(
+                            this.state.confirmModalHeight,
+                            this.state.yourPaymentOptionsLength == 0
+                              ? this.state.confirmOrderImageUris.length > 0
+                                ? 430
+                                : 380
+                              : this.state.yourPaymentOptionsLength == 2
+                              ? this.state.confirmOrderImageUris.length > 0
+                                ? 480
+                                : 440
+                              : this.state.yourPaymentOptionsLength == 3
+                              ? this.state.confirmOrderImageUris.length > 0
+                                ? 520
+                                : 480
+                              : this.state.confirmOrderImageUris.length > 0
+                              ? 565
+                              : 515
+                          );
+                        }}
+                        onClose={() => {
+                          Keyboard.dismiss();
+                          this.setState({ openedDropdown: false });
+                          this._payment(this.state.paymentDropdown, 30);
+                          this._payment(
+                            this.state.confirmModalHeight,
+                            this.state.confirmOrderImageUris.length > 0
+                              ? 430
+                              : 380
+                          );
+                        }}
+                        style={{
+                          width: 180,
+                          borderTopLeftRadius: 20,
+                          borderTopRightRadius: 20,
+                          borderBottomLeftRadius: 20,
+                          borderBottomRightRadius: 20,
+                          borderColor: this.state.confirmOrderError
+                            .paymentOptionsError
+                            ? "red"
+                            : "gray",
+                          borderWidth: this.state.confirmOrderError
+                            .paymentOptionsError
+                            ? 3
+                            : 1,
+                        }}
+                        items={[...this.state.yourPaymentOptions]}
+                        min={1}
+                        max={5}
+                        multiple
+                        multipleText="%d items have been selected."
+                        placeholder={"Select 1+"}
+                        arrowStyle={{
+                          alignItems: "center",
+                          justifyContent: "center",
+                          height: 30,
+                        }}
+                        defaultValue={this.state.chosenPaymentOptions}
+                        containerStyle={{
+                          height: 30,
+                          numberOfLines: 1,
+                          width: 180,
+                        }}
+                        onChangeItem={async (items) => {
+                          console.log(
+                            "before ",
+                            this.state.chosenPaymentOptions
+                          );
+                          console.log("items ", items);
+                          var selectAll = false;
+                          var values = [];
+                          // if(this.state.chosenPaymentOptions.length == this.state.yourPaymentOptionsLength){
+                          //   for(var i = 0; i < this.state.chosenPaymentOptions.length; i++){
+                          //     if(items[i] == 0){continue}
+                          //     const exist = false
+                          //     for(var j = 0; j < items.length;j++){
+                          //       if(items[j] == this.state.chosenPaymentOptions[i]){
+                          //         exist = true
+                          //         break;
+                          //       }
+                          //     }
+                          //     if(!exist){
+                          //       var chosenPaymentOptions = this.state.chosenPaymentOptions
+                          //       chosenPaymentOptions = chosenPaymentOptions.splice(i,1)
+                          //       for(var k = 0; k < chosenPaymentOptions.length; k++){
+                          //         if(chosenPaymentOptions[k] == 0){
+                          //           chosenPaymentOptions.splice(k,1)
+                          //         }
+                          //       }
+                          //       this.setState({chosenPaymentOptions})
+                          //     }
+                          //   }
+                          // }
+                          for (var i = 0; i < items.length; i++) {
+                            if (items[i] == 0) {
+                              selectAll = true;
+                              console.log(
+                                "payment ",
+                                this.state.yourPaymentOptions
+                              );
+                              values = [
+                                ...this.state.yourPaymentOptions.map(
+                                  (x) => x.value
+                                ),
+                              ];
+                              console.log("values ", values);
+                              this.setState({ chosenPaymentOptions: values });
+                              return;
+                            }
+                          }
+                          for (
+                            var i = 0;
+                            i < this.state.chosenPaymentOptions.length;
+                            i++
+                          ) {
+                            if (this.state.chosenPaymentOptions[i] == 0) {
+                              this.setState({ chosenPaymentOptions: [] });
+                              return;
+                            }
+                          }
+
+                          this.setState({ chosenPaymentOptions: items });
+                        }}
+                      />
+                    </Animated.View>
+                    <Row
+                      style={{
+                        alignItems: "flex-start",
+                        flexDirection: "row",
+                        width: windowWidth - 50,
+                        paddingHorizontal: 20,
+                        marginTop: 10,
+                        height: 30,
+                      }}
+                    >
+                      <Text style={{ fontSize: 25 }}>Proof of Price: </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setTimeout(() => {
+                            this.setState({
+                              priceInputtedSelected: false,
+                              notes: false,
+                              confirmOrderImageUris: [],
+                              uploadImagesVisible: true,
+                            });
+                          }, 51);
+                        }}
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <AntDesign name="upload" size={24} color="black" />
+                        {this.state.confirmOrderError.proofOfImagesError && (
+                          <View
+                            style={{ justifyContent: "center", marginLeft: 5 }}
+                          >
+                            <Text
+                              numberOfLines={2}
+                              style={{
+                                color: "red",
+                                fontSize: 17,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              Select 1+{" "}
+                            </Text>
+                            <Text
+                              style={{
+                                color: "red",
+                                fontSize: 17,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              Images
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </Row>
+                    {this.state.confirmOrderImageUris.length > 0 && (
+                      <Row
+                        style={{
+                          height: 50,
+                          width: windowWidth - 50,
+                          paddingHorizontal: 20,
+                        }}
+                      >
+                        <ScrollView
+                          persistentScrollbar={true}
+                          horizontal={true}
+                          alwaysBounceHorizontal={true}
+                        >
+                          <TouchableOpacity
+                            style={{
+                              justifyContent: "center",
+                              alignItems: "center",
+                              marginRight: 5,
+                            }}
+                            onPress={() =>
+                              this.setState({ confirmOrderImageUris: [] })
+                            }
+                          >
+                            <MaterialCommunityIcons
+                              name="cancel"
+                              size={35}
+                              color="red"
+                            />
+                          </TouchableOpacity>
+                          {this.state.confirmOrderImageUris.map((x, i) => (
+                            <TouchableOpacity
+                              onPress={() =>
+                                this.setState({
+                                  index: i,
+                                  showImageViewer: true,
+                                })
+                              }
+                            >
+                              <Image
+                                style={{
+                                  width: 50,
+                                  height: 50,
+                                  marginRight: 10,
+                                  borderRadius: 15,
+                                  borderWidth: 3,
+                                  borderColor: "#FFDB0C",
+                                }}
+                                source={{ uri: x }}
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </Row>
+                    )}
+                    <Row
+                      style={{
+                        alignItems: "flex-start",
+                        flexDirection: "col",
+                        width: windowWidth - 50,
+                        paddingHorizontal: 20,
+                        marginTop: 5,
+                      }}
+                    >
+                      <Text style={{ fontSize: 20 }}>Notes: </Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: "white",
+                          justifyContent: "flex-start",
+                          alignItems: "flex-start",
+                          borderRadius: 4,
+                          paddingHorizontal: 8,
+                          height: 100,
+                          width: windowWidth - 90,
+                          borderWidth: 3,
+                          borderColor: "#FFDB0C",
+                          shadowColor: "#FFDB0C",
+                          shadowOffset: {
+                            width: 0,
+                            height: 6,
+                          },
+                          fontSize: 20,
+                          shadowOpacity: 0.39,
+                          shadowRadius: 10,
+                        }}
+                        onFocus={() => {
+                          this.setState({ notes: true });
+                        }}
+                        onEndEditing={() => {
+                          this.setState({ notes: false });
+                        }}
+                        multiline
+                        value={this.state.noteInputted}
+                        autoCapitalize="none"
+                        onSubmitEditing={Keyboard.dismiss}
+                        onChangeText={(field) => {
+                          this.setState({ noteInputted: field });
+                        }}
+                      />
+                    </Row>
+
+                    {/* <View style={{ position: "absolute", right: 0, top: 30 }}>
               <TouchableOpacity onPress={() => this.handleImageViewer(0, true)}>
-                <AntDesign name="close" size={35} color="white" />
+                <AntDesign name="close" size={35} color="black" />
               </TouchableOpacity>
-            </View>
-            <View style={{ flexDirection: "row" }}>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                style={{
-                  height: 50,
-                  width: (windowWidth - 50) / 2,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: "red",
-                }}
-                onPress={() => {
-                  this.setState({
-                    chosenPaymentOptions: [],
-                    confirmModalViewer: false,
-                    priceInputted: "",
-                    noteInputted: "",
-                  });
-                  this._payment(this.state.paymentDropdown, 30);
-                  this._payment(this.state.confirmModalHeight, 330);
-                }}
-              >
-                <Text style={{ fontSize: 25 }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                style={{
-                  height: 50,
-                  width: (windowWidth - 50) / 2,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: "#4cBB17",
-                }}
-                onPress={() => {
-                  const priceInputtedInvalid =
-                    this.state.priceInputted == "" ? true : false;
-                  const paymentOptionsInvalid =
-                    this.state.chosenPaymentOptions.length == 0 ? true : false;
-                  const confirmOrderError = this.state.confirmOrderError;
-                  confirmOrderError.priceInputtedError = priceInputtedInvalid;
-                  confirmOrderError.paymentOptionsError = paymentOptionsInvalid;
-                  this.setState({ confirmOrderError });
-                  if (!priceInputtedInvalid && !paymentOptionsInvalid) {
-                    this.send(this.state.user, "");
-                    this.setState({
-                      chosenPaymentOptions: [],
-                      confirmModalViewer: false,
-                      priceInputted: "",
-                      noteInputted: "",
-                    });
-                  this._payment(this.state.paymentDropdown, 30);
-                  this._payment(this.state.confirmModalHeight, 330);
-                  }
-                }}
-              >
-                <Text style={{ fontSize: 25 }}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </Grid>
-        </Animated.View>
-      </Modal>
+            </View> */}
+                    <View style={{ flexDirection: "row" }}>
+                      <TouchableOpacity
+                        activeOpacity={0.6}
+                        style={{
+                          height: 50,
+                          width: (windowWidth - 50) / 2,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: "red",
+                        }}
+                        onPress={() => {
+                          this._payment(this.state.paymentDropdown, 30);
+                          this._payment(
+                            this.state.confirmModalHeight,
+                            this.state.confirmOrderImageUris.length > 0
+                              ? 430
+                              : 380
+                          );
+                          setTimeout(() => {
+                            this.setState({
+                              confirmOrderError: {},
+                              chosenPaymentOptions: [],
+                              confirmOrderImageUris: [],
+                              confirmModalViewer: false,
+                              confirmPhotoCallback:false,
+                              priceInputted: "",
+                              noteInputted: "",
+                            });
+                          }, 51);
+                        }}
+                      >
+                        <Text style={{ fontSize: 25 }}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.6}
+                        style={{
+                          height: 50,
+                          width: (windowWidth - 50) / 2,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: "#4cBB17",
+                        }}
+                        onPress={() => {
+                          this._payment(this.state.paymentDropdown, 30);
+                          this._payment(
+                            this.state.confirmModalHeight,
+                            this.state.confirmOrderImageUris.length > 0
+                              ? 430
+                              : 380
+                          );
+                          const priceInputtedInvalid =
+                            this.state.priceInputted == "" ? true : false;
+                          const paymentOptionsInvalid =
+                            this.state.chosenPaymentOptions.length == 0
+                              ? true
+                              : false;
+                          const proofOfImagesInvalid =
+                            this.state.confirmOrderImageUris.length == 0
+                              ? true
+                              : false;
+                          const confirmOrderError = this.state
+                            .confirmOrderError;
+                          confirmOrderError.priceInputtedError = priceInputtedInvalid;
+                          confirmOrderError.paymentOptionsError = paymentOptionsInvalid;
+                          confirmOrderError.proofOfImagesError = proofOfImagesInvalid;
+                          this.setState({ confirmOrderError });
+                          if (
+                            !priceInputtedInvalid &&
+                            !paymentOptionsInvalid &&
+                            !proofOfImagesInvalid
+                          ) {
+                            this.setState({ loadingConfirmation: true });
+                            const imageUris = this.state.confirmOrderImageUris;
+                            const uriToBlobPromises = [];
+                            const uploadToFirebasePromises = [];
+                            const getDownloadURLPromises = [];
+                            for (var i = 0; i < imageUris.length; i++) {
+                              const uri = imageUris[i];
+                              uriToBlobPromises.push(
+                                this.uriToBlob(uri, i).then((blob) => {
+                                  const name = this.generateRandomString();
+                                  uploadToFirebasePromises.push(
+                                    this.uploadToFirebase(blob, name).then(
+                                      (snapshot) => {
+                                        getDownloadURLPromises.push(
+                                          snapshot.ref
+                                            .getDownloadURL()
+                                            .then((url) => {
+                                              var message = {
+                                                text: "",
+                                                image: url,
+                                                read: this.state
+                                                  .otherChatterOnline,
+                                                timestamp: this.timestamp(),
+                                                user: {
+                                                  _id: firebase.auth()
+                                                    .currentUser.uid,
+                                                },
+                                              };
+
+                                              //1 console.log("message", message);
+                                              this.append(message);
+                                            })
+                                        );
+                                      }
+                                    )
+                                  );
+                                })
+                              );
+                            }
+                            Promise.all(uriToBlobPromises).then(() => {
+                              Promise.all(uploadToFirebasePromises).then(
+                                async () => {
+                                  Promise.all(getDownloadURLPromises).then(
+                                    () => {
+                                      this.send(this.state.user, "");
+                                      this.setState({
+                                        confirmOrderImageUris: [],
+                                        chosenPaymentOptions: [],
+                                        confirmModalViewer: false,
+                                        confirmPhotoCallback:false,
+                                        loadingConfirmation: false,
+                                        priceInputted: "",
+                                        noteInputted: "",
+                                      });
+                                    }
+                                  );
+                                  //1 console.log("Hi there");
+                                }
+                              );
+                            });
+                          }
+                        }}
+                      >
+                        <Text style={{ fontSize: 25 }}>Confirm</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Grid>
+                )}
+              </Animated.View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
     );
 
     if (Platform.OS === "android") {
@@ -2465,7 +3704,9 @@ onLoadingEarlier = async () => {
           {mainContent}
           {this.state.showImageViewer && imageModel}
           {this.state.confirmModalViewer && confirmModal}
+          {this.state.reportModalViewer && reportModal}
           {this.state.possibleProfitVisible && this.possibleProfit()}
+          {this.state.confirmOrderInfo && this.confirmOrderInfo()}
         </KeyboardAvoidingView>
       );
     } else {
@@ -2475,7 +3716,9 @@ onLoadingEarlier = async () => {
           {mainContent}
           {this.state.showImageViewer && imageModel}
           {this.state.confirmModalViewer && confirmModal}
+          {this.state.reportModalViewer && reportModal}
           {this.state.possibleProfitVisible && this.possibleProfit()}
+          {this.state.confirmOrderInfo && this.confirmOrderInfo()}
         </SafeAreaView>
       );
     }

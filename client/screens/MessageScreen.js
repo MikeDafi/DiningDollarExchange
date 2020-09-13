@@ -58,7 +58,9 @@ export default class MessageScreen extends React.Component {
     const domain = ((user || {}).email || "").substring(start, end);
     const email = ((user || {}).email || "").substring(0, end);
     await this.setState({ page: index });
-    this.getUpdatedList(this.state.textSearchInput)
+    if(this.state.textSearchInput != ""){
+    this.getUpdatedList(this.state.textSearchInput,index)
+    }
 
     firebase
       .database()
@@ -266,18 +268,18 @@ export default class MessageScreen extends React.Component {
   //     callback
   //   )
 
-    try {
-      const { uri } = await FileSystem.downloadAsync(
-              url,
-      FileSystem.documentDirectory  + "otherChattersProfileImages/" + name + ".png",
-      {},
-      callback
-      );
-      //1 console.log('Finished downloading to ', uri);
-      return uri;
-    } catch (e) {
-      console.error(e);
-    }
+        try {
+          const { uri } = await FileSystem.downloadAsync(
+                  url,
+          FileSystem.documentDirectory  + "otherChattersProfileImages/" + name + ".png",
+          {},
+          callback
+          );
+          //1 console.log('Finished downloading to ', uri);
+          return uri;
+        } catch (e) {
+          console.error(e);
+        }
 
 
     // try {
@@ -320,6 +322,51 @@ export default class MessageScreen extends React.Component {
     this.ref().child("seller").off();
   }
 
+
+infoModal = () =>{
+    return(
+      <View style={{width:windowWidth,height:windowHeight,justifyContent:"center",alignItems:"center",backgroundColor:"rgba(0,0,0,0.8)",position:"absolute"}}>
+        <View style={{width:windowWidth - 50,height:300,backgroundColor: "white",borderRadius:50,justifyContent:'space-between'}}>
+              <View style={{alignItems:"center"}}>
+              <Text style={{fontSize:20,fontWeight:"bold"}}>{this.state.buyerInfoVisible ? "What Buyer Means?" : "What Seller Means"}</Text>   
+              </View>
+            <View style={{alignItems:"center"}}>
+              {this.state.buyerInfoVisible ?
+                <View style={{marginTop:5}}>
+                <Text style={{fontSize:17}}>As Buyer, you pay 80% of any food you want in cash.</Text>
+                <Text style={{fontSize:13}}>1. Make a "Buy Now" Request with images of Order</Text>
+                <Text style={{fontSize:13}}>2. Seller will Accept and Confirm Order in your Messages.</Text>
+                <Text style={{fontSize:13}}>3. Pay Seller 80% of actual price. Go pick up your food!</Text>
+                </View>
+              :
+              
+                <View style={{marginTop:5}}>
+                <Text style={{fontSize:17}}>As Seller, You pay for the Buyer's meal. Buyer pays you 80% back. Better than 50% by UCSD's rate.</Text>
+                <Text style={{fontSize:13}}>1. Accept an order in Seller Home Screen</Text>
+                <Text style={{fontSize:13}}>2. Prepare to buy Order on Grubhub then Confirm Order Price with Buyer in Messages.</Text>
+                <Text style={{fontSize:13}}>3. Wait for Buyer to Pay you, then purchase Meal</Text>
+                </View>
+              }
+            </View>
+                              <TouchableOpacity
+            onPress={() => this.setState({ buyerInfoVisible: false,sellerInfoVisible:false })}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.2,
+                height: 50,
+                borderColor: "gray",
+              }}
+            >
+              <Text>Dismiss</Text>
+            </View>
+          </TouchableOpacity>
+          </View>
+      </View>
+    )
+  }
   displayTime = (thread) => {
     const dayOfTheWeek = [
       "Sunday",
@@ -381,13 +428,13 @@ export default class MessageScreen extends React.Component {
     }).start();
   };
 
-  getUpdatedList = async (textUnedited) => {
+  getUpdatedList = async (textUnedited,page) => {
     const user = firebase.auth().currentUser || {};
     const start = ((user || {}).email || "").indexOf("@");
     const end = ((user || {}).email || "").indexOf(".com");
     const domain = ((user || {}).email || "").substring(start, end);
     const email = ((user || {}).email || "").substring(0, end);
-    if(this.state.page == 0){
+    if(page == 0){
       this.setState({loadingBuyer : true})
     }else{
       this.setState({loadingSeller : true})
@@ -396,7 +443,7 @@ export default class MessageScreen extends React.Component {
 
       if(this.state.textSearchInput == textUnedited){
         const text = textUnedited.toLowerCase();
-        if(this.state.page == 0){
+        if(page == 0){
           // //1 console.log("page 0",text.length)
           if(this.state.beforeBuyerSearchList == undefined){
             await this.setState({beforeBuyerSearchList : this.state.threadsBuyer})
@@ -420,14 +467,14 @@ export default class MessageScreen extends React.Component {
           return
         }
 
-        var currentArray = this.state.page == 0 ? clone(this.state.beforeBuyerSearchList) : clone(this.state.beforeSellerSearchList)
+        var currentArray = page == 0 ? clone(this.state.beforeBuyerSearchList) : clone(this.state.beforeSellerSearchList)
         const currentArrayLength = currentArray.length
         var currentArray = Object.assign({},currentArray);
-        // //1 console.log("page ",this.state.page)
+        // //1 console.log("page ",page)
         const promises = []
         for(var i = 0; i < currentArrayLength; i++){
           var path = "/chats/" + domain + "/" 
-          if(this.state.page == 0){
+          if(page == 0){
             path += email + currentArray[[i]].otherChatterEmail
           }else{
             path += currentArray[[i]].otherChatterEmail + email
@@ -463,7 +510,7 @@ export default class MessageScreen extends React.Component {
         currentArray = Object.values(currentArray).sort(function(a, b) {
           return b["timestamp"] - a["timestamp"];
         });
-        if(this.state.page == 0){
+        if(page == 0){
           await this.setState({threadsBuyer : currentArray,loadingBuyer : false})
         }else{
           await this.setState({threadsSeller : currentArray,loadingSeller:false})
@@ -527,14 +574,14 @@ export default class MessageScreen extends React.Component {
                     width:this.state.searchInputValue ? windowWidth - 170 : windowWidth - 100,
                     height:40}}
                 value={this.state.textSearchInput}
-                onChangeText={async (text) => {this.setState({textSearchInput : text});this.getUpdatedList(text)}}
+                onChangeText={async (text) => {this.setState({textSearchInput : text});this.getUpdatedList(text,this.state.page)}}
                 numberOfLines={1} 
                 placeholder="Search"/>
             </Animated.View>
           <TouchableWithoutFeedback 
-            onPressIn={() => {this.setState({clearSearch : true,textSearchInput: ""});this.getUpdatedList("")}}
+            onPressIn={() => {this.setState({clearSearch : true,textSearchInput: ""});this.getUpdatedList("",this.state.page)}}
             onPressOut={() => this.setState({clearSearch : false})}
-            onPress={() => {this.setState({clearSearch : false,textSearchInput:""});this.getUpdatedList("")}}>
+            onPress={() => {this.setState({clearSearch : false,textSearchInput:""});this.getUpdatedList("",this.state.page)}}>
             <View style={{borderRadius:50}}>
             <MaterialIcons name="cancel" size={24} color={this.state.clearSearch ? "black" : "gray"} />
             </View>
@@ -543,7 +590,7 @@ export default class MessageScreen extends React.Component {
         <TouchableOpacity onPress={() => 
                         {Keyboard.dismiss();
                         this.setState({searchInputFocus : false,textSearchInput : ""});    
-                        this.getUpdatedList("")                    
+                        this.getUpdatedList("",this.state.page)                    
                         this._close(this.state.searchInputValue,windowWidth - 30)
                         this._close(this.state.textInputValue,windowWidth - 100)}}>
           <View style={{paddingLeft:this.state.searchInputFocus ? 7 : 15}}>
@@ -552,6 +599,14 @@ export default class MessageScreen extends React.Component {
         </TouchableOpacity>
       </Animated.View>
     )
+  }
+    setInfoModal = (buyer) => {
+    if(buyer == 0){
+      
+      this.setState({buyerInfoVisible:true})
+    }else{
+      this.setState({sellerInfoVisible:true})
+    }
   }
 
   render() {
@@ -584,14 +639,16 @@ export default class MessageScreen extends React.Component {
           blackBackground={false}
           setPage={this.setPage}
           page={this.state.page}
+          setInfoModal={this.setInfoModal}
           togglePopupVisibility={this.togglePopupVisibility}
         />
         <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}>
           <Text style={{ fontSize: 50, fontWeight: "bold" }}>Chats</Text>
           <TouchableWithoutFeedback
             // onPressOut={() => this._close()}
-            onPress={() => {this.setState({openedSearch:!this.state.openedSearch,textSearchInput : "",searchInputFocus : false});
-                           this.state.openedSearch ? (this._close(this.state.searchPressIn,0),this.getUpdatedList("")) :this._start(this.state.searchPressIn,65);
+            onPress={() => {
+                           this.state.openedSearch ? (this._close(this.state.searchPressIn,0),this.getUpdatedList("",0),this.getUpdatedList("",1)) :this._start(this.state.searchPressIn,65);
+                           this.setState({openedSearch:!this.state.openedSearch,textSearchInput : "",searchInputFocus : false});
                            this._close(this.state.searchInputValue,windowWidth - 30)
                            this._close(this.state.textInputValue,windowWidth - 100) }}>
             <View style={{
@@ -840,6 +897,7 @@ export default class MessageScreen extends React.Component {
           popupVisible={this.state.popupVisible}
           togglePopupVisibility={this.togglePopupVisibility}
         />
+        {(this.state.buyerInfoVisible || this.state.sellerInfoVisible) && this.infoModal()}
       </View>
     );
   }

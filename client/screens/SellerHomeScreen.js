@@ -41,11 +41,11 @@ export default class SellerHomeScreen extends React.Component {
 
     componentDidMount(){
         const user = firebase.auth().currentUser;
-        const start = user.email.indexOf("@");
-        const end = user.email.indexOf(".com");
-        const domain = user.email.substring(start, end);
+        const start = (user || {}).email.indexOf("@");
+        const end = (user || {}).email.indexOf(".com");
+        const domain = (user || {}).email.substring(start, end);
         firebase.database().ref("orders/"+domain +"/currentOrders").on("value", async (orderSnapshot) =>{
-            var orders = this.state.orders
+            var oldOrders = this.state.orders
             const numbOfOrders = (Object.keys(orderSnapshot)).length
             //1 console.log("row " , windowWidth/50)
             //1 console.log("col ", (windowHeight - 300)/50)
@@ -62,17 +62,16 @@ export default class SellerHomeScreen extends React.Component {
             const shouldBeKept = {}
             const shouldBeDeleted = []
             var count = 0 
+            var orders = {}
             //1 console.log("orders",orders )
             orderSnapshot.forEach(element => {
                 count+=1
                 //1 console.log("KEY ", element.key)
-                const date = new Date().getTime + 60000
-                const difference = ((this.state.timestamp - date) >= 0) ? true : false
-                if(count <=30 && !(element.key in orders) && difference){
+                if(count <=30){
                   var timeSelected = element.val().timeSelected
                   timeSelected = timeSelected.toString(10).substring(0,13)
                     const stillExists = parseInt(timeSelected) - new Date().getTime() + 60000
-                    //1 console.log(stillExists)
+                  console.log(stillExists)
                     if(stillExists > 0 && element.val().status == "searching" ){
                         var randomX,randomY
                         shouldBeKept[[element.key]] = true
@@ -108,6 +107,14 @@ export default class SellerHomeScreen extends React.Component {
                     }
                 }
             });
+
+            const oldOrdersKeys = Object.keys(oldOrders)
+            for(var i = 0; i < oldOrdersKeys.length;i++){
+              if(oldOrdersKeys[i] in orders){
+                orders[[oldOrdersKeys[i]]] = oldOrders[[oldOrdersKeys[i]]]
+              }
+            }
+
             this.setState({orders,multiArray})
             let viewedOrders = await AsyncStorage.getItem('viewedOrders')
             viewedOrders = JSON.parse(viewedOrders);
@@ -156,7 +163,7 @@ export default class SellerHomeScreen extends React.Component {
         }}
         style={styles.container}>
         <ImageBackground
-          source={require("../assets/SellerHomeScreenBackground.png")}
+          source={require("../assets/SellerHomeScreenBackground.jpg")}
           style={[styles.image]}
         >
           {/* <View style={{position:"absolute",left:100,top:100,width:75,height:75,backgroundColor:"red"}}> */}

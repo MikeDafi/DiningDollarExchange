@@ -177,7 +177,7 @@ export default class ProfileScreenModal extends React.Component {
   checkCredentials = async () => {
     var user = firebase.auth().currentUser;
     var credential = firebase.auth.EmailAuthProvider.credential(
-      user.email, // references the user's email address
+      (user || {}).email, // references the user's email address
       this.state.password.oldPassword
     );
 
@@ -287,7 +287,7 @@ export default class ProfileScreenModal extends React.Component {
     var auth = firebase.auth();
     this.setState({ loading: true });
     auth
-      .sendPasswordResetEmail(auth.currentUser.email)
+      .sendPasswordResetEmail(auth.current(user || {}).email)
       .then(() => {
         const password = this.state.password;
         password["verified"] = true;
@@ -496,10 +496,10 @@ export default class ProfileScreenModal extends React.Component {
                       } else if (this.props.modal.title == "Delete Account") {
                 
                         const user = firebase.auth().currentUser;
-                        const start = user.email.indexOf("@");
-                        const end = user.email.indexOf(".com");
-                        const domain = user.email.substring(start, end);
-                        const email = user.email.substring(0, end);
+                        const start = (user || {}).email.indexOf("@");
+                        const end = (user || {}).email.indexOf(".com");
+                        const domain = (user || {}).email.substring(start, end);
+                        const email = (user || {}).email.substring(0, end);
                         user
                           .delete()
                           .then(function () {

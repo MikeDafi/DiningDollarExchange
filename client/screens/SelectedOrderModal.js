@@ -43,11 +43,12 @@ const windowHeight = Dimensions.get("window").height;
 
 export default class SelectedOrderModal extends React.Component {
   state = {
+    carouselAnimatedHeight : new Animated.Value(0),
     animatedWidth: new Animated.Value(0),
     animatedHeight: new Animated.Value(0),
     searching: true,
     rangeSelected: "",
-    timeStillAvailable : 0,
+    timeStillAvailable : false,
     timeSelected: "",
     timestamp : 0,
     amOrPm: "",
@@ -74,12 +75,14 @@ export default class SelectedOrderModal extends React.Component {
     this.orderRef().once("value", async (snapshot) => {
       const order = snapshot.val();
       const user = firebase.auth().currentUser;
-      const end = user.email.indexOf(".com");
-      const email = user.email.substring(0, end);
-      const date = new Date().getTime + 60000
-      const difference = ((this.state.timestamp - date) >= 0) ? true : false
-      this.setState({timeStillAvailable : difference})
-      if (order.status == "searching" && this.state.buyerEmail != email && difference) {
+      const end = (user || {}).email.indexOf(".com");
+      const email = (user || {}).email.substring(0, end);
+                  const timestamp = this.state.timestamp.toString(10).substring(0,13)
+                  const stillExists = parseInt(timestamp) - new Date().getTime() + 60000
+                  console.log("timeSelected ",timestamp)
+                  console.log("stillExists ",stillExists)
+      this.setState({timeStillAvailable : stillExists > 0 ? true : false})
+      if ((order || {}).status == "searching" && this.state.buyerEmail != email && stillExists > 0) {
         this.setState({ modalOn: false, acceptedOrderVisible: true });
         const name = "";
         const myUser = firebase
@@ -145,6 +148,10 @@ export default class SelectedOrderModal extends React.Component {
           .ref("/chats/" + domain + "/" + order.buyer + myUser + "/")
           .update({ [buyerSentMessage]: true });
 
+        firebase.database().ref("users/" + domain + "/" + order.buyer + "/pendingOrders/" + this.props.navigation.state.params.orderNumber).update({
+          status:"in-progress"
+        })
+
         const path = "/chats/" + domain + "/" + order.buyer + myUser + "/chat";
         for (var i = 0; i < this.state.imageNames.length; i++) {
           // //1 console.log("length ",notification.data.data.imageNames.length)
@@ -154,7 +161,7 @@ export default class SelectedOrderModal extends React.Component {
           ////1 console.log("BEFORE")
           var message = {
             text: "",
-            image: this.state.imageUrls[i].url,
+            image: this.state.imageUrls[i].actualUrl,
             timestamp: this.timestamp(),
             user: { _id: this.props.navigation.state.params.BuyerUid },
           };
@@ -303,7 +310,7 @@ export default class SelectedOrderModal extends React.Component {
           timestamp : order.timeSelected,
           rangeSelected: order.rangeSelected,
           imageNames: order.imageNames,
-          imageUrls: order.imageUrls || [],
+          imageUrls:order.imageUrls || [],
           buyerEmail: order.buyer,
         });
         const promises = [];
@@ -328,6 +335,8 @@ export default class SelectedOrderModal extends React.Component {
                 if (!otherChattersProfileImages) {
                   otherChattersProfileImages = {};
                 }
+                console.log("otherChattersProfileImages[[otherChatterEmail]].url ",otherChattersProfileImages[[otherChatterEmail]])
+                console.log("snapshot.val().profileImageUrl ",snapshot.val().profileImageUrl)
 
                 if (
                   otherChattersProfileImages[[otherChatterEmail]] ==
@@ -410,53 +419,62 @@ export default class SelectedOrderModal extends React.Component {
         //1   "this order ",
         //1   viewedOrders[[this.props.navigation.state.params.orderNumber]]
         //1 );
+        console.log("order.imageNames ",order.imageNames)
+        console.log("allExist ", allImagesExist)
         const imageUrls = this.state.imageUrls;
         if (!allImagesExist) {
-          order.imageNames.map((name) => {
-            promises.push(
-              firebase
-                .storage()
-                .ref(
-                  `/tempPhotos/${domain}/${order.buyer}/processingOrders/${this.props.navigation.state.params.orderNumber}/${name}.jpg`
-                )
-                .getDownloadURL()
-                .then(async (foundURL) => {
-                  //1 console.log("foundURL ", foundURL);
-                  //1 console.log(
-                  //1   "viewedorders...[[name]] ",
-                  //1   viewedOrders[
-                  //1     [this.props.navigation.state.params.orderNumber]
-                  //1   ][[name]]
-                  //1 );
+          order.imageNames.map((url) => {
+
+
+                  const name = url.substring(url.length - 20,url.length)
+                //   console.log("name" ,name)
+                //   console.log("this.props.navigation.state.params.orderNumber ",this.props.navigation.state.params.orderNumber)
+                //  console.log("               viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]].uri",viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]])
                   if (
                     !viewedOrders[
                       [this.props.navigation.state.params.orderNumber]
-                    ][[name]]
+                    ][[name]] ||
+                                        !viewedOrders[
+                      [this.props.navigation.state.params.orderNumber]
+                    ][[name]].uri
                   ) {
-                    const uri = await this.downloadUrl(
-                      foundURL,
+                    console.log("url ",url)
+            promises.push(new Promise(async(resolve, reject) => {
+                                        viewedOrders[
+                      [this.props.navigation.state.params.orderNumber]
+                    ][[name]] = {}
+                    viewedOrders[
+                      [this.props.navigation.state.params.orderNumber]
+                    ][[name]].uri =
+                       await this.downloadUrl(
+                      url,
                       name,
                       "viewedOrders"
                     );
-                    viewedOrders[
-                      [this.props.navigation.state.params.orderNumber]
-                    ][[name]] = { url: foundURL, uri };
-                  }
-                  //1 console.log("got uri");
-            imageUrls.push({
+                                                                       imageUrls.push({
               url:
                 viewedOrders[[this.props.navigation.state.params.orderNumber]][
                   [name]
-                ].url,
-              uri:
+                ].uri,
+              actualUrl:url,
+            }); 
+            resolve()
+  }))
+
+            // })
+                  }else{
+                                                   imageUrls.push({
+              url:
                 viewedOrders[[this.props.navigation.state.params.orderNumber]][
                   [name]
                 ].uri,
-            });
-                })
-            );
-          });
+              actualUrl:url,
+            }); 
+                  }
+
+                  })
           await Promise.all(promises);
+                      console.log("imageUrls111 ",imageUrls)
           this.setState({ imageUrls });
           AsyncStorage.setItem("viewedOrders", JSON.stringify(viewedOrders));
         } else {
@@ -465,15 +483,12 @@ export default class SelectedOrderModal extends React.Component {
               url:
                 viewedOrders[[this.props.navigation.state.params.orderNumber]][
                   [name]
-                ].url,
-              uri:
-                viewedOrders[[this.props.navigation.state.params.orderNumber]][
-                  [name]
                 ].uri,
             });
           });
         }
         this.setState({ imageUrls });
+                            console.log("imageUrls ",imageUrls)
         //1 console.log("setitems");
       } else {
         this.setState({ acceptedOrderVisible: false });
@@ -482,6 +497,7 @@ export default class SelectedOrderModal extends React.Component {
   }
 
   downloadUrl = async (url, name, path) => {
+          console.log("download ", url)
     const callback = (downloadProgress) => {
       const progress =
         downloadProgress.totalBytesWritten /
@@ -489,8 +505,9 @@ export default class SelectedOrderModal extends React.Component {
       // this.setState({
       //   downloadProgress: progress,
       // });
-    };
+    }
 
+      console.log("download ", url)
     //1 console.log("url ", url);
     await FileSystem.makeDirectoryAsync(
       FileSystem.documentDirectory + path + "/",
@@ -504,6 +521,7 @@ export default class SelectedOrderModal extends React.Component {
     //   )
 
     try {
+      console.log("download ", url)
       const { uri } = await FileSystem.downloadAsync(
         url,
         FileSystem.documentDirectory + path + "/" + name + ".png",
@@ -551,21 +569,14 @@ export default class SelectedOrderModal extends React.Component {
     // }
   };
 
-  _startWidth = (widthVariable) => {
+  _start = (widthVariable,value,time) => {
     //1 console.log("oooooooooo");
     Animated.timing(widthVariable, {
-      toValue: windowWidth - 50,
-      duration: 400,
+      toValue: value,
+      duration: time,
     }).start();
   };
 
-  _startHeight = (heightVariable) => {
-    //1 console.log("oooooooooo");
-    Animated.timing(heightVariable, {
-      toValue: windowHeight - 200,
-      duration: 600,
-    }).start();
-  };
 
   _close = (heightVariable) => {
     //1 console.log("iiiiii");
@@ -582,7 +593,7 @@ export default class SelectedOrderModal extends React.Component {
     const hour = orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
     const minute = "0" + orderDate.getMinutes();
     const time = hour + ":" + minute.substr(-2);
-    const date = orderDate.getDay() + "/" + (orderDate.getMonth() + 1);
+    const date = (orderDate.getMonth() + 1) + "/" + orderDate.getDate();
     this.setState({
       timeSelected: time,
       dateSelected: date,
@@ -592,8 +603,8 @@ export default class SelectedOrderModal extends React.Component {
 
   acceptedOrderError = () => {
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     return (
       <View
         style={{
@@ -642,7 +653,7 @@ export default class SelectedOrderModal extends React.Component {
           </View>
           <TouchableOpacity
             onPress={() => {
-              this.setState({ acceptedOrderVisible: false });
+              this.setState({ acceptedOrderVisible: undefined });
               this._close(this.state.animatedWidth);
               this._close(this.state.animatedHeight);
               this.props.navigation.goBack();
@@ -782,6 +793,7 @@ export default class SelectedOrderModal extends React.Component {
     const secondRowHeight = (windowHeight - 100) / 10;
     const modalWidth = windowWidth - 50;
     const itemsCount = 50;
+    const thirdRowHeight = 60
     return (
       <>
         {!this.state.showImageViewer ? (
@@ -796,8 +808,9 @@ export default class SelectedOrderModal extends React.Component {
               alignItems: "center",
             }}
             onModalWillShow={() => {
-              this._startWidth(this.state.animatedWidth);
-              this._startHeight(this.state.animatedHeight);
+              this._start(this.state.animatedWidth,windowWidth - 50,400);
+              this._start(this.state.animatedHeight,windowHeight - 200,600);
+              this._start(this.state.carouselAnimatedHeight,windowHeight - 200 - firstRowHeight - secondRowHeight - thirdRowHeight,600)
             }}
             onModalShow={() => this.setState({ modalOn: true })}
             onModalWillHide={() => {
@@ -902,7 +915,7 @@ export default class SelectedOrderModal extends React.Component {
                           color: "#4cBB17",
                         }}
                       >
-                        {this.state.rangeSelected}
+                        ${this.state.rangeSelected}
                       </Text>
                       <Text style={{ fontSize: 9, color: "gray" }}>
                         Price Range
@@ -992,6 +1005,11 @@ export default class SelectedOrderModal extends React.Component {
                         this.setState({ carouselHeight: height });
                       }}
                     >
+                                            {this.state.imageUrls.length == 0 ?
+                                            <Animated.View style={{width:modalWidth,backgroundColor:"red",height:this.state.carouselAnimatedHeight}}>
+                          <Loading/>
+
+                        </Animated.View> :
                       <ScrollView
                         ref={(scrollView) => {
                           this.scrollView = scrollView;
@@ -1012,6 +1030,7 @@ export default class SelectedOrderModal extends React.Component {
                           right: 30,
                         }}
                       >
+                        
                         {this.state.imageUrls.map((x, i) => (
                           // <View
                           //   onLayout={(event) => {
@@ -1027,7 +1046,7 @@ export default class SelectedOrderModal extends React.Component {
                             style={[
                               styles.view,
                               {
-                                height: this.state.carouselHeight - 60,
+                                height: this.state.carouselHeight - thirdRowHeight,
                                 alignItems: "center",
                                 justifyContent: "center",
                                 width: modalWidth - 100,
@@ -1051,17 +1070,17 @@ export default class SelectedOrderModal extends React.Component {
                                   width: modalWidth - 100,
                                   height: this.state.carouselHeight - 100,
                                 }}
-                                source={{ uri: x.uri }}
+                                source={{ uri: x.url }}
                               />
                             </TouchableOpacity>
                           </View>
                         ))}
-                      </ScrollView>
+                      </ScrollView>}
                     </View>
                   </Row>
                   <Row
                     style={{
-                      height: 60,
+                      height: thirdRowHeight,
                       borderTopWidth: 2,
                       borderBottomLeftRadius: 20,
                       borderBottomRightRadius: 20,

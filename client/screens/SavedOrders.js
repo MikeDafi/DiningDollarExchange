@@ -65,10 +65,10 @@ export default class SavedOrders extends React.Component {
 
   async componentDidMount() {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     let savedOrders = await AsyncStorage.getItem("savedOrders");
     savedOrders = JSON.parse(savedOrders);
     if (!savedOrders) {
@@ -245,10 +245,10 @@ export default class SavedOrders extends React.Component {
   deleteSavedOrder = async (index) => {
     //1 console.log("index ", index);
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     var newSavedOrders = this.state.newSavedOrders;
     //1 console.log("deleteSavedOrder ", newSavedOrders);
     const images = Object.keys(newSavedOrders[[index]].images || []);
@@ -317,10 +317,10 @@ export default class SavedOrders extends React.Component {
     //1 console.log("index ", index);
     const thisOrder = this.state.newSavedOrders[[index]];
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
 
     const imageKeys = Object.keys(this.state.newSavedOrders[[index]].images);
     const thisImages = this.state.newSavedOrders[[index]].images;
@@ -445,10 +445,10 @@ export default class SavedOrders extends React.Component {
   addSavedOrder = async (newOrderObject, imageUris) => {
     this.setState({loading : true})
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
 
     const key = this.generateRandomString();
     const uriToBlobPromises = [];

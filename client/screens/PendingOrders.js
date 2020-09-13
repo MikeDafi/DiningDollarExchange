@@ -36,10 +36,10 @@ export default class PendingOrders extends React.Component {
 
   componentDidMount() {
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const realEmail = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
 
     const currentOrderRef = firebase
       .database()
@@ -103,6 +103,7 @@ export default class PendingOrders extends React.Component {
         }
 
         await Promise.all(promises);
+        this.checkAllRemainingTime();
         let timerId = setInterval(() => {
           //1 console.log("60 second called from timeout");
           this.checkAllRemainingTime();
@@ -131,10 +132,10 @@ export default class PendingOrders extends React.Component {
     newData.splice(prevIndex, 1);
     this.setState({ listData: newData });
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const realEmail = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
     firebase
       .database()
       .ref("orders/" + domain + "/currentOrders")
@@ -193,7 +194,7 @@ export default class PendingOrders extends React.Component {
         }
         this.setState({ minuteTimer: false, timerId });
       }
-      if(listData[i].timeRemaining == "0 Minutes" || listData[i].timeRemaining == "0 Seconds"){
+      if((listData[i].timeRemaining == "0 Minutes" || listData[i].timeRemaining == "0 Seconds") && listData[i].status){
         this.deleteRow({}, listData[i].key, listData[i].orderNumber)
         listDataLength -= 1
       }
@@ -304,13 +305,13 @@ export default class PendingOrders extends React.Component {
 
   formatTime = (timestamp) => {
     const orderDate = new Date(parseInt(timestamp));
-
+  
     const AM = orderDate.getHours() < 12 ? true : false;
     const hour = orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
     const minute = "0" + orderDate.getMinutes();
     const time = hour + ":" + minute.substr(-2);
     const amOrPm = AM ? "am" : "pm";
-    const date = orderDate.getMonth() + 1 + "/" + orderDate.getDay();
+    const date = orderDate.getMonth() + 1 + "/" + orderDate.getDate();
     // const date = orderDate.getDay() + '/' + (orderDate.getMonth() + 1)
     return { time, amOrPm, date };
   };
@@ -321,9 +322,14 @@ export default class PendingOrders extends React.Component {
     // }
     return(
     <View style={styles.rowBack}>
-      <TouchableHighlight onPress={() => this.setState({ isEditing: true })}>
+      <TouchableOpacity onPress={() =>         
+      
+      this.props.navigation.navigate("SelectedOrderModal", {
+          BuyerUid: (firebase.auth().currentUser | {}).uid,
+          orderNumber: data.item.orderNumber,
+        })}>
         <Text>Edit</Text>
-      </TouchableHighlight>
+      </TouchableOpacity>
       <TouchableOpacity
         style={[styles.backRightBtn, styles.backRightBtnLeft]}
         onPress={() => this.closeRow(rowMap, data.item.key)}

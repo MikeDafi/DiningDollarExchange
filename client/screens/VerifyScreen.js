@@ -4,14 +4,12 @@ import * as firebase from 'firebase';
 import { AntDesign } from '@expo/vector-icons'; 
 export default class VerifyScreen extends React.Component{
     componentDidMount(){
-        firebase.auth().onAuthStateChanged(user=>{ 
-            this.props.navigation.navigate((user && user.emailVerified) ? "App" : "Verify")
-        })
+
     }
 
 //   useEffect(() => {
 //     const unsubscribe = firebase.auth().onAuthStateChanged(user=>{
-//             this.props.navigation.navigate(user && user.emailVerified ? "App":"Verify");
+//             this.props.navigation.navigate(user && (user || {}).emailVerified ? "App":"Verify");
 //         })
 
 //     /**

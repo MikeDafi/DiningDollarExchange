@@ -365,10 +365,10 @@ export default class RoomScreen extends React.Component {
   uploadToFirebase = (blob, name) => {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
-    const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
-    const domain = user.email.substring(start, end);
-    const email = user.email.substring(0, end);
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
     this.setState({ name });
     return firebase
       .storage()
@@ -717,15 +717,15 @@ export default class RoomScreen extends React.Component {
 
   append = (message) => {
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     const hasSentMessage = email + "_hasSentMessage";
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;
 
     this.setState({ delivered: false, read: false, hasSentMessage: true });
     this.refCheckChatter()
-      .child(user.email.substring(0, end))
+      .child((user || {}).email.substring(0, end))
       .update({ [hasSentMessage]: true });
     this.ref()
       .push(message)
@@ -780,8 +780,8 @@ export default class RoomScreen extends React.Component {
   async componentDidMount() {
     this.setState({loading : true})
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? "buyer" : "seller"
 
@@ -873,8 +873,8 @@ export default class RoomScreen extends React.Component {
 
   componentWillUnmount() {
     const user = firebase.auth().currentUser;
-    const end = user.email.indexOf(".com");
-    const email = user.email.substring(0, end);
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
     this.ref().off();
     this.refCheckChatter().child(this.state.otherChatterEmail).off();
     this.refCheckChatter()
