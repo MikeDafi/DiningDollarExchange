@@ -42,7 +42,7 @@ export default class SellerHomeScreen extends React.Component {
     componentDidMount(){
         const user = firebase.auth().currentUser;
         const start = (user || {}).email.indexOf("@");
-        const end = (user || {}).email.indexOf(".com");
+        const end = (user || {}).email.indexOf(".edu");
         const domain = (user || {}).email.substring(start, end);
         firebase.database().ref("orders/"+domain +"/currentOrders").on("value", async (orderSnapshot) =>{
             var oldOrders = this.state.orders

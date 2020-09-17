@@ -43,7 +43,7 @@ export default class MessageScreen extends React.Component {
   setPage = (index) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ page: index });
@@ -61,7 +61,7 @@ export default class MessageScreen extends React.Component {
   ref = () => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     return firebase
@@ -197,7 +197,7 @@ infoModal = () =>{
     const buyer = isBuyer ? "buyer" : "seller";
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 
@@ -391,7 +391,7 @@ infoModal = () =>{
     this.keepUpdatedList(false);
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
 
@@ -477,7 +477,7 @@ infoModal = () =>{
   setRating = (buyer,key,index,rating) => {
         const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     const thread = buyer ? this.state.threadsBuyer : this.state.threadsSeller
@@ -812,6 +812,9 @@ infoModal = () =>{
                 <Text style={{color:"gray",fontSize:20}}>
                   No Buyer History
                 </Text>
+                <Text style={{color:"gray",fontSize:15}}>
+                  *Order appears when Buyer Accepts Order*
+                </Text>
               </View>
             )}
           </View>
@@ -979,6 +982,9 @@ infoModal = () =>{
               <View style={{height: windowHeight - 300,justifyContent:"center",alignItems:"center"}}>
                 <Text style={{color:"gray",fontSize:20}}>
                   No Seller History
+                </Text>
+                                <Text style={{color:"gray",fontSize:15}}>
+                  *Order appears when Buyer Accepts Order*
                 </Text>
               </View>
             )}

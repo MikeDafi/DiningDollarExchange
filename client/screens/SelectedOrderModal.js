@@ -75,7 +75,7 @@ export default class SelectedOrderModal extends React.Component {
     this.orderRef().once("value", async (snapshot) => {
       const order = snapshot.val();
       const user = firebase.auth().currentUser;
-      const end = (user || {}).email.indexOf(".com");
+      const end = (user || {}).email.indexOf(".edu");
       const email = (user || {}).email.substring(0, end);
                   const timestamp = this.state.timestamp.toString(10).substring(0,13)
                   const stillExists = parseInt(timestamp) - new Date().getTime() + 60000
@@ -225,6 +225,7 @@ export default class SelectedOrderModal extends React.Component {
           index={this.state.imageIndex}
           imageUrls={this.state.imageUrls}
           enableSwipeDown
+                    saveToLocalByLongPress={false}
           onSwipeDown={() => this.setState({ showImageViewer: false })}
         />
         <View style={{ position: "absolute", left: windowWidth - 50, top: 30 }}>
@@ -346,8 +347,8 @@ export default class SelectedOrderModal extends React.Component {
                     snapshot.val().profileImageUrl
                 ) {
                   if (
-                    !otherChattersProfileImages[[otherChatterEmail]] &&
-                    !otherChattersProfileImages[[otherChatterEmail]].uri
+                    otherChattersProfileImages[[otherChatterEmail]] &&
+                    otherChattersProfileImages[[otherChatterEmail]].uri
                   ) {
                     this.deleteUri(
                       otherChattersProfileImages[[otherChatterEmail]].uri
@@ -603,7 +604,7 @@ export default class SelectedOrderModal extends React.Component {
 
   acceptedOrderError = () => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     return (
       <View

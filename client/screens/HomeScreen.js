@@ -40,7 +40,7 @@ export default class HomeScreen extends React.Component {
 
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     const token = await UserPermissions.getDeviceToken()
@@ -97,7 +97,7 @@ export default class HomeScreen extends React.Component {
       var storageRef = firebase.storage().ref();
       let uid = (firebase.auth().currentUser || {}).uid;
       const start = this.state.email.indexOf("@");
-      const end = this.state.email.indexOf(".com");
+      const end = this.state.email.indexOf(".edu");
       const domain = this.state.email.substring(start, end);
       storageRef
         .child(`${path}.jpg`)
@@ -294,7 +294,7 @@ export default class HomeScreen extends React.Component {
   setPage = (index) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ page: index });

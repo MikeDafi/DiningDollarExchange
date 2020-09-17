@@ -65,7 +65,7 @@ export default class RegisterScreen extends React.Component{
     return new Promise((resolve, reject)=>{
         var storageRef = firebase.storage().ref();
         const start = this.state.email.indexOf("@")
-        const end = this.state.email.indexOf(".com")
+        const end = this.state.email.indexOf(".edu")
         const domain = this.state.email.substring(start,end)
         const email = this.state.email.substring(0,end)
         storageRef.child(`/profilePics/${domain}/${email}/profilePic.jpg`).put(blob, {
@@ -84,10 +84,11 @@ export default class RegisterScreen extends React.Component{
         this.handleName(this.state.name)
         //1 console.log(this.state.emailError)
         const start = this.state.email.indexOf("@")
-        const end = this.state.email.indexOf(".com")
+        const end = this.state.email.indexOf(".edu")
         const domain = this.state.email.substring(start,end)
         //1 console.log("in signupp")
         if(this.state.emailError != "" || this.state.passwordError != "" || this.state.nameError != "" || this.state.confirmPasswordError != ""){
+            alert("oh no")
             return
         }
         //1 console.log("in sign up")
@@ -153,7 +154,7 @@ export default class RegisterScreen extends React.Component{
         this.setState({email: email})
         if(email.length == 0){
             this.setState({emailError : "*Email is empty"})
-        }else if(!email.endsWith(".com") || !email.includes("@")){
+        }else if(!email.endsWith(".edu") || !email.includes("@")){
             this.setState({emailError : "*Email isn't a valid school email*"})
         }else{
             this.setState({emailError : ""})
@@ -193,6 +194,8 @@ export default class RegisterScreen extends React.Component{
     handleConfirmPassword = (confirmPassword) => {
         if(confirmPassword != this.state.password){
             this.setState({confirmPasswordError : "*Passwords do not match*"})
+        }else{
+            this.setState({confirmPasswordError:""})
         }
         this.setState({confirmPassword})
     }

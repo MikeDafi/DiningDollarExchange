@@ -1,6 +1,6 @@
 import Modal from "react-native-modal";
 import React, { useCallback, useState } from "react";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign,Ionicons } from "@expo/vector-icons";
 import AwesomeButton from "react-native-really-awesome-button";
 import {
   CameraRoll,
@@ -51,6 +51,7 @@ export default class PopupOrder extends React.Component {
     imageUris: this.props.imageUris || [],
     numberOfPhotosSelected: 0,
     uploadImagesVisible: false,
+    isSavingOrder:false,
     findASellerClicked: false,
     rendered: false,
     rangeError: "",
@@ -168,7 +169,7 @@ export default class PopupOrder extends React.Component {
     //1 console.log("orderNumber", orderNumber);
     const thisReference = this;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const thisUserEmail = (user || {}).email.substring(0, end); //so we don't send notification to self
     firebase
@@ -213,16 +214,17 @@ export default class PopupOrder extends React.Component {
     });
   };
 
-  uploadToFirebase = async (blob, name) => {
+  uploadToFirebase = async (blob, name,path) => {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
+    
     return firebase
       .storage()
-      .ref(`/tempPhotos/${domain}/${email}/processingOrders/${name}.jpg`)
+      .ref(path)
       .put(blob, {
         contentType: "image/jpeg",
       });
@@ -269,7 +271,7 @@ export default class PopupOrder extends React.Component {
     //1 console.log("imageUris", this.state.imageUris);
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     const orders = firebase.database().ref("orders/" + domain);
@@ -285,16 +287,20 @@ export default class PopupOrder extends React.Component {
           currentOrdersNow = values.currentOrders || {};
         }
         const uriToBlobPromises = [];
+        const key = this.generateRandomString()
         const uploadToFirebasePromises = [];
         for (var i = 0; i < this.state.imageUris.length; i++) {
           //1 console.log("uri", this.state.imageUris[i]);
           //1 console.log("name", this.state.imageNames[i]);
           const uri = this.state.imageUris[i];
           const name = orderNumberNow + "/" + this.state.imageNames[i];
+          const justImageName = this.state.imageNames[i]
           uriToBlobPromises.push(
             this.uriToBlob(uri, i).then((blob) => {
+              const path = this.state.isSavingOrder ? `/savedOrders/${domain}/${realEmail}/${key}/${justImageName}.jpg` :
+              `/tempPhotos/${domain}/${realEmail}/processingOrders/${name}.jpg`
               uploadToFirebasePromises.push(
-                this.uploadToFirebase(blob, name).then(() => {
+                this.uploadToFirebase(blob, name,path).then(() => {
                   //1 console.log("Hi there");
                 })
               );
@@ -310,9 +316,9 @@ export default class PopupOrder extends React.Component {
               promises.push(
                 firebase
                   .storage()
-                  .ref(
+                  .ref((this.state.isSavingOrder ? `/savedOrders/${domain}/${realEmail}/${key}/${name}.jpg` :
                     `/tempPhotos/${domain}/${realEmail}/processingOrders/${orderNumberNow}/${name}.jpg`
-                  )
+                  ))
                   .getDownloadURL()
                   .then(async (foundURL) => {
                     imageUrls.push(foundURL);
@@ -341,6 +347,23 @@ export default class PopupOrder extends React.Component {
               currentOrders: currentOrdersNow,
               orderNumber: orderNumberNow,
             });
+
+            if(this.state.isSavingOrder){
+              firebase
+              .database()
+              .ref("users/" + domain + "/" + realEmail + "/savedOrders/")
+              .update({
+                [[key]]: {
+                  images: imageUrls,
+                  range:                 this.state.rangeSelected == ""
+                  ? this.state.priceInputted
+                  : this.state.rangeSelected,
+                  timePreference: this.state.dateTimeStamp,
+                  title: "",
+                  thumbnail: imageUrls[0],
+                },
+              });
+            }
 
             firebase
               .database()
@@ -404,6 +427,24 @@ export default class PopupOrder extends React.Component {
           currentOrders: currentOrdersNow,
           orderNumber: orderNumberNow,
         });
+
+            if(this.state.isSavingOrder){
+              firebase
+              .database()
+              .ref("users/" + domain + "/" + realEmail + "/savedOrders/")
+              .update({
+                [[key]]: {
+                  images: imageUrls,
+                  range:                 this.state.rangeSelected == ""
+                  ? this.state.priceInputted
+                  : this.state.rangeSelected,
+                  timePreference: this.state.dateTimeStamp,
+                  title: "",
+                  thumbnail: imageUrls[0],
+                },
+              });
+            }
+
         firebase
           .database()
           .ref("users/" + domain + "/" + realEmail + "/pendingOrders")
@@ -413,7 +454,14 @@ export default class PopupOrder extends React.Component {
               rangeSelected: newOrder.rangeSelected,
               timeSelected: this.state.dateTimeStamp,
             },
-          });
+          }).then(() => {
+                this.setState({ loading: false });
+                this.props.togglePopupVisibility(false);
+              })
+              .catch(() => {
+                this.setState({ loading: false });
+                this.props.togglePopupVisibility(false);
+              });
       }
     });
 
@@ -443,6 +491,7 @@ export default class PopupOrder extends React.Component {
             return { url: x };
           })}
           enableSwipeDown
+          saveToLocalByLongPress={false}
           onSwipeDown={() => this.setState({ showImageViewer: false })}
         />
         <View style={{ position: "absolute", left: windowWidth - 50, top: 30 }}>
@@ -516,6 +565,7 @@ export default class PopupOrder extends React.Component {
       }
       this.setState({
         rendered: true,
+        isSavingOrder:false,
         rangeSelected: this.props.rangeSelected || "",
         priceInputted: this.props.priceInputted || "",
         rangeError: "",
@@ -948,6 +998,41 @@ export default class PopupOrder extends React.Component {
                         </Text>
                       )}
                     </Col>
+                    <View style={{marginHorizontal:10}}>
+                       <AwesomeButton
+
+                    onPress={() => {this.setState({isSavingOrder:!this.state.isSavingOrder})
+}}
+          width={windowWidth - 220}
+          height={50}
+          ripple={true}
+          borderColor="black"
+          borderWidth={1}
+          raiseLevel={4}
+          
+          borderRadius={10}
+          backgroundColor="#FFDA00"
+          backgroundShadow="#B79D07"
+          backgroundDarker="#B79D07"
+          textSize={30}
+          textColor="black"
+        >
+          <View style={{flexDirection:"row",alignItems:"center"}}>
+          <View style={{justifyContent:"center",alignItems:"center",width:windowWidth - 270,padding:5}}>
+            <View style={{height:20}}>
+              <Text style={{fontSize:20,fontWeight:"bold"}} adjustsFontSizeToFit={true} numberOfLines={1}>Add to</Text>
+            </View>
+            <View style={{height:20}}>
+              <Text style={{fontSize:20,fontWeight:"bold"}} adjustsFontSizeToFit={true} numberOfLines={1} >Saved Orders</Text>
+            </View>
+          </View>
+         
+          <View style={{justifyContent:"center",alignItems:"center",width:50,backgroundColor:"#CEB106"}}>
+             {this.state.isSavingOrder ? <AntDesign name="check" size={40} color="green" /> : <Ionicons name="md-add" size={40} color="black" />}
+          </View>
+          </View>
+        </AwesomeButton>
+        </View>
                   </Row>
                   <Row style={{ height: 58, justifyContent: "center" }}>
                     <SwipeButton

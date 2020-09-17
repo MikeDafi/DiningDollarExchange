@@ -128,6 +128,7 @@ export default class SpecificSavedOrder extends React.Component {
         toAddImages.push(images[i].uri);
       }
     });
+    console.log("imageUrls ",imageUrls.length)
     this.setState({
       imageUrls,
       toAddImages,
@@ -159,7 +160,9 @@ export default class SpecificSavedOrder extends React.Component {
         isVisible={this.state.showImageViewer}
         onBackdropPress={() => {
           this.setState({ showImageViewer: false });
-          this.props.toggleShowSwiperButtons(true);
+            if(this.props.toggleShowSwiperButtons){
+              this.props.toggleShowSwiperButtons(true);
+            }
         }}
         animationIn="slideInUp"
         animationInTiming={500}
@@ -169,17 +172,21 @@ export default class SpecificSavedOrder extends React.Component {
           index={this.state.imageIndex}
           imageUrls={this.state.imageUrls}
           enableSwipeDown
+                    saveToLocalByLongPress={false}
           onSwipeDown={() => {
             this.setState({ showImageViewer: false });
-            this.props.toggleShowSwiperButtons(true);
+            if(this.props.toggleShowSwiperButtons){
+              this.props.toggleShowSwiperButtons(true);
+            }
           }}
         />
         <View style={{ position: "absolute", left: windowWidth - 50, top: 30 }}>
           <TouchableOpacity
             onPress={() => {
               this.setState({ showImageViewer: false });
-
-              this.props.toggleShowSwiperButtons(true);
+              if(this.props.toggleShowSwiperButtons){
+                this.props.toggleShowSwiperButtons(true);
+              }
             }}
           >
             <AntDesign name="close" size={35} color="white" />
@@ -346,7 +353,7 @@ export default class SpecificSavedOrder extends React.Component {
                   <Text>
                     . For a price of ${this.state.rangeSelected}, the{" "}
                   </Text>
-                  <Text> price to pay is </Text>
+                  <Text> price you pay is </Text>
                 </Text>
               )}
             </Text>
@@ -640,7 +647,7 @@ export default class SpecificSavedOrder extends React.Component {
                               this.state.thumbnail &&
                               this.state.thumbnail.length > 1 &&
                               !this.state.newThumbnail &&
-                              !newOrder
+                              !this.props.newOrder
                             ) {
                               toDeleteImages.push(this.state.thumbnail);
                             }
@@ -713,13 +720,8 @@ export default class SpecificSavedOrder extends React.Component {
                 >
                   <Col
                     style={{
-                      alignItems:
-                        this.state.editing &&
-                        (this.state.rangeSelected == "1 to 5" ||
-                          this.state.rangeSelected == "5 to 10" ||
-                          this.state.rangeSelected == "10 to 15")
-                          ? "flex-end"
-                          : "center",
+                      paddingLeft:this.state.editing ? 18 : 0,
+                      alignItems:"center",
                       justifyContent: "center",
                     }}
                   >
@@ -956,7 +958,10 @@ export default class SpecificSavedOrder extends React.Component {
                           <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => {
-                              this.props.toggleShowSwiperButtons(false);
+                              console.log("imageUrl " , this.state.imageUrls)
+                              if(this.props.toggleShowSwiperButtons){
+                                this.props.toggleShowSwiperButtons(false);
+                              }
                               this.setState({
                                 showImageViewer: true,
                                 imageIndex: i,
@@ -983,13 +988,18 @@ export default class SpecificSavedOrder extends React.Component {
                                   const toDeleteImages = this.state
                                     .toDeleteImages;
                                   const toAddImages = this.state.toAddImages;
-                                  toDeleteImages.push(imageUrls[i].url);
-                                  imageUrls.splice(i, 1);
+                                  var wasAddingUri = false
                                   for (var j = 0; j < toAddImages.length; j++) {
                                     if (toAddImages[j] == imageUrls[i].url) {
                                       toAddImages.splice(j, 1);
+                                      wasAddingUri = true
+                                      break
                                     }
                                   }
+                                  if(!wasAddingUri){
+                                    toDeleteImages.push(imageUrls[i].url);
+                                  }
+                                  imageUrls.splice(i, 1);
                                   this.setState({
                                     imageUrls,
                                     toDeleteImages,
@@ -1010,6 +1020,7 @@ export default class SpecificSavedOrder extends React.Component {
                       
                     </ScrollView> : 
                       <TouchableOpacity 
+                      disabled={!this.state.editing}
                                               onPress={() => {
                           this.setState({ uploadImagesVisible: true });
                         }}
@@ -1063,7 +1074,9 @@ export default class SpecificSavedOrder extends React.Component {
                               10
                             ) {
                               this.setState({ isDeleting: true });
-                              this.props.toggleShowSwiperButtons(false);
+            if(this.props.toggleShowSwiperButtons){
+              this.props.toggleShowSwiperButtons(true);
+            }
                             }
                             this._close(this.state.deleteHighlight, 0);
                           }}
@@ -1367,10 +1380,10 @@ export default class SpecificSavedOrder extends React.Component {
                     ]}
                     style={{
                       position: "absolute",
-                      top: firstRowHeight,
+                      top: firstRowHeight + (secondRowHeight/2) - 10,
                       left: 5,
                       width: 18,
-                      height: secondRowHeight,
+                      height: 10,
                       padding: 0,
                       borderColor: "transparent",
                       borderWidth: 0,

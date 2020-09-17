@@ -90,7 +90,7 @@ export default class ProfileScreen extends React.Component {
   async componentDidMount() {
     var email = firebase.auth().currentUser.email;
     const start = email.indexOf("@");
-    const end = email.indexOf(".com");
+    const end = email.indexOf(".edu");
     var domain = email.substring(start + 1, end);
     const realDomain = email.substring(start, end);
     email = email.substring(0, end);
@@ -286,7 +286,7 @@ export default class ProfileScreen extends React.Component {
     var user = firebase.auth().currentUser;
     var email = firebase.auth().currentUser.email;
     const start = email.indexOf("@");
-    const end = email.indexOf(".com");
+    const end = email.indexOf(".edu");
     var domain = email.substring(start + 1, end);
     const realDomain = email.substring(start, end);
     email = email.substring(0, end);
@@ -355,7 +355,7 @@ export default class ProfileScreen extends React.Component {
       var storageRef = firebase.storage().ref();
       const user = firebase.auth().currentUser;
       const start = user.email.indexOf("@");
-      const end = user.email.indexOf(".com");
+      const end = user.email.indexOf(".edu");
       const domain = user.email.substring(start, end);
       const email = user.email.substring(0, end);
       storageRef
@@ -1232,7 +1232,7 @@ export default class ProfileScreen extends React.Component {
   signOutHelper = () => {
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
+    const end = user.email.indexOf(".edu");
     const domain = user.email.substring(start, end);
     const realEmail = user.email.substring(0, end);
     this.setLoading(true);

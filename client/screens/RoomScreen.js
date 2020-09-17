@@ -70,7 +70,7 @@ export default class RoomScreen extends React.Component {
     this.user = firebase.auth().currentUser;
     this.userId = this.user.uid;
     const start = this.user.email.indexOf("@");
-    const end = this.user.email.indexOf(".com");
+    const end = this.user.email.indexOf(".edu");
     const domain = this.user.email.substring(start, end);
     const email = this.user.email.substring(0, end);
     this.earlierMessage = "";
@@ -153,7 +153,7 @@ export default class RoomScreen extends React.Component {
   getOtherChatterProfileImage = async () => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     let otherChattersObject = await AsyncStorage.getItem(
@@ -473,7 +473,7 @@ export default class RoomScreen extends React.Component {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ name });
@@ -869,7 +869,7 @@ export default class RoomScreen extends React.Component {
 
   append = (message) => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     const hasSentMessage = email + "_hasSentMessage";
     const isBuyer =
@@ -931,7 +931,7 @@ export default class RoomScreen extends React.Component {
 
   async componentDidMount() {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email
@@ -1175,7 +1175,7 @@ export default class RoomScreen extends React.Component {
 
   componentWillUnmount() {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     this.ref().off();
     this.refCheckChatter().child(this.state.otherChatterEmail).off();
@@ -1280,7 +1280,7 @@ export default class RoomScreen extends React.Component {
   addToHistory = (_id) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
@@ -1820,7 +1820,7 @@ export default class RoomScreen extends React.Component {
 
   renderNavigation = () => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;
@@ -1849,7 +1849,7 @@ export default class RoomScreen extends React.Component {
               borderColor: "#E2E2E2",
             }}
           />
-          <Text style={{ fontSize: 20 }} numberOfLines={1}>
+          <Text style={{ fontSize: 20 }} adjustsFontSizeToFit={true} numberOfLines={1}>
             {" "}
             {this.state.chattingUser}
           </Text>
@@ -2031,7 +2031,6 @@ export default class RoomScreen extends React.Component {
           allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] ||
           {}
         ).uri || "";
-      console.log("ALERT ", uri);
       //1 console.log("uri ", uri)
       if (isANewImage) {
         imageUris.unshift({ url: uri });
@@ -2516,6 +2515,7 @@ onLoadingEarlier = async () => {
         <ImageViewer
           index={this.state.index}
           enablePreload
+          saveToLocalByLongPress={false}
           imageUrls={
             this.state.confirmModalViewer
               ? this.state.confirmOrderImageUris.map((x) => ({ url: x }))

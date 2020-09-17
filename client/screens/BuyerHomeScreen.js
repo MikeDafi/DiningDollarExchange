@@ -9,9 +9,8 @@ import {
   Dimensions,
 } from "react-native";
 import * as firebase from "firebase";
-// import {  FontAwesome } from "@expo/vector-icons";
+import {  FontAwesome,Entypo } from "@expo/vector-icons";
 import { FlatGrid } from "react-native-super-grid";
-import FontAwesome from 'react-native-vector-icons/FontAwesome'
 import AwesomeButton from "react-native-really-awesome-button";
 import LottieView from "lottie-react-native";
 import RatingUser from "./RatingUser";
@@ -23,9 +22,9 @@ import { Col, Row, Grid } from "react-native-easy-grid";
     const cardWidth = (windowWidth - 20) / 2;
 export default class BuyerHomeScreen extends React.Component {
   state = {
-    currentFont: 20,
     clickedStars: false,
     starCount: 0,
+    ratingHeight:0,
     reviewAccount: {},
   };
 
@@ -43,7 +42,7 @@ export default class BuyerHomeScreen extends React.Component {
   componentDidMount() {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     var reviewAccount = {};
@@ -225,6 +224,7 @@ export default class BuyerHomeScreen extends React.Component {
   }
 
   reviewView = () => {
+    const cardHeightRoom = cardHeight - 90
     //1 console.log("REVIEW ", this.state.reviewAccount)
     if(!this.state.reviewAccount.hasOwnProperty("chatId")){
       return(
@@ -246,10 +246,11 @@ export default class BuyerHomeScreen extends React.Component {
         style={[styles.itemContainer, { height: (windowHeight - 280) / 2 }]}
       >
         <View style={{ alignItems: "center" }}>
-          <Text style={{ fontSize: 20, fontWeight: "bold" }}>Review</Text>
+          <Text style={{ fontSize: 20, fontWeight: "bold",height:20 }}>Review</Text>
+ <View />
           <RatingUser
             disabled={false}
-            starSize={37}
+            starSize={cardWidth/5}
             marginHorizontal={-3}
             starCount={this.state.reviewAccount.starRating || 0}
             selected={(rating) => this.onStarRatingPress(rating)}
@@ -262,21 +263,20 @@ export default class BuyerHomeScreen extends React.Component {
               />
             {/* <Image source={{uri : this.state.avatar}} style={styles.avatar}/>                        */}
           </View>
+           <View style={{height:(cardHeightRoom - 30 - (cardWidth/5 ) - 70)/2}}>
           <Text
-            //currentFont={this.state.currentFont}
-            //setState={(number) => this.setState({currentFont:number})}
             adjustsFontSizeToFit
-            style={{ fontSize: this.state.currentFont }}
-            onTextLayout={(e) => {
-              const { lines } = e.nativeEvent;
-              if (lines.length > 1) {
-                this.setState({ currentFont: this.state.currentFont - 1 });
-              }
-            }}
+            style={{ fontSize: 50 }}
+            numberOfLines={1}
           >
             {this.state.reviewAccount.name}
           </Text>
-          <Text style={{ fontSize: 10 }}>{this.state.reviewAccount.daysLeftToReview}</Text>
+          </View>
+           <View style={{height:(cardHeightRoom - 30 - (cardWidth/5 ) - 70)/2}}>
+          <Text             adjustsFontSizeToFit
+            style={{ fontSize: 50,paddingHorizontal:20 }}
+            numberOfLines={1}>{this.state.reviewAccount.daysLeftToReview}</Text>
+            </View>
         </View>
         <View style={{ flex: 1, justifyContent: "flex-end", marginBottom: 20 }}>
           <TouchableOpacity
@@ -298,7 +298,7 @@ export default class BuyerHomeScreen extends React.Component {
   setRating = () => {
         const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 
@@ -340,8 +340,8 @@ export default class BuyerHomeScreen extends React.Component {
           source={require("../assets/savedOrdersIcon.png")}
           resizeMode="contain"
           style={{
-            width: cardHeight > cardWidth ? cardWidth : cardHeight,
-            height: cardHeight > cardWidth ? cardWidth : cardHeight,
+            width: cardHeight > cardWidth ? cardWidth - 25 : cardHeight- 50,
+            height: cardHeight > cardWidth ? cardWidth - 20 : cardHeight - 50,
           }}
         />
       </TouchableOpacity>
@@ -360,7 +360,7 @@ export default class BuyerHomeScreen extends React.Component {
           },
         ]}
       >
-        <FontAwesome name="bar-chart" size={150} color="black" />
+        <FontAwesome name="bar-chart" size={0.8 * cardWidth} color="black" />
         <Text style={{ fontSize: 20, fontWeight: "bold" }}>To be Built...</Text>
       </View>
     );
@@ -391,6 +391,7 @@ export default class BuyerHomeScreen extends React.Component {
           source={require("../assets/hourGlass.json")}
           autoPlay
         /> */}
+        <Entypo name="hour-glass" size={0.8 * cardWidth} color="black" />
         <Text style={{ fontSize: 20, fontWeight: "bold" }}>Pending Orders</Text>
       </TouchableOpacity>
     );

@@ -51,7 +51,7 @@ export default class LoginScreen extends React.Component {
           );
           const user = firebase.auth().currentUser;
           const start = (user || {}).email.indexOf("@");
-          const end = (user || {}).email.indexOf(".com");
+          const end = (user || {}).email.indexOf(".edu");
           const domain = (user || {}).email.substring(start, end);
            console.log("domain ", domain)
            console.log("expoToken", token)
@@ -191,7 +191,6 @@ const styles = StyleSheet.create({
     padding: 5,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "white",
     borderRadius: 10,
   },
   error: {

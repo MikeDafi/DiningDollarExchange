@@ -7,7 +7,7 @@
     "owner":"mike0264",
     "orientation": "portrait",
     "icon": "./client/assets/AppIconSquare1.png",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "backgroundColor":"#AAAAAA",
     "platforms": [
       "ios",
@@ -19,7 +19,11 @@
       "resizeMode":"cover"
     },
     "ios": {
-      "bundleIdentifier": "com.michaelaskndafi.DDE"
+      "bundleIdentifier": "com.michaelaskndafi.DDE",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "To upload Grubhub Screenshots, DDE needs access to Photo Library",
+        "NSCameraUsageDescription" : "To take photos of any immediate viewing order, DDE needs access to Camera"
+      }
     }
   }
 }

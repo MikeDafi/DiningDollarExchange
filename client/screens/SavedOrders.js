@@ -66,7 +66,7 @@ export default class SavedOrders extends React.Component {
   async componentDidMount() {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     let savedOrders = await AsyncStorage.getItem("savedOrders");
@@ -246,7 +246,7 @@ export default class SavedOrders extends React.Component {
     //1 console.log("index ", index);
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     var newSavedOrders = this.state.newSavedOrders;
@@ -318,7 +318,7 @@ export default class SavedOrders extends React.Component {
     const thisOrder = this.state.newSavedOrders[[index]];
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 
@@ -446,7 +446,7 @@ export default class SavedOrders extends React.Component {
     this.setState({loading : true})
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 
@@ -690,6 +690,7 @@ export default class SavedOrders extends React.Component {
     Animated.timing(variableToChange, {
       toValue: value,
       duration: duration,
+      useNativeDriver:false,
     }).start();
   };
 
@@ -697,6 +698,7 @@ export default class SavedOrders extends React.Component {
     Animated.timing(variableToChange, {
       toValue: value,
       duration: duration,
+      useNativeDriver:false,
     }).start();
   };
 
@@ -723,16 +725,22 @@ export default class SavedOrders extends React.Component {
             <AntDesign name="arrowleft" size={30} color="black" />
           </TouchableOpacity>
           <Text style={{ fontSize: 20 }}>Saved Orders</Text>
-          <TouchableOpacity onPress={this.handleSignUp}>
-            <Text style={{ fontSize: 20 }}>Finish</Text>
-          </TouchableOpacity>
+          <TouchableOpacity                             onPress={() =>
+                              this.setState({
+                                indexModal: 0,
+                                modalOn: true,
+                                newOrder: true,
+                              })
+                            }>
+<AntDesign name="pluscircle" size={27} color="black" />
+</TouchableOpacity>
         </View>
-        <ScrollView style={{ marginTop: this.state.loading ? 0 : 20 }}>
+        <ScrollView>
           <Grid style={{ width: windowWidth }}>
             {this.state.newSavedOrders.length == 0 && (
               <Row
                 style={{
-                  marginBottom: 20,
+                  marginTop: 20,
                   marginLeft:
                     (windowWidth -
                       (this.state.numbOfColumns * cardWidth +
@@ -791,7 +799,7 @@ export default class SavedOrders extends React.Component {
               return (
                 <Row
                   style={{
-                    marginBottom: 20,
+                    marginTop: 20,
                     marginLeft:
                       (windowWidth -
                         (this.state.numbOfColumns * cardWidth +
@@ -831,10 +839,13 @@ export default class SavedOrders extends React.Component {
                         }
                         style={styles.itemContainer}
                       >
+                        {console.log(this.state.newSavedOrders[[index]].thumbnail)}
                         <ImageBackground
-                          source={{
-                            uri: this.state.newSavedOrders[[index]].thumbnail
-                              .uri,
+                          source={
+                            (this.state.newSavedOrders[[index]].thumbnail
+                              .url == undefined || this.state.newSavedOrders[[index]].thumbnail
+                              .url == "")  ?require("../assets/AppIconSquare1.png"): {uri : this.state.newSavedOrders[[index]].thumbnail
+                              .uri
                           }}
                           imageStyle={{ borderRadius: 45 }}
                           style={{
