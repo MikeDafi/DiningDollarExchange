@@ -287,7 +287,7 @@ export default class ProfileScreenModal extends React.Component {
     var auth = firebase.auth();
     this.setState({ loading: true });
     auth
-      .sendPasswordResetEmail(auth.current(user || {}).email)
+      .sendPasswordResetEmail((auth.currentUser || {}).email)
       .then(() => {
         const password = this.state.password;
         password["verified"] = true;
@@ -497,7 +497,7 @@ export default class ProfileScreenModal extends React.Component {
                 
                         const user = firebase.auth().currentUser;
                         const start = (user || {}).email.indexOf("@");
-                        const end = (user || {}).email.indexOf(".edu");
+                        const end = (user || {}).email.indexOf(".com");
                         const domain = (user || {}).email.substring(start, end);
                         const email = (user || {}).email.substring(0, end);
                         user

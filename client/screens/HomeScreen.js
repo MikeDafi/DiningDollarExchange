@@ -34,13 +34,14 @@ export default class HomeScreen extends React.Component {
   };
 
   async componentDidMount() {
+
     const { email, displayName } = firebase.auth().currentUser;
     this.setState({ email, displayName });
     const thisClass = this;
 
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     const token = await UserPermissions.getDeviceToken()
@@ -97,7 +98,7 @@ export default class HomeScreen extends React.Component {
       var storageRef = firebase.storage().ref();
       let uid = (firebase.auth().currentUser || {}).uid;
       const start = this.state.email.indexOf("@");
-      const end = this.state.email.indexOf(".edu");
+      const end = this.state.email.indexOf(".com");
       const domain = this.state.email.substring(start, end);
       storageRef
         .child(`${path}.jpg`)
@@ -116,7 +117,17 @@ export default class HomeScreen extends React.Component {
 
   _handleNotification = (notification) => {
     //1 console.log("-------------------------------------");
-    if(notification.data.data.thread != undefined){
+    if(notification.data.pendingOrders){
+                  firebase
+              .database()
+              .ref("users/" + domain + "/" + realEmail + "/pendingOrders").once("value",(snapshot) => {
+                if(snapshot.val()[[notification.data.orderNumber]]["status"] == "in-progress"){
+
+                }else{
+      this.props.navigation.navigate("PendingOrders")
+                }
+              })
+    }else if(notification.data.data.thread != undefined){
       this.props.navigation.navigate("Room", {
         thread: notification.data.data.thread,
         chattingUser: notification.data.data.name,
@@ -294,7 +305,7 @@ export default class HomeScreen extends React.Component {
   setPage = (index) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ page: index });

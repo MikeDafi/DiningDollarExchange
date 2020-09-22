@@ -54,7 +54,7 @@ export default class MessageScreen extends React.Component {
   setPage = async(index) => {
     const user = firebase.auth().currentUser || {};
     const start = ((user || {}).email || "").indexOf("@");
-    const end = ((user || {}).email || "").indexOf(".edu");
+    const end = ((user || {}).email || "").indexOf(".com");
     const domain = ((user || {}).email || "").substring(start, end);
     const email = ((user || {}).email || "").substring(0, end);
     await this.setState({ page: index });
@@ -76,7 +76,7 @@ export default class MessageScreen extends React.Component {
     const user = firebase.auth().currentUser || {};
     const email = ((user || {}).email || "")
     const start = ((user || {}).email || "").indexOf("@");
-    const end = ((user || {}).email || "").indexOf(".edu");
+    const end = ((user || {}).email || "").indexOf(".com");
     const domain = ((user || {}).email || "").substring(start, end);
     return firebase
       .database()
@@ -96,7 +96,7 @@ export default class MessageScreen extends React.Component {
     const buyer = isBuyer ? "buyer" : "seller";
     const user = firebase.auth().currentUser || {};
     const start = ((user || {}).email || "").indexOf("@");
-    const end = ((user || {}).email || "").indexOf(".edu");
+    const end = ((user || {}).email || "").indexOf(".com");
     const domain = ((user || {}).email || "").substring(start, end);
     const email = ((user || {}).email || "").substring(0, end);
     
@@ -226,7 +226,7 @@ export default class MessageScreen extends React.Component {
     this.keepUpdatedList(false);
     const user = firebase.auth().currentUser || {};
     const start = ((user || {}).email || "").indexOf("@");
-    const end = ((user || {}).email || "").indexOf(".edu");
+    const end = ((user || {}).email || "").indexOf(".com");
     const domain = ((user || {}).email || "").substring(start, end);
     const realEmail = ((user || {}).email || "").substring(0, end);
 
@@ -431,7 +431,7 @@ infoModal = () =>{
   getUpdatedList = async (textUnedited,page) => {
     const user = firebase.auth().currentUser || {};
     const start = ((user || {}).email || "").indexOf("@");
-    const end = ((user || {}).email || "").indexOf(".edu");
+    const end = ((user || {}).email || "").indexOf(".com");
     const domain = ((user || {}).email || "").substring(start, end);
     const email = ((user || {}).email || "").substring(0, end);
     if(page == 0){

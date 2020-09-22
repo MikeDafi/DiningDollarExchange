@@ -21,6 +21,8 @@ const windowHeight = Dimensions.get("window").height;
 import { ImageBrowser } from "expo-multiple-media-imagepicker";
 import UserPermissions from "../../utilities/UserPermissions";
 import UploadImages from "./UploadImages";
+import { Notifications } from "expo";
+
 import { Button } from "react-native-elements";
 import { Col, Row, Grid } from "react-native-easy-grid";
 import * as firebase from "firebase";
@@ -169,7 +171,7 @@ export default class PopupOrder extends React.Component {
     //1 console.log("orderNumber", orderNumber);
     const thisReference = this;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const thisUserEmail = (user || {}).email.substring(0, end); //so we don't send notification to self
     firebase
@@ -218,7 +220,7 @@ export default class PopupOrder extends React.Component {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     
@@ -257,6 +259,19 @@ export default class PopupOrder extends React.Component {
       numberOfPhotosSelected: imageNames.length,
     });
   };
+    convertToArray = (number) => {
+    const array = [];
+    var binary = 64;
+    while (binary >= 1) {
+      if (number >= binary) {
+        number -= binary;
+        array.push(binary);
+      }
+      binary = binary / 2;
+    }
+    return array;
+  };
+
 
   findASeller = () => {
     this.setState({ findASellerClicked: true });
@@ -271,7 +286,7 @@ export default class PopupOrder extends React.Component {
     //1 console.log("imageUris", this.state.imageUris);
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     const orders = firebase.database().ref("orders/" + domain);
@@ -307,6 +322,52 @@ export default class PopupOrder extends React.Component {
             })
           );
         }
+
+                    const scheduledIds = []
+            firebase
+              .database()
+              .ref("users/" + domain + "/" + realEmail +"/notifications").once("value",async(snapshot) => {
+                const notificationsSnapshot = snapshot.val()
+                if(notificationsSnapshot.notifications && notificationsSnapshot.buyer.buyerNotification){
+                  const reminderArray = this.convertToArray(notificationsSnapshot.buyer.reminders)
+                  const timeEquivalence ={
+                    64:300000,
+                    32:900000,
+                    16:1800000,
+                    8:3600000,
+                    4:18000000,
+                    2:43200000,
+                    1:86400000,
+                  }
+                  const timeLabels = {
+                    64:"5 Minutes",
+                    32:"15 Minutes",
+                    16:"30 Minutes",
+                    8:"1 Hour",
+                    4:"5 Hours",
+                    2:"12 Hours",
+                    1:"1 Day"
+                  }
+                  for(var i = 0;i < reminderArray.length;i++){
+                  const time = this.state.dateTimeStamp - timeEquivalence[[reminderArray[i]]]
+                  if(time  >= new Date().getTime()){
+                    const id = await Notifications.scheduleLocalNotificationAsync({
+                      title: timeLabels[[reminderArray[i]]] + " Left!",
+                      body:"Check the Status of Your Order",
+                      ios:{
+                        sound:true,
+                      _displayInForeground:true,
+                      },
+                      data:{pendingOrders:true}
+                    },{
+                    time,
+
+                    })
+                    scheduledIds.push({id:id,reminderTime:reminderArray[i]} )
+                  }
+                  }
+                }
+              })
 
         Promise.all(uriToBlobPromises).then(() => {
           Promise.all(uploadToFirebasePromises).then(async () => {
@@ -373,6 +434,7 @@ export default class PopupOrder extends React.Component {
                   status: "searching",
                   rangeSelected: newOrder.rangeSelected,
                   timeSelected: this.state.dateTimeStamp,
+                  scheduledIds,
                 },
               })
               .then(() => {
@@ -561,7 +623,7 @@ export default class PopupOrder extends React.Component {
         this.onDateChange(this.getDateTime(this.props.timestamp));
         // this.setState({dateTimeStamp : "",date:"",invalidTime:false})
       } else {
-        this.onDateChange(this.getDateTime(new Date().getTime() + 300000));
+        this.onDateChange(this.getDateTime(new Date().getTime() + 60000));
       }
       this.setState({
         rendered: true,
@@ -1041,6 +1103,7 @@ export default class PopupOrder extends React.Component {
                       onSwipeSuccess={() => {
                         this.findASeller();
                       }}
+                      shouldResetAfterSuccess={true}
                       thumbIconStyles={{
                         justifyContent: "center",
                         alignItems: "center",

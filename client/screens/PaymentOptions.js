@@ -44,7 +44,7 @@ export default class PaymentOptions extends React.Component {
   componentDidMount() {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
 
@@ -304,7 +304,7 @@ export default class PaymentOptions extends React.Component {
  updateSavedPaymentOptions = (option,_id) => {
             const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     const isEditing = this.state.isEditing
@@ -337,7 +337,7 @@ export default class PaymentOptions extends React.Component {
     this.setState({ listData: newData });
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     this.updateSavedPaymentOptions(2,rowKey)
@@ -355,7 +355,7 @@ export default class PaymentOptions extends React.Component {
   componentWillUnmount() {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     firebase
@@ -382,7 +382,7 @@ export default class PaymentOptions extends React.Component {
           <Image source={data.item.image} style={{width:110,height:100}}/>
         </Col>
         <Col  style={{width : (windowWidth *2/3),justifyContent:"center",alignItems:"center",paddingRight:20}}>
-          <Text style={{fontSize:30}} adjustsFontSizeToFit={true} numberOfLines={1}>{(!(data.item.username || "").endsWith(".edu") && !(data.item.username || "").startsWith("@")) ? ("@" + data.item.username) : data.item.username}</Text>
+          <Text style={{fontSize:30}} adjustsFontSizeToFit={true} numberOfLines={1}>{(!(data.item.username || "").endsWith(".com") && !(data.item.username || "").startsWith("@")) ? ("@" + data.item.username) : data.item.username}</Text>
         </Col>
       </Grid>
     </TouchableHighlight>);
@@ -478,7 +478,7 @@ export default class PaymentOptions extends React.Component {
                 this.setState({ refreshing: true });
                     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
 

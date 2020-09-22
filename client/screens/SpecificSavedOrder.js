@@ -20,7 +20,6 @@ import Dialog, {
 import * as ImagePicker from "expo-image-picker";
 import Swiper from "react-native-swiper/src";
 import DropDownPicker from "react-native-dropdown-picker";
-import SwipeButton from "rn-swipe-button";
 import arrowRight from "../assets/arrowRight.png";
 import DatePicker from "react-native-datepicker";
 import ImageViewer from "react-native-image-zoom-viewer";

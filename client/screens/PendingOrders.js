@@ -19,8 +19,19 @@ import PopupOrder from "./PopupOrder"
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 const rowSwipeAnimatedValues = {};
+const statusValues = {
+  "searching" : 0,
+  "in-progress" : 1,
+  "completed" : 2,
+  "expired" : 3,
+}
 export default class PendingOrders extends React.Component {
   state = {
+    attemptToDelete:false,
+    deletionKey:"",
+    rowMap:[],
+    possibleTime:{},
+    deletionOrderNumber:0,
     listData: [],
     isEditing: false,
     timerId: 0,
@@ -37,7 +48,7 @@ export default class PendingOrders extends React.Component {
   componentDidMount() {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
 
@@ -51,51 +62,90 @@ export default class PendingOrders extends React.Component {
         const orderNumbers = Object.keys(snapshot.val() || {});
         const allStatus = Object.values(snapshot.val() || {});
         const promises = [];
-    const listData = {};
+    var listData = {};
         var foundAOneMinute = false
         //1 console.log("orderNumbers ", orderNumbers);
         //1 console.log("allStatus", allStatus);
         for (var i = 0; i < orderNumbers.length; i++) {
+          const pendingCurrentOrder = (snapshot.val() || {})[[orderNumbers[i]]]
           promises.push(
             currentOrderRef
               .child(orderNumbers[i])
               .once("value", (orderSnapshot) => {
-                if (!orderSnapshot.val()) {
-                  //                 firebase
-                  // .database()
-                  // .ref("users/" + domain + "/" + realEmail + "/pendingOrders").update({
-                  //   [[orderNumbers[i]]] : null
-                  // })
-                  // return
-                }
-                //1 console.log(orderSnapshot.val());
-                if (!orderSnapshot.val()) {
+                var notSearching = pendingCurrentOrder.status != "searching" ? true : false
+                var wasViewed = true
+
+                    if(pendingCurrentOrder.status == "completed" && pendingCurrentOrder.timeSelected <= new Date().getTime() && pendingCurrentOrder.timeViewed == undefined){
+                      wasViewed = false
+                                        firebase
+                    .database()
+                    .ref("users/" + domain + "/" + realEmail + "/pendingOrders/" + orderNumbers[i]).update({
+                      timeViewed: new Date().getTime()
+                    })
+                    }
+                
+                  if(pendingCurrentOrder.status == "searching" && pendingCurrentOrder.timeSelected <= new Date().getTime()  && pendingCurrentOrder.timeViewed == undefined){
+                    wasViewed = false
                   firebase
                     .database()
-                    .ref("users/" + domain + "/" + realEmail + "/pendingOrders")
-                    .update({
-                      [[orderNumbers[i]]]: null,
-                    });
-                }
+                    .ref("users/" + domain + "/" + realEmail + "/pendingOrders/" + orderNumbers[i]).update({
+                      status:"expired",
+                      timeViewed: new Date().getTime()
+                    })
+                  }
+                  
+                  if((pendingCurrentOrder.status == "expired" || pendingCurrentOrder.status == "completed") && pendingCurrentOrder.timeViewed + 86400000 <= new Date().getTime()){
+                                                      firebase
+                  .database()
+                  .ref("users/" + domain + "/" + realEmail + "/pendingOrders").update({
+                    [[orderNumbers[i]]] : null
+                  })
+                  return
+                  }
+                    if(pendingCurrentOrder.status == "in-progress"){
+                      if(pendingCurrentOrder.timeSelected + 3600000 <= new Date().getTime()){
+                      if(pendingCurrentOrder.timeViewed == undefined){
+                      wasViewed = false
+                                        firebase
+                    .database()
+                    .ref("users/" + domain + "/" + realEmail + "/pendingOrders/" + orderNumbers[i]).update({
+                      timeViewed: new Date().getTime()
+                    })
+                      }
+                    }else{
+                      notSearching = false
+                    }
+                    }
+
+        
                 const { amOrPm, time, date } = this.formatTime(
-                  (orderSnapshot.val() || {}).timeSelected || 0
+                  pendingCurrentOrder.timeSelected
                 );
+                const removalTime = this.formatTime(
+                  wasViewed ? (pendingCurrentOrder || {}).timeViewed + 86400000 : new Date().getTime() + 86400000
+                )
                 listData[[orderNumbers[i]]] = {
-                  timestamp: (orderSnapshot.val() || {}).timeSelected || 0,
+                  addedToSavedOrder: (pendingCurrentOrder|| {}).addedToSavedOrder || false,
+                  chatId: (pendingCurrentOrder|| {}).chatId || "",
+                  timestamp:                     (notSearching) ? (wasViewed ? pendingCurrentOrder.timeViewed + 86400000 : new Date().getTime() + 86400000) : pendingCurrentOrder.timeSelected,
                   amOrPm,
                   timePreference: time,
+                  originalTime:pendingCurrentOrder.timeSelected,
                   date,
+                  scheduledIds : pendingCurrentOrder.scheduledIds,
                   timeRemaining: this.findRemainingTime(
-                    (orderSnapshot.val() || {}).timeSelected || 0
+                    (notSearching) ? (wasViewed ? pendingCurrentOrder.timeViewed + 86400000 : new Date().getTime() + 86400000) : pendingCurrentOrder.timeSelected,
                   ),
-                  range: (orderSnapshot.val() || {}).rangeSelected || "",
-                  status: (orderSnapshot.val() || {}).status || "",
+                  range: (pendingCurrentOrder|| {}).rangeSelected || "",
+                  status:( pendingCurrentOrder || {}).status || "",
                   orderNumber: orderNumbers[i],
+                  removalTime: (notSearching)? ((pendingCurrentOrder.status == "in-progress" ? "(Idle Order)" : "") + "Will be Removed by " + removalTime.time + removalTime.amOrPm + " " + removalTime.date): "",
                   key: `${i}`,
                   text: "this man",
                 };
                 if(listData[[orderNumbers[i]]].timeRemaining == "1 Minute" || listData[[orderNumbers[i]]].timeRemaining.includes("Second") ){
                   foundAOneMinute = true
+                  console.log("(listData[[orderNumbers[i]]] ",listData[[orderNumbers[i]]])
                 }
                 rowSwipeAnimatedValues[[i]] = new Animated.Value(0);
               })
@@ -103,17 +153,67 @@ export default class PendingOrders extends React.Component {
         }
 
         await Promise.all(promises);
+        listData = this.mergeSort(Object.values(listData))
         this.checkAllRemainingTime();
         let timerId = setInterval(() => {
           //1 console.log("60 second called from timeout");
           this.checkAllRemainingTime();
         }, foundAOneMinute ? 1000 : 60000);
         this.setState({
-          listData: Object.values(listData),
+          listData,
           rowSwipeAnimatedValues,
           timerId,
         });
       });
+  }
+
+  
+  merge = (left,right) => {
+    let resultArray = [], leftIndex = 0, rightIndex = 0;
+      //1 console.log("----------")
+    // We will concatenate values into the resultArray in order
+    while (leftIndex < left.length && rightIndex < right.length) {
+      //1 console.log("leftIndex ", left[leftIndex][[orderBy]] )
+      //1 console.log("rightIndex ", right[rightIndex][[orderBy]])
+      //1 console.log("order ", orderBy)
+      //1 console.log("ascending ", ascending)
+
+      var leftOperand = left[leftIndex].status
+      var rightOperand = right[rightIndex].status
+      var result = statusValues[[leftOperand]] != statusValues[[rightOperand]] ? statusValues[[leftOperand]] < statusValues[[rightOperand]] :  left[leftIndex].timestamp < right[rightIndex].timestamp
+     
+      if (result) {
+        resultArray.push(left[leftIndex]);
+        leftIndex++; // move left array cursor
+      } else {
+        resultArray.push(right[rightIndex]);
+        rightIndex++; // move right array cursor
+      }
+    }
+
+    // We need to concat here because there will be one element remaining
+    // from either left OR the right
+    return resultArray
+            .concat(left.slice(leftIndex))
+            .concat(right.slice(rightIndex));
+  }
+
+  mergeSort =(unsortedArray) =>{
+    if (unsortedArray.length <= 1) {
+      return unsortedArray;
+    }
+    // In order to divide the array in half, we need to figure out the middle
+    const middle = Math.floor(unsortedArray.length / 2);
+
+    // This is where we will be dividing the array into left and right
+    const left = unsortedArray.slice(0, middle);
+    const right = unsortedArray.slice(middle);
+    //1 console.log("left ", left);
+    //1 console.log("right ",right)
+    // Using recursion to combine the left and right
+    return this.merge(
+      this.mergeSort(left), this.mergeSort(right)
+    );
   }
 
   closeRow = (rowMap, rowKey) => {
@@ -122,7 +222,7 @@ export default class PendingOrders extends React.Component {
     }
   };
 
-  deleteRow = (rowMap, rowKey, orderNumber) => {
+  deleteRow = (rowMap, rowKey, orderNumber,scheduledIds) => {
     // this.closeRow(rowMap, rowKey);
     const newData = [...this.state.listData];
     //1 console.log("rowKey ", rowKey);
@@ -133,9 +233,12 @@ export default class PendingOrders extends React.Component {
     this.setState({ listData: newData });
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
+    for(var i = 0; i < scheduledIds.length;i++){
+      Notifications.cancelScheduledNotificationAsync(scheduledIds[i].id)
+    }
     firebase
       .database()
       .ref("orders/" + domain + "/currentOrders")
@@ -162,14 +265,29 @@ export default class PendingOrders extends React.Component {
   removeOrder = (orderNumber) => {};
 
   componentWillUnmount() {
+                  const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
     clearInterval(this.state.timerId);
+        firebase
+      .database()
+      .ref("users/" + domain + "/" + realEmail + "/pendingOrders").off()
+
   }
 
   checkAllRemainingTime = () => {
+        const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
     const listData = this.state.listData;
     var foundAOneMinute = false
     var listDataLength = listData.length
     for (var i = 0; i < listData.length; i++) {
+      console.log("checked")
       listData[i].timeRemaining = this.findRemainingTime(listData[i].timestamp);
       //1 console.log("listData[i].timeRemaining", listData[i].timeRemaining);
       if (listData[i].timeRemaining == "1 Minute") {
@@ -194,9 +312,22 @@ export default class PendingOrders extends React.Component {
         }
         this.setState({ minuteTimer: false, timerId });
       }
-      if((listData[i].timeRemaining == "0 Minutes" || listData[i].timeRemaining == "0 Seconds") && listData[i].status){
-        this.deleteRow({}, listData[i].key, listData[i].orderNumber)
-        listDataLength -= 1
+      if(listData[i].timeRemaining == "0 Minutes" || listData[i].timeRemaining == "0 Seconds"){
+        console.log("listData[i] ",listData[i])
+        console.log("users/" + domain + "/" + realEmail + "/pendingOrders/" + listData[i].orderNumber)
+        if(listData[i].status == "searching"){
+          const order = listData[i].orderNumber
+                  firebase
+                    .database()
+                    .ref("users/" + domain + "/" + realEmail + "/pendingOrders/" + order).update({
+                      status:"expired",
+                      timeViewed: new Date().getTime()
+                    })
+        }
+        else if((listData[i].status == "expired" || listData.status == "completed") && listData[i].timeViewed + 86400000 <= new Date().getTime()){
+          this.deleteRow({}, listData[i].key, listData[i].orderNumber,listData[i].scheduledIds)
+          listDataLength -= 1
+        }
       }
       // this.setState({listData})
     }
@@ -254,6 +385,7 @@ export default class PendingOrders extends React.Component {
       style={[styles.rowFront, { marginTop:15,width: windowWidth }]}
       underlayColor={"#AAA"}
     >
+    <View >
       <Grid style={{height:75}}>
         <Col style={{width : windowWidth/3,justifyContent:"center",alignItems:"center"}}>
         <View style={{ justifyContent: "center" }}>
@@ -266,7 +398,7 @@ export default class PendingOrders extends React.Component {
           <Text
             style={{
               fontSize: 25,
-              color: data.item.status == "searching" ? "red" : "orange",
+              color: data.item.status == "searching" ? "red" : (data.item.status == "expired" ? "gray" : (data.item.status == "completed" ? "green" : "orange")),
             }}
           >
             {data.item.status}
@@ -299,7 +431,12 @@ export default class PendingOrders extends React.Component {
           </View>
         </View>
         </Col>
+
       </Grid>
+              <View style={{position:"absolute",justifyContent:"center",alignItems:"center",width:windowWidth}}>
+                        <Text style={{fontSize:15,color:"gray"}}>{data.item.removalTime}</Text>
+                        </View>
+                      </View>
     </TouchableHighlight>
   );
 
@@ -316,25 +453,77 @@ export default class PendingOrders extends React.Component {
     return { time, amOrPm, date };
   };
 
+  generateRandomString = () => {
+    return Math.random().toString().substr(2, 20);
+  };
+
   renderHiddenItem = (data, rowMap) => {
     // if(data == undefined || data.item == undefined || data.item.key == ""){
     //   return <View/>
     // }
     return(
     <View style={styles.rowBack}>
-      <TouchableOpacity onPress={() =>         
-      
-      this.props.navigation.navigate("SelectedOrderModal", {
-          BuyerUid: (firebase.auth().currentUser | {}).uid,
-          orderNumber: data.item.orderNumber,
-        })}>
-        <Text>Edit</Text>
+      <TouchableOpacity onPress={() =>  {
+            const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
+    
+            firebase
+      .database()
+      .ref("orders/" + domain + "/currentOrders/" + data.item.orderNumber).once("value",snapshot => {
+        firebase
+        .database()
+        .ref("users/" + domain + "/" + realEmail + "/savedOrders/")
+        .update({
+          [[this.generateRandomString()]]: {
+            images: snapshot.val().imageNames,
+            range: snapshot.val().rangeSelected,
+            timePreference: snapshot.val().timeSelected,
+            title: "",
+            thumbnail: snapshot.val().imageNames[0],
+          },
+        });
+        firebase
+        .database()
+        .ref("users/" + domain + "/" + realEmail + "/pendingOrders/" + data.item.orderNumber).update({
+          addedToSavedOrder:true
+        })
+      })
+      }}
+
+                style={[styles.backRightBtn, styles.backLeftBtnLeft,{padding:10}]}
+        >
+        <Text style={{fontWeight:"500",fontSize:20,textAlign:"center"}}                  adjustsFontSizeToFit={true}
+          numberOfLines={data.item.addedToSavedOrder ? 1 :3}>{data.item.addedToSavedOrder ? "Added" : "Add to Saved Orders"}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.backRightBtn, styles.backRightBtnLeft]}
-        onPress={() => this.closeRow(rowMap, data.item.key)}
+        onPress={() => {
+          if(data.item.status != "expired" && data.item.status != "searching"){
+             const user = firebase.auth().currentUser;
+                 const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const email = (user || {}).email.substring(0, end);
+        const domain = (user || {}).email.substring(start, end);
+    const otherChatterEmail =
+      data.item.chatId.substring(0, email.length) == email ? data.item.chatId.substring(email.length,  data.item.chatId.length) : data.item.chatId.substring(0, email.length);
+            firebase.database().ref("users/" + domain + "/" + otherChatterEmail).once("value",snapshot => {
+            this.props.navigation.navigate("Room", {
+              thread: data.item.chatId,
+              chattingUser: snapshot.val().name,
+              otherChatterEmail: otherChatterEmail,
+            })
+            })
+
+          }else{
+          this.closeRow(rowMap, data.item.key)
+          }
+          }}
       >
-        <Text style={styles.backTextWhite}>Close</Text>
+        <Text style={styles.backTextWhite}           adjustsFontSizeToFit={true}
+          numberOfLines={2}>{(data.item.status != "expired" && data.item.status != "searching") ? "Go to Chat" : "Close"}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[
@@ -342,9 +531,13 @@ export default class PendingOrders extends React.Component {
           styles.backRightBtnRight,
           { borderRightRadius: 10 },
         ]}
-        onPress={() =>
-          this.deleteRow(rowMap, data.item.key, data.item.orderNumber)
-        }
+        onPress={() =>{
+          if((data.item.removalTime != "" && data.item.status == "in-progress") || data.item.status != "in-progress" ){
+          this.setState({attemptToDelete:true,possibleTime:this.formatTime(data.item.originalTime + 3600000),rowMap,deletionScheduledIds:data.item.scheduledIds,deletionKey:data.item.key,deletionOrderNumber:data.item.orderNumber})
+          }else{
+            this.setState({attemptToDelete:true,possibleTime:{}})
+          }
+        }}
       >
         <Animated.View
           style={[
@@ -367,6 +560,116 @@ export default class PendingOrders extends React.Component {
       </TouchableOpacity>
     </View>)
   }
+
+  
+deleteOrder = () => {
+    return (
+      <View
+        style={{
+          position: "absolute",
+          width: windowWidth,
+          height: windowHeight,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "rgba(0,0,0,0.8)",
+        }}
+      >
+        <View
+          style={{
+            width: 250,
+            height: 200,
+            flexDirection: "column",
+            justifyContent: "space-between",
+            backgroundColor: "white",
+            borderRadius: 20,
+          }}
+        >
+          <View
+            style={{
+              height: 30,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>Delete Order</Text>
+          </View>
+          <View
+            style={{
+              alignItems: "center",
+              marginHorizontal: 10,
+              justifyContent: "center",
+              height: 100,
+              flexDirection: "col",
+            }}
+          >
+            <Text style={{ fontSize: 17 }}>
+              {this.state.possibleTime =={} ? "Confirm Deleting this Pending Order" : 
+              "The order is in-progress, wait until "}
+              
+              <Text style={{fontWeight:"500"}}>{this.state.possibleTime.time + this.state.possibleTime.amOrPm + " " + this.state.possibleTime.date}</Text>
+              <Text> to delete</Text>
+            </Text>
+          </View>
+          {this.state.possibleTime == {} ? 
+                    <TouchableOpacity
+            onPress={() => this.setState({ attemptToDelete: false })}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.2,
+                height: 50,
+                borderColor: "gray",
+              }}
+            >
+              <Text>Dismiss</Text>
+            </View>
+          </TouchableOpacity>
+          :
+          <View style={{flexDirection:"row"}}>
+          <TouchableOpacity
+            onPress={() => {this.setState({ attemptToDelete: false })
+            }}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.5,
+                borderRightWidth:0.3,
+                height: 50,
+                width:125,
+                borderColor: "gray",
+              }}
+            >
+              <Text style={{fontSize:20}}>Cancel</Text>
+            </View>
+          </TouchableOpacity>
+                    <TouchableOpacity
+            onPress={() => {this.setState({ attemptToDelete: false })
+                      this.deleteRow(this.state.rowMap, this.state.deletionKey, this.state.deletionOrderNumber,this.state.deletionScheduledIds)
+            }}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                borderTopWidth: 0.5,
+                borderLeftWidth:0.3,
+                width:125,
+                height: 50,
+                borderColor: "gray",
+              }}
+            >
+              <Text style={{fontSize:20,color:"red"}}>Delete</Text>
+            </View>
+          </TouchableOpacity>
+          </View>}
+        </View>
+      </View>
+    );
+  };
 
   render() {
     return (
@@ -428,6 +731,8 @@ export default class PendingOrders extends React.Component {
           popupVisible={this.state.popupVisible}
           togglePopupVisibility={this.togglePopupVisibility}
         />
+        {this.state.attemptToDelete &&
+        this.deleteOrder()}
       </View>
     );
   }
@@ -448,7 +753,9 @@ const styles = StyleSheet.create({
     borderColor: "gray",
   },
   backTextWhite: {
+    textAlign:"center",
     color: "#FFF",
+    fontSize:18,
   },
   rowFront: {
     alignItems: "center",
@@ -485,6 +792,10 @@ const styles = StyleSheet.create({
   backRightBtnLeft: {
     backgroundColor: "blue",
     right: 75,
+  },
+  backLeftBtnLeft: {
+    backgroundColor: "#FFDB0C",
+    left: 0,
   },
   backRightBtnRight: {
     backgroundColor: "red",

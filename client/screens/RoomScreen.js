@@ -70,7 +70,7 @@ export default class RoomScreen extends React.Component {
     this.user = firebase.auth().currentUser;
     this.userId = this.user.uid;
     const start = this.user.email.indexOf("@");
-    const end = this.user.email.indexOf(".edu");
+    const end = this.user.email.indexOf(".com");
     const domain = this.user.email.substring(start, end);
     const email = this.user.email.substring(0, end);
     this.earlierMessage = "";
@@ -139,8 +139,10 @@ export default class RoomScreen extends React.Component {
       confirmModalViewer: false,
       otherChatterUid: "",
       chattingUser: (this.props.navigation.state.params || {}).chattingUser,
+      yourName:"",
       otherChatterEmail: (this.props.navigation.state.params || {})
         .otherChatterEmail,
+      yourEmail:"",
       otherChatterOnline: false,
       user: {
         _id: firebase.auth().currentUser.uid,
@@ -153,7 +155,7 @@ export default class RoomScreen extends React.Component {
   getOtherChatterProfileImage = async () => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     let otherChattersObject = await AsyncStorage.getItem(
@@ -473,7 +475,7 @@ export default class RoomScreen extends React.Component {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ name });
@@ -832,8 +834,8 @@ export default class RoomScreen extends React.Component {
       data: {
         data: {
           thread: this.state.thread,
-          name: this.state.chattingUser,
-          otherChatterEmail: this.state.otherChatterEmail,
+          name: this.state.yourName,
+          otherChatterEmail: this.state.yourEmail,
         },
       },
       _displayInForeground: true,
@@ -869,7 +871,7 @@ export default class RoomScreen extends React.Component {
 
   append = (message) => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const email = (user || {}).email.substring(0, end);
     const hasSentMessage = email + "_hasSentMessage";
     const isBuyer =
@@ -931,7 +933,7 @@ export default class RoomScreen extends React.Component {
 
   async componentDidMount() {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email
@@ -969,11 +971,7 @@ export default class RoomScreen extends React.Component {
         .once("value", (snapshot) => {
           this.setState({ hasSentMessage: snapshot.val() });
         });
-      this.refCheckChatter()
-        .child("orderNumber")
-        .once("value", (snapshot) => {
-          this.setState({ orderNumber: snapshot.val() });
-        });
+
 
       this.refCheckChatter()
         .child(email)
@@ -1006,13 +1004,15 @@ export default class RoomScreen extends React.Component {
               snapshot.val()["notifications"].newMessages,
           });
         });
+        
 
       firebase
         .database()
-        .ref("users/" + this.state.domain + "/" + email + "/paymentOptions")
+        .ref("users/" + this.state.domain + "/" + email )
         .once("value", (snapshot) => {
+          this.setState({yourName:snapshot.val().name,yourEmail:email})
           const yourPaymentOptions = [];
-          const snapshotVal = snapshot.val() || {};
+          const snapshotVal = snapshot.child("paymentOptions").val() || {};
           const keys = Object.keys(snapshotVal);
           for (var i = 0; i < keys.length; i++) {
             if (i == 0) {
@@ -1175,7 +1175,7 @@ export default class RoomScreen extends React.Component {
 
   componentWillUnmount() {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const email = (user || {}).email.substring(0, end);
     this.ref().off();
     this.refCheckChatter().child(this.state.otherChatterEmail).off();
@@ -1273,14 +1273,45 @@ export default class RoomScreen extends React.Component {
       this.send(answer ? { _id } : this.state.user, "", answer ? _id : "");
       if (answer) {
         this.addToHistory(_id);
+        this.updatePendingOrders()
       }
     }, 750);
   };
 
+  updatePendingOrders = () => {
+        const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
+              firebase.database().ref("users/" + domain + "/" + email + "/pendingOrders/").once("value",snapshot => {
+          const pendingOrdersKeys = Object.keys(snapshot.val() || {})
+          for(var i = 0; i < pendingOrdersKeys.length;i++ ){
+            if(snapshot.val()[[pendingOrdersKeys[i]]].status == "in-progress" && snapshot.val()[[pendingOrdersKeys[i]]].chatId == this.state.thread){
+                              firebase.database().ref("users/" + domain + "/" + order.buyer + "/pendingOrders/" + this.props.navigation.state.params.orderNumber).update({
+          status:"completed",
+        })
+        break
+            }
+          }
+        })
+        firebase.database().ref("users/" + domain + "/" + this.state.otherChatterEmail + "/pendingOrders/").once("value",snapshot => {
+          const pendingOrdersKeys = Object.keys(snapshot.val() || {})
+          for(var i = 0; i < pendingOrdersKeys.length;i++ ){
+            if(snapshot.val()[[pendingOrdersKeys[i]]].status == "in-progress" && snapshot.val()[[pendingOrdersKeys[i]]].chatId == this.state.thread){
+                              firebase.database().ref("users/" + domain + "/" + order.buyer + "/pendingOrders/" + this.props.navigation.state.params.orderNumber).update({
+          status:"completed",
+        })
+        break
+            }
+          }
+        })
+  }
+
   addToHistory = (_id) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
@@ -1291,11 +1322,7 @@ export default class RoomScreen extends React.Component {
       this.state.orderNumber != undefined
         ? this.generateRandomString()
         : this.generateRandomString();
-    // firebase
-    //   .database()
-    //   .ref("orders/" + domain + "/currentOrders/" + this.state.orderNumber)
-    //   .once("value", (snapshot) => {
-    //1 console.log('sna' ,snapshot.val())
+
     console.log(
       "this.state.messagess[[_id]].priceInputted ",
       this.state.messagess[[_id]].priceInputted
@@ -1820,7 +1847,7 @@ export default class RoomScreen extends React.Component {
 
   renderNavigation = () => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;

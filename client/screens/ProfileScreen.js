@@ -14,7 +14,7 @@ import {
 } from "react-native";
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
-import { FontAwesome, AntDesign } from "@expo/vector-icons";
+import { FontAwesome, AntDesign,Entypo,Ionicons } from "@expo/vector-icons";
 import RatingUser from "./RatingUser";
 import * as firebase from "firebase";
 import Modal from "react-native-modal";
@@ -28,6 +28,7 @@ import * as FileSystem from 'expo-file-system';
 const clone = require("rfdc")();
 export default class ProfileScreen extends React.Component {
   state = {
+    infoDialogIndex: 0,
     imageUri:"",
     changedUrl: false,
     generalCategory: [],
@@ -38,7 +39,7 @@ export default class ProfileScreen extends React.Component {
     sellerReminders: new Animated.Value(0),
     beforeChanges: [],
     loading: true,
-    showSavedResult : false,
+    showDialog : false,
     notificationCategory: {},
     rating: 5,
     generalCategoryIndex: 0,
@@ -90,7 +91,7 @@ export default class ProfileScreen extends React.Component {
   async componentDidMount() {
     var email = firebase.auth().currentUser.email;
     const start = email.indexOf("@");
-    const end = email.indexOf(".edu");
+    const end = email.indexOf(".com");
     var domain = email.substring(start + 1, end);
     const realDomain = email.substring(start, end);
     email = email.substring(0, end);
@@ -121,14 +122,14 @@ export default class ProfileScreen extends React.Component {
         title:"Payment Options",
         inEditMode:false,
       },
-      {
-        title: "Buyer",
-        isBuyer: {},
-      },
-      {
-        title: "Seller",
-        isSeller: {},
-      },
+      // {
+      //   title: "Are you a Buyer?",
+      //   isBuyer: {},
+      // },
+      // {
+      //   title: "Are you a Seller?",
+      //   isSeller: {},
+      // },
     ];
 
     const notificationCategory = {
@@ -142,6 +143,7 @@ export default class ProfileScreen extends React.Component {
         sellerNotification: true,
         scheduled: true,
         reminders: 0,
+        ranges:0,
       },
     };
 
@@ -162,12 +164,12 @@ export default class ProfileScreen extends React.Component {
         .ref("users/" + realDomain + "/" + email)
         .once("value", (snapshot) => {
           const accountCategory = this.state.accountCategory;
-          accountCategory[2].isBuyer = snapshot.val().isBuyer;
+          // accountCategory[2].isBuyer = snapshot.val().isBuyer;
           // //1 console.log(snapshot.val());
-          accountCategory[3].isSeller = {
-            searching: snapshot.val().isSeller.searching,
-            ranges: this.convertToArray(snapshot.val().isSeller.ranges),
-          };
+          // accountCategory[3].isSeller = {
+          //   searching: snapshot.val().isSeller.searching,
+          //   ranges: this.convertToArray(snapshot.val().isSeller.ranges),
+          // };
           if(snapshot.val().profileImageUrl){
             profileImageUrl = snapshot.val().profileImageUrl
           }else{
@@ -286,17 +288,26 @@ export default class ProfileScreen extends React.Component {
     var user = firebase.auth().currentUser;
     var email = firebase.auth().currentUser.email;
     const start = email.indexOf("@");
-    const end = email.indexOf(".edu");
+    const end = email.indexOf(".com");
     var domain = email.substring(start + 1, end);
     const realDomain = email.substring(start, end);
     email = email.substring(0, end);
     domain = domain.toUpperCase();
+    // firebase.database().ref("users/" + realDomain + "/" + email + "/pendingOrders").once("value", snapshot => {
+    //   const orderKeys = Object.keys(snapshot.val() || {})
+    //   for(var i = 0; i < orderKeys.length; i++){
+    //     const order = snapshot.val()[[orderKeys[i]]]
+    //     for(var j = 0; j < order.scheduledIds.length;j++){
+    //       if(order.scheduledIds[j].reminderTime)
+    //     }
+    //   }
+    // })
     firebase
       .database()
       .ref("users/" + realDomain + "/" + email)
       .update({
-        isBuyer: this.state.accountCategory[2].isBuyer,
-        isSeller: this.state.accountCategory[3].isSeller,
+        // isBuyer: this.state.accountCategory[2].isBuyer,
+        // isSeller: this.state.accountCategory[3].isSeller,
         notifications: this.state.notificationCategory,
         name: this.state.generalCategory[0].field,
       }).catch(() => {
@@ -355,7 +366,7 @@ export default class ProfileScreen extends React.Component {
       var storageRef = firebase.storage().ref();
       const user = firebase.auth().currentUser;
       const start = user.email.indexOf("@");
-      const end = user.email.indexOf(".edu");
+      const end = user.email.indexOf(".com");
       const domain = user.email.substring(start, end);
       const email = user.email.substring(0, end);
       storageRef
@@ -467,7 +478,7 @@ export default class ProfileScreen extends React.Component {
             )}
           </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={() => {this.setState({savedSuccessfully : undefined,showSavedResult:true});this.saveToFirebase()}}>
+          <TouchableOpacity onPress={() => {this.setState({savedSuccessfully : undefined,showDialog:true});this.saveToFirebase()}}>
             <Text style={{ color: "white", fontSize: 18 }}>Save</Text>
           </TouchableOpacity>
         </View>
@@ -509,10 +520,11 @@ export default class ProfileScreen extends React.Component {
       var accountCategory = this.state.accountCategory;
       if (index < 2) {
         accountCategory[index][[title]] = field;
-      }else{
-        const innerCategory = index == 2 ? "isBuyer" : "isSeller";
-        accountCategory[index][innerCategory][[title]] = field;
       }
+      // else{
+      //   const innerCategory = index == 2 ? "isBuyer" : "isSeller";
+      //   accountCategory[index][innerCategory][[title]] = field;
+      // }
       this.setState({ accountCategory });
     } else if (category == 2) {
       var notificationCategory = this.state.notificationCategory;
@@ -561,7 +573,7 @@ export default class ProfileScreen extends React.Component {
   saveResult = () => (
     <View style={{position:"absolute",width:windowWidth,height:windowHeight,justifyContent:"center",alignItems:"center",backgroundColor: 'rgba(0,0,0,0.8)'}}>
         <View style={{
-          width:250,
+          width:windowWidth-100,
           height:200,
           flexDirection:"column",
           justifyContent:"space-between",
@@ -573,7 +585,17 @@ export default class ProfileScreen extends React.Component {
             alignItems:"center",
             justifyContent:"center",
           }}>
-            <Text style={{fontSize:20}}>Save Result</Text>
+                      <Text style={{fontSize:20}}>
+            {this.state.infoDialogIndex == 0 ?
+          "Scheduling"
+            :(this.state.infoDialogIndex == 1 ?
+          "Reminder"
+            :(this.state.infoDialogIndex == 2 ?
+              "Range"
+            :
+            "Save Result"
+            ))}
+            {" "}Info</Text>
           </View>
           <View style={{
               alignItems:"center",
@@ -582,8 +604,24 @@ export default class ProfileScreen extends React.Component {
               height:100,}}>
             {this.state.savedSuccessfully == undefined ? 
             <>
+                    {this.state.infoDialogIndex == 0 ?
+                    <>
+                      <Text>Recieve New Order Notifications to Scheduled Orders(+1 Day Ahead)</Text>
+                    </>
+                    : (this.state.infoDialogIndex == 1 ?
+                                        <>
+<Text>Recieve Order Reminders when your Order is Reaching its Expected Completion</Text>
+                    </>
+                    :(this.state.infoDialogIndex == 2 ?
+                                        <>
+                      <Text style={{fontSize:17,textAlign:"center"}}>What Cost Preferences you have to new Order Notifications</Text>
+                    </>
+                    :
+                    <>
                     <Loading/>
                     <Text>Saving...</Text>
+                    </>
+                    ))}
                     </>
             :
             <Text style={{fontSize:15,justifyContent:"center"}}>
@@ -592,7 +630,7 @@ export default class ProfileScreen extends React.Component {
             } 
           </View>
           <TouchableOpacity onPress={() => {
-          this.setState({showSavedResult : false})
+          this.setState({showDialog : false})
           }}>
             <View style={{
                 alignItems:"center",
@@ -805,14 +843,15 @@ export default class ProfileScreen extends React.Component {
                      this.props.navigation.navigate("PaymentOptions", {});
                   }}
                 >
-                  <View style={{ flexDirection: "row", marginVertical: 10 }}>
+                  <View style={{ flexDirection: "row", marginVertical: 10,alignItems:"center",justifyContent:"space-between" }}>
                     <Text style={{ fontSize: 17 }}>
                       {this.state.accountCategory[1].title}
                     </Text>
+                    <Ionicons name="ios-arrow-forward" size={24} color="gray" />
                   </View>
                 </TouchableWithoutFeedback>
               </View>
-              <View>
+              {/* <View>
                 <View
                   style={{
                     flexDirection: "row",
@@ -858,46 +897,8 @@ export default class ProfileScreen extends React.Component {
                     value={this.state.accountCategory[3].isSeller.searching}
                   />
                 </View>
-                {this.state.accountCategory[3].isSeller.searching && (
-                  <Animated.View
-                    style={{
-                      flexDirection: "row",
-                      marginBottom: this.state.sellerDropdown,
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingLeft: 30,
-                    }}
-                  >
-                    <Text style={{ fontSize: 20 }}>Range</Text>
-                    <DropDownPicker
-                      onOpen={() => {
-                        this._start(this.state.sellerDropdown);
-                      }}
-                      onClose={() => {
-                        this._close(this.state.sellerDropdown);
-                      }}
-                      items={[
-                        { label: "1 to 5", value: 8 },
-                        { label: "5 to 10", value: 4 },
-                        { label: "10 to 15", value: 2 },
-                        { label: "15+", value: 1 },
-                      ]}
-                      multiple={true}
-                      multipleText="%d items have been selected."
-                      placeholder="Select at Least One"
-                      min={0}
-                      max={4}
-                      defaultValue={
-                        this.state.accountCategory[3].isSeller.ranges
-                      }
-                      containerStyle={{ height: 40, width: 200 }}
-                      onChangeItem={(item) =>
-                        this.setEditMode(1, 3, "ranges", this.convertToNumber(item))
-                      }
-                    />
-                  </Animated.View>
-                )}
-              </View>
+
+              </View> */}
             </View>
           </>
         )}
@@ -1066,10 +1067,14 @@ export default class ProfileScreen extends React.Component {
                   marginBottom: this.state.buyerReminders,
                   justifyContent: "space-between",
                   alignItems: "center",
-                  paddingLeft: 40,
+                  paddingLeft: 30,
                 }}
               >
+                  <TouchableOpacity onPress={() => this.setState({showDialog:true,savedSuccessfully:undefined,infoDialogIndex:1})}>
+                  <Entypo name="info-with-circle" size={15} color="black" />
+                  </TouchableOpacity>
                 <Text style={{ fontSize: 17 }}>Reminders</Text>
+
                 <DropDownPicker
                   onOpen={() => {
                     this._start(this.state.buyerReminders);
@@ -1090,9 +1095,9 @@ export default class ProfileScreen extends React.Component {
                   multipleText="%d items have been selected."
                   placeholder="Select a Reminder"
                   min={0}
-                  max={4}
+                  max={7}
                   defaultValue={this.convertToArray(this.state.notificationCategory.buyer.reminders)}
-                  containerStyle={{ height: 40, width: 150 }}
+                  containerStyle={{ height: 40, width: windowWidth - 230 }}
                   onChangeItem={(item) =>
                     this.setEditMode(
                       this.state.notificationCategoryIndex,
@@ -1156,7 +1161,7 @@ export default class ProfileScreen extends React.Component {
             )}
 
             {this.state.notificationCategory.seller.sellerNotification && (
-              <View style={{ marginVertical: 10, paddingLeft: 40 }}>
+              <View style={{ marginVertical: 10, paddingLeft: 30 }}>
                 <View
                   style={{
                     flexDirection: "row",
@@ -1164,7 +1169,12 @@ export default class ProfileScreen extends React.Component {
                     alignItems: "center",
                   }}
                 >
+                  <View style={{flexDirection:"row",alignItems:"center"}}>
+                  <TouchableOpacity onPress={() => this.setState({showDialog:true,savedSuccessfully:undefined,infoDialogIndex:0})}>
+                  <Entypo name="info-with-circle" size={15} color="black" />
+                  </TouchableOpacity>
                   <Text style={{ fontSize: 17 }}>Scheduled</Text>
+                  </View>
                   <Switch
                     trackColor={{ false: "#DAD9D7", true: "#FFDA00" }}
                     thumbColor={"white"}
@@ -1189,7 +1199,12 @@ export default class ProfileScreen extends React.Component {
                     alignItems: "center",
                   }}
                 >
+                  <View style={{flexDirection:"row",alignItems:"center"}}>
+                  <TouchableOpacity onPress={() => this.setState({showDialog:true,savedSuccessfully:undefined,infoDialogIndex:1})}>
+                  <Entypo name="info-with-circle" size={15} color="black" />
+                  </TouchableOpacity>
                   <Text style={{ fontSize: 17 }}>Reminders</Text>
+                  </View>
                   <DropDownPicker
                     onOpen={() => {
                       this._start(this.state.sellerReminders);
@@ -1210,17 +1225,59 @@ export default class ProfileScreen extends React.Component {
                     multipleText="%d items have been selected."
                     placeholder="Select a Reminder"
                     min={0}
-                    max={4}
+                    max={7}
                     defaultValue={
                       this.convertToArray(this.state.notificationCategory.seller.reminders)
                     }
-                    containerStyle={{ height: 40, width: 150 }}
+                    containerStyle={{ height: 40, width: windowWidth - 230}}
                     onChangeItem={(item) =>{
                       //1 console.log("item ",item)
                       this.setEditMode(2, "seller", "reminders", this.convertToNumber(item))
                     }}
                   />
                 </Animated.View>
+                <Animated.View
+                  style={{
+                    marginVertical: 10,
+                    flexDirection: "row",
+                    marginBottom: this.state.sellerDropdown,
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <View style={{flexDirection:"row",alignItems:"center"}}>
+                  <TouchableOpacity onPress={() => this.setState({showDialog:true,savedSuccessfully:undefined,infoDialogIndex:2})}>
+                  <Entypo name="info-with-circle" size={15} color="black" />
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: 17 }}>Ranges</Text>
+                  </View>
+                    <DropDownPicker
+                      onOpen={() => {
+                        this._start(this.state.sellerDropdown);
+                      }}
+                      onClose={() => {
+                        this._close(this.state.sellerDropdown);
+                      }}
+                      items={[
+                        { label: "1 to 5", value: 8 },
+                        { label: "5 to 10", value: 4 },
+                        { label: "10 to 15", value: 2 },
+                        { label: "15+", value: 1 },
+                      ]}
+                      multiple={true}
+                      multipleText="%d items have been selected."
+                      placeholder="Select at Least One"
+                      min={1}
+                      max={4}
+                      defaultValue={
+                        this.convertToArray(this.state.notificationCategory.seller.ranges)
+                      }
+                    containerStyle={{ height: 40, width: windowWidth - 230 }}
+                      onChangeItem={(item) =>
+                        this.setEditMode(1, 3, "ranges", this.convertToNumber(item))
+                      }
+                    />
+                  </Animated.View>
               </View>
             )}
           </View>
@@ -1232,7 +1289,7 @@ export default class ProfileScreen extends React.Component {
   signOutHelper = () => {
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".edu");
+    const end = user.email.indexOf(".com");
     const domain = user.email.substring(start, end);
     const realEmail = user.email.substring(0, end);
     this.setLoading(true);
@@ -1392,7 +1449,7 @@ export default class ProfileScreen extends React.Component {
           {this.deleteAndSignOut()}
         </ScrollView>
         {/* {this.updatingFields()} */}
-                {this.state.showSavedResult &&
+                {this.state.showDialog &&
         this.saveResult()}
         <ProfileScreenModal
           submitModal={this.submitModal}

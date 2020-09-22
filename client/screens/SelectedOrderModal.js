@@ -43,14 +43,14 @@ const windowHeight = Dimensions.get("window").height;
 
 export default class SelectedOrderModal extends React.Component {
   state = {
-    carouselAnimatedHeight : new Animated.Value(0),
+    carouselAnimatedHeight: new Animated.Value(0),
     animatedWidth: new Animated.Value(0),
     animatedHeight: new Animated.Value(0),
     searching: true,
     rangeSelected: "",
-    timeStillAvailable : false,
+    timeStillAvailable: false,
     timeSelected: "",
-    timestamp : 0,
+    timestamp: 0,
     amOrPm: "",
     dateSelected: "",
     imageUrls: [],
@@ -75,14 +75,18 @@ export default class SelectedOrderModal extends React.Component {
     this.orderRef().once("value", async (snapshot) => {
       const order = snapshot.val();
       const user = firebase.auth().currentUser;
-      const end = (user || {}).email.indexOf(".edu");
+      const end = (user || {}).email.indexOf(".com");
       const email = (user || {}).email.substring(0, end);
-                  const timestamp = this.state.timestamp.toString(10).substring(0,13)
-                  const stillExists = parseInt(timestamp) - new Date().getTime() + 60000
-                  console.log("timeSelected ",timestamp)
-                  console.log("stillExists ",stillExists)
-      this.setState({timeStillAvailable : stillExists > 0 ? true : false})
-      if ((order || {}).status == "searching" && this.state.buyerEmail != email && stillExists > 0) {
+      const timestamp = this.state.timestamp.toString(10).substring(0, 13);
+      const stillExists = parseInt(timestamp) - new Date().getTime() + 60000;
+      console.log("timeSelected ", timestamp);
+      console.log("stillExists ", stillExists);
+      this.setState({ timeStillAvailable: stillExists > 0 ? true : false });
+      if (
+        (order || {}).status == "searching" &&
+        this.state.buyerEmail != email &&
+        stillExists > 0
+      ) {
         this.setState({ modalOn: false, acceptedOrderVisible: true });
         const name = "";
         const myUser = firebase
@@ -148,9 +152,47 @@ export default class SelectedOrderModal extends React.Component {
           .ref("/chats/" + domain + "/" + order.buyer + myUser + "/")
           .update({ [buyerSentMessage]: true });
 
-        firebase.database().ref("users/" + domain + "/" + order.buyer + "/pendingOrders/" + this.props.navigation.state.params.orderNumber).update({
-          status:"in-progress"
-        })
+        firebase
+          .database()
+          .ref(
+            "users/" +
+              domain +
+              "/" +
+              order.buyer +
+              "/pendingOrders/" +
+              this.props.navigation.state.params.orderNumber
+          )
+          .update({
+            status: "in-progress",
+            chatId: order.buyer + myUser,
+          });
+        firebase
+          .database()
+          .ref(
+            "users/" +
+              domain +
+              "/" +
+              order.buyer +
+              "/pendingOrders/" +
+              this.props.navigation.state.params.orderNumber
+          )
+          .once("value", (snapshot) => {
+            var buyerSnapshot = snapshot.val();
+            buyerSnapshot.status = "in-progress";
+            buyerSnapshot.chatId = order.buyer + myUser;
+            buyerSnapshot.scheduledIds = null;
+            firebase
+              .database()
+              .ref("users/" + domain + "/" + email + "/pendingOrders/")
+              .update({
+                [[
+                  this.props.navigation.state.params.orderNumber,
+                ]]: buyerSnapshot,
+              });
+          });
+        this.addToReminders();
+
+        this.sendAcceptanceNotification(order.buyer);
 
         const path = "/chats/" + domain + "/" + order.buyer + myUser + "/chat";
         for (var i = 0; i < this.state.imageNames.length; i++) {
@@ -182,6 +224,140 @@ export default class SelectedOrderModal extends React.Component {
         this.setState({ acceptedOrderVisible: false });
       }
     });
+  };
+
+  sendAcceptanceNotification = (email) => {
+    const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
+    var name = "";
+    firebase
+      .database()
+      .ref("users/" + domain + "/" + realEmail)
+      .once("value", (snapshot) => {
+        name = snapshot.val().name;
+        firebase
+          .database()
+          .ref("users/" + domain + "/" + email)
+          .once("value", async (buyerSnapshot) => {
+            const message = {
+              to: buyerSnapshot.val().expoToken,
+              sound: "default",
+              title: name + " Accepted Your Order!",
+              body: "View Order Progress",
+              data: {
+                data: {
+                  thread: email + realEmail,
+                  name,
+                  otherChatterEmail: realEmail,
+                },
+              },
+              _displayInForeground: true,
+            };
+            const response = await fetch(
+              "https://exp.host/--/api/v2/push/send",
+              {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Accept-encoding": "gzip, deflate",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(message),
+              }
+            );
+          });
+      });
+  };
+
+  addToReminders = () => {
+    const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".com");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
+    const scheduledIds = [];
+    firebase
+      .database()
+      .ref("users/" + domain + "/" + email + "/notifications")
+      .once("value", async (snapshot) => {
+        const notificationsSnapshot = snapshot.val();
+        if (
+          notificationsSnapshot.notifications &&
+          notificationsSnapshot.seller.sellerNotification
+        ) {
+          const reminderArray = this.convertToArray(
+            notificationsSnapshot.seller.reminders
+          );
+          const timeEquivalence = {
+            64: 300000,
+            32: 900000,
+            16: 1800000,
+            8: 3600000,
+            4: 18000000,
+            2: 43200000,
+            1: 86400000,
+          };
+          const timeLabels = {
+            64: "5 Minutes",
+            32: "15 Minutes",
+            16: "30 Minutes",
+            8: "1 Hour",
+            4: "5 Hours",
+            2: "12 Hours",
+            1: "1 Day",
+          };
+          for (var i = 0; i < reminderArray.length; i++) {
+            const time =
+              this.state.dateTimeStamp - timeEquivalence[[reminderArray[i]]];
+            if (time >= new Date().getTime()) {
+              const id = await Notifications.scheduleLocalNotificationAsync(
+                {
+                  title: timeLabels[[reminderArray[i]]] + " Left!",
+                  body: "Check the Status of Your Order",
+                  ios: {
+                    sound: true,
+                    _displayInForeground: true,
+                  },
+                  data: { pendingOrders: true },
+                },
+                {
+                  time,
+                }
+              );
+              scheduledIds.push({ id: id, reminderTime: reminderArray[i] });
+            }
+          }
+          firebase
+            .database()
+            .ref(
+              "users/" +
+                domain +
+                "/" +
+                email +
+                "/pendingOrders/" +
+                this.props.navigation.state.params.orderNumber
+            )
+            .update({
+              scheduledIds,
+            });
+        }
+      });
+  };
+
+  convertToArray = (number) => {
+    const array = [];
+    var binary = 64;
+    while (binary >= 1) {
+      if (number >= binary) {
+        number -= binary;
+        array.push(binary);
+      }
+      binary = binary / 2;
+    }
+    return array;
   };
 
   uriToBlob = async (uri) => {
@@ -225,7 +401,7 @@ export default class SelectedOrderModal extends React.Component {
           index={this.state.imageIndex}
           imageUrls={this.state.imageUrls}
           enableSwipeDown
-                    saveToLocalByLongPress={false}
+          saveToLocalByLongPress={false}
           onSwipeDown={() => this.setState({ showImageViewer: false })}
         />
         <View style={{ position: "absolute", left: windowWidth - 50, top: 30 }}>
@@ -302,16 +478,17 @@ export default class SelectedOrderModal extends React.Component {
       ////1 console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
       const order = snapshot.val();
       //1 console.log("order", order);
-      if (order.status == "searching") {
+
         const name = "";
         // const profileImagePath =
         //   "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg";
         this.formatTime(order.timeSelected);
         this.setState({
-          timestamp : order.timeSelected,
+          loading:true,
+          timestamp: order.timeSelected,
           rangeSelected: order.rangeSelected,
           imageNames: order.imageNames,
-          imageUrls:order.imageUrls || [],
+          imageUrls: order.imageUrls || [],
           buyerEmail: order.buyer,
         });
         const promises = [];
@@ -336,8 +513,14 @@ export default class SelectedOrderModal extends React.Component {
                 if (!otherChattersProfileImages) {
                   otherChattersProfileImages = {};
                 }
-                console.log("otherChattersProfileImages[[otherChatterEmail]].url ",otherChattersProfileImages[[otherChatterEmail]])
-                console.log("snapshot.val().profileImageUrl ",snapshot.val().profileImageUrl)
+                console.log(
+                  "otherChattersProfileImages[[otherChatterEmail]].url ",
+                  otherChattersProfileImages[[otherChatterEmail]]
+                );
+                console.log(
+                  "snapshot.val().profileImageUrl ",
+                  snapshot.val().profileImageUrl
+                );
 
                 if (
                   otherChattersProfileImages[[otherChatterEmail]] ==
@@ -407,7 +590,7 @@ export default class SelectedOrderModal extends React.Component {
         }
 
         var allImagesExist = true;
-        order.imageNames.map((name) => {
+        ((order || {}).imageNames || []).map((name) => {
           if (
             !viewedOrders[[this.props.navigation.state.params.orderNumber]][
               [name]
@@ -420,66 +603,62 @@ export default class SelectedOrderModal extends React.Component {
         //1   "this order ",
         //1   viewedOrders[[this.props.navigation.state.params.orderNumber]]
         //1 );
-        console.log("order.imageNames ",order.imageNames)
-        console.log("allExist ", allImagesExist)
         const imageUrls = this.state.imageUrls;
         if (!allImagesExist) {
-          order.imageNames.map((url) => {
+          ((order || {}).imageNames || []).map((url) => {
+            const name = url.substring(url.length - 20, url.length);
+            //   console.log("name" ,name)
+            //   console.log("this.props.navigation.state.params.orderNumber ",this.props.navigation.state.params.orderNumber)
+            //  console.log("               viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]].uri",viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]])
+            if (
+              !viewedOrders[[this.props.navigation.state.params.orderNumber]][
+                [name]
+              ] ||
+              !viewedOrders[[this.props.navigation.state.params.orderNumber]][
+                [name]
+              ].uri
+            ) {
+              console.log("url ", url);
+              promises.push(
+                new Promise(async (resolve, reject) => {
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]] = {};
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri = await this.downloadUrl(
+                    url,
+                    name,
+                    "viewedOrders"
+                  );
+                  imageUrls.push({
+                    url:
+                      viewedOrders[
+                        [this.props.navigation.state.params.orderNumber]
+                      ][[name]].uri,
+                    actualUrl: url,
+                  });
+                  resolve();
+                })
+              );
 
-
-                  const name = url.substring(url.length - 20,url.length)
-                //   console.log("name" ,name)
-                //   console.log("this.props.navigation.state.params.orderNumber ",this.props.navigation.state.params.orderNumber)
-                //  console.log("               viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]].uri",viewedOrders[[this.props.navigation.state.params.orderNumber]][[name]])
-                  if (
-                    !viewedOrders[
-                      [this.props.navigation.state.params.orderNumber]
-                    ][[name]] ||
-                                        !viewedOrders[
-                      [this.props.navigation.state.params.orderNumber]
-                    ][[name]].uri
-                  ) {
-                    console.log("url ",url)
-            promises.push(new Promise(async(resolve, reject) => {
-                                        viewedOrders[
-                      [this.props.navigation.state.params.orderNumber]
-                    ][[name]] = {}
-                    viewedOrders[
-                      [this.props.navigation.state.params.orderNumber]
-                    ][[name]].uri =
-                       await this.downloadUrl(
-                      url,
-                      name,
-                      "viewedOrders"
-                    );
-                                                                       imageUrls.push({
-              url:
-                viewedOrders[[this.props.navigation.state.params.orderNumber]][
-                  [name]
-                ].uri,
-              actualUrl:url,
-            }); 
-            resolve()
-  }))
-
-            // })
-                  }else{
-                                                   imageUrls.push({
-              url:
-                viewedOrders[[this.props.navigation.state.params.orderNumber]][
-                  [name]
-                ].uri,
-              actualUrl:url,
-            }); 
-                  }
-
-                  })
+              // })
+            } else {
+              imageUrls.push({
+                url:
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri,
+                actualUrl: url,
+              });
+            }
+          });
           await Promise.all(promises);
-                      console.log("imageUrls111 ",imageUrls)
+          console.log("imageUrls111 ", imageUrls);
           this.setState({ imageUrls });
           AsyncStorage.setItem("viewedOrders", JSON.stringify(viewedOrders));
         } else {
-          order.imageNames.map((name) => {
+          ((order || {}).imageNames || []).map((name) => {
             imageUrls.push({
               url:
                 viewedOrders[[this.props.navigation.state.params.orderNumber]][
@@ -488,17 +667,14 @@ export default class SelectedOrderModal extends React.Component {
             });
           });
         }
-        this.setState({ imageUrls });
-                            console.log("imageUrls ",imageUrls)
+        this.setState({ imageUrls,loading:false });
+        console.log("imageUrls ", imageUrls);
         //1 console.log("setitems");
-      } else {
-        this.setState({ acceptedOrderVisible: false });
-      }
     });
   }
 
   downloadUrl = async (url, name, path) => {
-          console.log("download ", url)
+    console.log("download ", url);
     const callback = (downloadProgress) => {
       const progress =
         downloadProgress.totalBytesWritten /
@@ -506,9 +682,9 @@ export default class SelectedOrderModal extends React.Component {
       // this.setState({
       //   downloadProgress: progress,
       // });
-    }
+    };
 
-      console.log("download ", url)
+    console.log("download ", url);
     //1 console.log("url ", url);
     await FileSystem.makeDirectoryAsync(
       FileSystem.documentDirectory + path + "/",
@@ -522,7 +698,7 @@ export default class SelectedOrderModal extends React.Component {
     //   )
 
     try {
-      console.log("download ", url)
+      console.log("download ", url);
       const { uri } = await FileSystem.downloadAsync(
         url,
         FileSystem.documentDirectory + path + "/" + name + ".png",
@@ -570,14 +746,68 @@ export default class SelectedOrderModal extends React.Component {
     // }
   };
 
-  _start = (widthVariable,value,time) => {
+  tryingToAccept = (modalWidth) => (
+    <>
+      <TouchableWithoutFeedback
+        onPressIn={() => this.setState({ cancelHighlight: true })}
+        onPressOut={() => this.setState({ cancelHighlight: false })}
+        onPress={() => {
+          this.setState({ modalOn: false });
+          this._close(this.state.animatedWidth);
+          this._close(this.state.animatedHeight);
+          this.props.navigation.goBack();
+        }}
+      >
+        <Col
+          style={{
+            backgroundColor: this.state.cancelHighlight ? "#C5C5C5" : "white",
+            justifyContent: "center",
+            borderBottomLeftRadius: 20,
+            borderColor: "black",
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              textDecorationLine: "underline",
+              color: "#FD7070",
+            }}
+          >
+            Reject
+          </Text>
+        </Col>
+      </TouchableWithoutFeedback>
+      <SwipeButton
+        shouldResetAfterSuccess={true}
+        width={modalWidth - 80}
+        swipeSuccessThreshold={50}
+        onSwipeSuccess={() => {
+          this.agreeToOrder();
+        }}
+        thumbIconStyles={{
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+        thumbIconImageSource={arrowRight}
+        thumbIconBackgroundColor="white"
+        thumbIconBorderColor="black"
+        title={"Accept Order"}
+        railBackgroundColor="white"
+        renderMessageImage={null}
+        railFillBorderColor="rgba(252,220,0,1)"
+        railFillBackgroundColor="rgba(252,220,0,1)"
+      />
+    </>
+  );
+
+  _start = (widthVariable, value, time) => {
     //1 console.log("oooooooooo");
     Animated.timing(widthVariable, {
       toValue: value,
       duration: time,
     }).start();
   };
-
 
   _close = (heightVariable) => {
     //1 console.log("iiiiii");
@@ -591,10 +821,13 @@ export default class SelectedOrderModal extends React.Component {
     const orderDate = new Date(parseInt(timestamp));
 
     const AM = orderDate.getHours() < 12 ? true : false;
-    const hour = orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
+    const hour =
+      orderDate.getHours() <= 12
+        ? orderDate.getHours()
+        : orderDate.getHours() - 12;
     const minute = "0" + orderDate.getMinutes();
     const time = hour + ":" + minute.substr(-2);
-    const date = (orderDate.getMonth() + 1) + "/" + orderDate.getDate();
+    const date = orderDate.getMonth() + 1 + "/" + orderDate.getDate();
     this.setState({
       timeSelected: time,
       dateSelected: date,
@@ -604,7 +837,7 @@ export default class SelectedOrderModal extends React.Component {
 
   acceptedOrderError = () => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".edu");
+    const end = (user || {}).email.indexOf(".com");
     const email = (user || {}).email.substring(0, end);
     return (
       <View
@@ -646,10 +879,10 @@ export default class SelectedOrderModal extends React.Component {
           >
             <Text style={{ fontSize: 15, justifyContent: "center" }}>
               {email == this.state.buyerEmail
-                ? "You can't accept your own order." : (this.state.timeStillAvailable ? 
-                 "Someone Has Already Accepted the Order." : 
-                 "You were too late!"
-                 )}
+                ? "You can't accept your own order."
+                : this.state.timeStillAvailable
+                ? "Someone Has Already Accepted the Order."
+                : "You were too late!"}
             </Text>
           </View>
           <TouchableOpacity
@@ -794,7 +1027,7 @@ export default class SelectedOrderModal extends React.Component {
     const secondRowHeight = (windowHeight - 100) / 10;
     const modalWidth = windowWidth - 50;
     const itemsCount = 50;
-    const thirdRowHeight = 60
+    const thirdRowHeight = 60;
     return (
       <>
         {!this.state.showImageViewer ? (
@@ -809,9 +1042,17 @@ export default class SelectedOrderModal extends React.Component {
               alignItems: "center",
             }}
             onModalWillShow={() => {
-              this._start(this.state.animatedWidth,windowWidth - 50,400);
-              this._start(this.state.animatedHeight,windowHeight - 200,600);
-              this._start(this.state.carouselAnimatedHeight,windowHeight - 200 - firstRowHeight - secondRowHeight - thirdRowHeight,600)
+              this._start(this.state.animatedWidth, windowWidth - 50, 400);
+              this._start(this.state.animatedHeight, windowHeight - 200, 600);
+              this._start(
+                this.state.carouselAnimatedHeight,
+                windowHeight -
+                  200 -
+                  firstRowHeight -
+                  secondRowHeight -
+                  thirdRowHeight,
+                600
+              );
             }}
             onModalShow={() => this.setState({ modalOn: true })}
             onModalWillHide={() => {
@@ -892,7 +1133,7 @@ export default class SelectedOrderModal extends React.Component {
                       </Text>
                       <Row style={{ alignItems: "flex-start" }}>
                         <Text style={{ fontSize: 20, color: "gray" }}>
-                          {this.state.buyerStarRating}
+                          {this.state.buyerStarRating.toFixed(2)}
                         </Text>
                         <MaterialIcons name="star" size={24} color="#FFE300" />
                       </Row>
@@ -945,7 +1186,7 @@ export default class SelectedOrderModal extends React.Component {
                     </Col>
                     <Col
                       style={{
-                        justifyContent: "flex-start",
+                        justifyContent: "center",
                         alignItems: "center",
                       }}
                     >
@@ -1006,77 +1247,95 @@ export default class SelectedOrderModal extends React.Component {
                         this.setState({ carouselHeight: height });
                       }}
                     >
-                                            {this.state.imageUrls.length == 0 ?
-                                            <Animated.View style={{width:modalWidth,backgroundColor:"red",height:this.state.carouselAnimatedHeight}}>
-                          <Loading/>
-
-                        </Animated.View> :
-                      <ScrollView
-                        ref={(scrollView) => {
-                          this.scrollView = scrollView;
-                        }}
-                        style={{ width: modalWidth }}
-                        contentContainerStyle={{ alignItems: "center" }}
-                        //pagingEnabled={true}
-                        horizontal={true}
-                        decelerationRate={0}
-                        snapToOffsets={this.state.imageUrls.map(
-                          (x, i) => i * (modalWidth - 60)
-                        )}
-                        snapToAlignment={"start"}
-                        contentInset={{
-                          top: 0,
-                          left: 30,
-                          bottom: 0,
-                          right: 30,
-                        }}
-                      >
-                        
-                        {this.state.imageUrls.map((x, i) => (
-                          // <View
-                          //   onLayout={(event) => {
-                          //     var {x, y, width, height} = event.nativeEvent.layout;
-                          //     this.setState({carouselHeight : height})
-                          //   }}
-                          //   style={{margin:25,width:modalWidth ,alignItems:"center",justifyContent:"center",backgroundColor:"gray",backgroundOpacity:0.5,borderRadius:20}}>
-                          //   {/* // source={{ url: item }}/> */}
-                          //   <Image style={{resizeMode:"contain",width:modalWidth-30,height:this.state.carouselHeight-30}} source={require('./StartPage.png')}/>
-                          // </View>
-                          <View
-                            key={i}
-                            style={[
-                              styles.view,
-                              {
-                                height: this.state.carouselHeight - thirdRowHeight,
-                                alignItems: "center",
-                                justifyContent: "center",
-                                width: modalWidth - 100,
-                                backgroundColor: "rgba(252,220,0,1)",
-                              },
-                            ]}
-                          >
-                            <TouchableOpacity
-                              activeOpacity={0.7}
-                              onPress={() => {
-                                this.setState({
-                                  showImageViewer: true,
-                                  imageIndex: i,
-                                });
-                              }}
-                            >
-                              <Image
-                                key={i}
-                                style={{
-                                  resizeMode: "contain",
+                      {this.state.imageUrls.length == 0 ? (
+                        this.state.loading ?
+                        <Animated.View
+                          style={{
+                            width: modalWidth,
+                            height: this.state.carouselAnimatedHeight,
+                          }}
+                        >
+                          <Loading />
+                        </Animated.View>
+                        :
+                        <Animated.View
+                          style={{
+                            width: modalWidth,
+                            height: this.state.carouselAnimatedHeight,
+                            justifyContent:"center",
+                            alignItems:"center"
+                          }}
+                        >
+                          <Text style={{fontSize:25,color:"gray"}}>No Images</Text>
+                        </Animated.View>
+                      ) : (
+                        <ScrollView
+                          ref={(scrollView) => {
+                            this.scrollView = scrollView;
+                          }}
+                          style={{ width: modalWidth }}
+                          contentContainerStyle={{ alignItems: "center" }}
+                          //pagingEnabled={true}
+                          horizontal={true}
+                          decelerationRate={0}
+                          snapToOffsets={this.state.imageUrls.map(
+                            (x, i) => i * (modalWidth - 60)
+                          )}
+                          snapToAlignment={"start"}
+                          contentInset={{
+                            top: 0,
+                            left: 30,
+                            bottom: 0,
+                            right: 30,
+                          }}
+                        >
+                          {this.state.imageUrls.map((x, i) => (
+                            // <View
+                            //   onLayout={(event) => {
+                            //     var {x, y, width, height} = event.nativeEvent.layout;
+                            //     this.setState({carouselHeight : height})
+                            //   }}
+                            //   style={{margin:25,width:modalWidth ,alignItems:"center",justifyContent:"center",backgroundColor:"gray",backgroundOpacity:0.5,borderRadius:20}}>
+                            //   {/* // source={{ url: item }}/> */}
+                            //   <Image style={{resizeMode:"contain",width:modalWidth-30,height:this.state.carouselHeight-30}} source={require('./StartPage.png')}/>
+                            // </View>
+                            <View
+                              key={i}
+                              style={[
+                                styles.view,
+                                {
+                                  height:
+                                    this.state.carouselHeight - thirdRowHeight,
+                                  alignItems: "center",
+                                  justifyContent: "center",
                                   width: modalWidth - 100,
-                                  height: this.state.carouselHeight - 100,
+                                  backgroundColor: "rgba(252,220,0,1)",
+                                },
+                              ]}
+                            >
+                              <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={() => {
+                                  this.setState({
+                                    showImageViewer: true,
+                                    imageIndex: i,
+                                  });
                                 }}
-                                source={{ uri: x.url }}
-                              />
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                      </ScrollView>}
+                              >
+                                <Image
+                                  key={i}
+                                  style={{
+                                    resizeMode: "contain",
+                                    width: modalWidth - 100,
+                                    height: this.state.carouselHeight - 100,
+                                  }}
+                                  source={{ uri: x.url }}
+                                />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      )}
                     </View>
                   </Row>
                   <Row
@@ -1087,59 +1346,7 @@ export default class SelectedOrderModal extends React.Component {
                       borderBottomRightRadius: 20,
                     }}
                   >
-                    <TouchableWithoutFeedback
-                      onPressIn={() => this.setState({ cancelHighlight: true })}
-                      onPressOut={() =>
-                        this.setState({ cancelHighlight: false })
-                      }
-                      onPress={() => {
-                        this.setState({ modalOn: false });
-                        this._close(this.state.animatedWidth);
-                        this._close(this.state.animatedHeight);
-                        this.props.navigation.goBack();
-                      }}
-                    >
-                      <Col
-                        style={{
-                          backgroundColor: this.state.cancelHighlight
-                            ? "#C5C5C5"
-                            : "white",
-                          justifyContent: "center",
-                          borderBottomLeftRadius: 20,
-                          borderColor: "black",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 20,
-                            textDecorationLine: "underline",
-                            color: "#FD7070",
-                          }}
-                        >
-                          Reject
-                        </Text>
-                      </Col>
-                    </TouchableWithoutFeedback>
-                    <SwipeButton
-                      width={modalWidth - 80}
-                      swipeSuccessThreshold={50}
-                      onSwipeSuccess={() => {
-                        this.agreeToOrder();
-                      }}
-                      thumbIconStyles={{
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                      thumbIconImageSource={arrowRight}
-                      thumbIconBackgroundColor="white"
-                      thumbIconBorderColor="black"
-                      title={"Accept Order"}
-                      railBackgroundColor="white"
-                      renderMessageImage={null}
-                      railFillBorderColor="rgba(252,220,0,1)"
-                      railFillBackgroundColor="rgba(252,220,0,1)"
-                    />
+                    {this.tryingToAccept(modalWidth)}
                   </Row>
                 </Grid>
               )}

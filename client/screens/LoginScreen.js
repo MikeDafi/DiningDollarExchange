@@ -21,6 +21,8 @@ import * as Permissions from "expo-permissions";
 import Constants from "expo-constants";
 import UserPermissions from "../../utilities/UserPermissions";
 import * as FileSystem from "expo-file-system";
+import LottieView from "lottie-react-native";
+
 import Loading from "./LoadingScreen";
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
@@ -30,10 +32,29 @@ export default class LoginScreen extends React.Component {
     password: "",
     errorMessage: (this.props.navigation.state.params || {}).errorMessage,
     currentNavParams: {},
+    passwordReset: false,
+    loading:false,
     token: "",
   };
 
   handleLogin = async () => {
+    if (this.state.passwordReset) {
+      var auth = firebase.auth();
+      auth
+        .sendPasswordResetEmail(this.state.email)
+        .then(() => {
+          this.setState({
+            passwordReset: false,
+            errorMessage: "If an A password reset email has been sent",
+          });
+        })
+        .catch((error) => {
+          console.log("error ", error);
+          this.setState({ errorMessage: error.toString().substring(6) });
+        });
+      return;
+    }
+    this.setState({loading:true})
     const { email, password } = this.state;
     const token = await UserPermissions.getDeviceToken();
     firebase
@@ -51,10 +72,10 @@ export default class LoginScreen extends React.Component {
           );
           const user = firebase.auth().currentUser;
           const start = (user || {}).email.indexOf("@");
-          const end = (user || {}).email.indexOf(".edu");
+          const end = (user || {}).email.indexOf(".com");
           const domain = (user || {}).email.substring(start, end);
-           console.log("domain ", domain)
-           console.log("expoToken", token)
+          console.log("domain ", domain);
+          console.log("expoToken", token);
           firebase
             .database()
             .ref("users/" + domain + "/" + this.state.email.substring(0, end))
@@ -67,14 +88,15 @@ export default class LoginScreen extends React.Component {
               name: firebase.auth().currentUser.displayName,
             });
           UserPermissions.getCameraPermission();
-           this.props.navigation.navigate("Tutorial")
+          this.props.navigation.navigate("Tutorial");
         } else {
           firebase.auth().currentUser.sendEmailVerification();
           this.setState({ errorMessage: "Verification email sent again" });
           firebase.auth().signOut();
         }
+        this.setState({loading:false})
       })
-      .catch((error) => this.setState({ errorMessage: error.message }));
+      .catch((error) => this.setState({ loading:false,errorMessage: error.message }));
   };
   render() {
     if (this.state.currentNavParams != this.props.navigation.state.params) {
@@ -101,21 +123,40 @@ export default class LoginScreen extends React.Component {
                 height: windowHeight,
               }}
             >
-            <View>
-              <View style={{justifyContent:"center",alignItems:"center",marginTop:150,marginBottom:10,
-                             shadowColor: "black",
-                  shadowOffset: { width: 0, height: 10 },
-                  shadowRadius: 10,
-                  shadowOpacity : 1,
-                  overflow: 'visible'}}>
-                <Image
-                  source={require("../assets/AppIconSquare1.png")}
-                  style={{ width: 125, height: 125, borderRadius: 25,overflow:"hidden"
-   
-                }} 
-                />
+              <View>
+                <View
+                  style={{
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginTop: 150,
+                    marginBottom: 10,
+                    shadowColor: "black",
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowRadius: 10,
+                    shadowOpacity: 1,
+                    overflow: "visible",
+                  }}
+                >
+                  <Image
+                    source={require("../assets/AppIconSquare1.png")}
+                    style={{
+                      width: 125,
+                      height: 125,
+                      borderRadius: 25,
+                      overflow: "hidden",
+                    }}
+                  />
                 </View>
-                <Text style={{fontSize:27,fontWeight:"800",textAlign:"center",fontFamily: "Marker Felt"}}>Dining Dollar Exchange</Text>
+                <Text
+                  style={{
+                    fontSize: 27,
+                    fontWeight: "800",
+                    textAlign: "center",
+                    fontFamily: "Marker Felt",
+                  }}
+                >
+                  Dining Dollar Exchange
+                </Text>
               </View>
               <View style={styles.form}>
                 <View>
@@ -127,41 +168,108 @@ export default class LoginScreen extends React.Component {
                     value={this.state.email}
                   />
                 </View>
-                <View style={{ marginTop: 32 }}>
-                  <Text style={styles.inputTitle}>Password</Text>
-                  <TextInput
-                    style={styles.input}
-                    autoCapitalize="none"
-                    secureTextEntry
-                    onChangeText={(password) => this.setState({ password })}
-                    value={this.state.password}
-                  />
-                </View>
+                {!this.state.passwordReset && (
+                  <View style={{ marginTop: 32 }}>
+                    <Text style={styles.inputTitle}>Password</Text>
+                    <TextInput
+                      style={styles.input}
+                      autoCapitalize="none"
+                      secureTextEntry
+                      onChangeText={(password) => this.setState({ password })}
+                      value={this.state.password}
+                    />
+                  </View>
+                )}
                 {this.state.errorMessage != null && (
                   <View style={styles.errorMessage}>
                     <Text style={styles.error}>{this.state.errorMessage}</Text>
                   </View>
                 )}
-                <TouchableOpacity onPress={this.handleLogin}>
+
+                <TouchableOpacity onPress={this.handleLogin} disabled={this.state.loading}>
                   <View style={styles.button}>
-                    <Text style={{ fontSize: 23,fontWeight:"800",fontFamily:"Kailasa" }}>SIGN IN</Text>
+                                              {this.state.loading ?
+                                                      <>
+        <LottieView
+          style={{
+            width: 100,
+            position:"absolute",
+            height: 100,
+            marginLeft:-2,
+            marginTop:2,
+          }}
+          source={require("../assets/whiteLoadingCircle.json")}
+          autoPlay
+        />
+                <Image style={{width:45,height:45,top:-3,left:0}} source={require("../assets/Coin.png")}/>
+
+        </>
+                                              :
+                    <Text
+                      adjustsFontSizeToFit={true}
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 23,
+                        fontWeight: "800",
+                        fontFamily: "Kailasa",
+                      }}
+                    >
+                      {this.state.passwordReset ? "RESET PASSWORD" : "SIGN IN"}
+                    </Text>}
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ alignSelf: "center", marginTop: 32 }}
-                  onPress={() => this.props.navigation.navigate("Register")}
-                >
-                  <Text style={{ color: "#414959", fontSize: 13 }}>
-                    New to DDE?
-                    <Text style={{ fontWeight: "bold", color: "black" }}>
-                      Sign Up
+                {this.state.passwordReset ? (
+                  <TouchableOpacity
+                    style={{ alignSelf: "center", marginTop: 32 }}
+                    onPress={() => this.setState({ passwordReset: false })}
+                  >
+                    <Text
+                      style={{
+                        color: "#414959",
+                        fontSize: 17,
+                        textDecorationLine: "underline",
+                      }}
+                    >
+                      Go Back To Login
                     </Text>
-                  </Text>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={{ alignSelf: "center", marginTop: 32 }}
+                      onPress={() => this.props.navigation.navigate("Register")}
+                    >
+                      <Text style={{ color: "#414959", fontSize: 13 }}>
+                        New to DDE?
+                        <Text style={{ fontWeight: "bold", color: "black" }}>
+                          Sign Up
+                        </Text>
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{ alignSelf: "center", marginTop: 2 }}
+                      onPress={() => this.setState({ passwordReset: true })}
+                    >
+                      <Text
+                        style={{
+                          color: "#414959",
+                          fontSize: 13,
+                          textDecorationLine: "underline",
+                        }}
+                      >
+                        Forgot Password
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             </KeyboardAvoidingView>
           </ImageBackground>
         </TouchableWithoutFeedback>
+        {/* {this.state.loading && 
+        <View style={{position:"absolute",width:"100%",height:"100%"}} opacity={0.5}>
+        <Loading />
+        </View>} */}
       </View>
     );
   }
@@ -176,7 +284,7 @@ const styles = StyleSheet.create({
   form: {
     width: windowWidth - 50,
     marginBottom: 48,
-    marginTop:30,
+    marginTop: 30,
     marginHorizontal: 20,
     justifyContent: "flex-end",
   },
@@ -214,6 +322,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   button: {
+    overflow:"hidden",
     marginTop: 10,
     marginHorizontal: 40,
     backgroundColor: "white",
@@ -221,7 +330,7 @@ const styles = StyleSheet.create({
     borderColor: "#8A8F9E",
     borderWidth: 2,
     height: 52,
-    paddingTop:6,
+    paddingTop: 6,
     alignItems: "center",
     justifyContent: "center",
   },

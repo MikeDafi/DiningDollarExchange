@@ -510,20 +510,20 @@ export default class TutorialScreen extends React.Component {
               this._swiper.scrollBy(1);
             }, 300);
           }}
-          width={windowWidth / 2 - 20}
-          height={windowWidth / 2 - 20}
+          width={170}
+          height={170}
           ripple={true}
           borderColor="black"
           borderWidth={12}
           raiseLevel={12}
-          borderRadius={windowWidth / 2 - 20}
+          borderRadius={170}
           backgroundColor="#FFDA00"
           backgroundShadow="#B79D07"
           backgroundDarker="#B79D07"
           textSize={30}
           textColor="black"
         >
-          <View style={{ width: windowWidth / 2 - 50 }}>
+          <View style={{ width: 140,justifyContent:"center",alignItems:"center" }}>
             <Text
               style={{ fontSize: 100 }}
               adjustsFontSizeToFit={true}
@@ -623,20 +623,20 @@ export default class TutorialScreen extends React.Component {
               this._swiper.scrollBy(1);
             }, 300);
           }}
-          width={windowWidth / 2 - 20}
-          height={windowWidth / 2 - 20}
+          width={170}
+          height={170}
           ripple={true}
           borderColor="white"
           borderWidth={12}
           raiseLevel={12}
-          borderRadius={windowWidth / 2 - 20}
+          borderRadius={170}
           backgroundColor="#FFDA00"
           backgroundShadow="#B79D07"
           backgroundDarker="#B79D07"
           textSize={30}
           textColor="black"
         >
-          <View style={{ width: windowWidth / 2 - 50 }}>
+          <View style={{ width: 140,justifyContent:"center",alignItems:"center" }}>
             <Text
               style={{ fontSize: 100 }}
               adjustsFontSizeToFit={true}
