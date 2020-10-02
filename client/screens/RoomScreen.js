@@ -31,6 +31,7 @@ import {
   AntDesign,
   MaterialCommunityIcons,
   MaterialIcons,
+  Fontisto,
 } from "@expo/vector-icons";
 import { Col, Row, Grid } from "react-native-easy-grid";
 import UploadImages from "./UploadImages";
@@ -70,7 +71,7 @@ export default class RoomScreen extends React.Component {
     this.user = firebase.auth().currentUser;
     this.userId = this.user.uid;
     const start = this.user.email.indexOf("@");
-    const end = this.user.email.indexOf(".com");
+    const end = this.user.email.indexOf(".edu");
     const domain = this.user.email.substring(start, end);
     const email = this.user.email.substring(0, end);
     this.earlierMessage = "";
@@ -155,7 +156,7 @@ export default class RoomScreen extends React.Component {
   getOtherChatterProfileImage = async () => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     let otherChattersObject = await AsyncStorage.getItem(
@@ -475,7 +476,7 @@ export default class RoomScreen extends React.Component {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ name });
@@ -871,7 +872,7 @@ export default class RoomScreen extends React.Component {
 
   append = (message) => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     const hasSentMessage = email + "_hasSentMessage";
     const isBuyer =
@@ -933,7 +934,7 @@ export default class RoomScreen extends React.Component {
 
   async componentDidMount() {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email
@@ -1175,7 +1176,7 @@ export default class RoomScreen extends React.Component {
 
   componentWillUnmount() {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     this.ref().off();
     this.refCheckChatter().child(this.state.otherChatterEmail).off();
@@ -1234,7 +1235,7 @@ export default class RoomScreen extends React.Component {
     const amOrPm = date.getHours() >= 12 ? "PM" : "AM";
     const hour =
       date.getHours() == 0
-        ? 0
+        ? 12
         : date.getHours() > 12
         ? date.getHours() % 12
         : date.getHours();
@@ -1281,7 +1282,7 @@ export default class RoomScreen extends React.Component {
   updatePendingOrders = () => {
         const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
               firebase.database().ref("users/" + domain + "/" + email + "/pendingOrders/").once("value",snapshot => {
@@ -1311,7 +1312,7 @@ export default class RoomScreen extends React.Component {
   addToHistory = (_id) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
@@ -1847,7 +1848,7 @@ export default class RoomScreen extends React.Component {
 
   renderNavigation = () => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     const isBuyer =
       this.state.thread.substring(0, email.length) == email ? true : false;
@@ -1866,7 +1867,8 @@ export default class RoomScreen extends React.Component {
           <AntDesign name="arrowleft" size={30} color="black" />
         </TouchableOpacity>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Image
+          {this.state.otherChatterProfileImage != undefined?
+          (<Image
             source={{ uri: this.state.otherChatterProfileImage }}
             style={{
               width: 50,
@@ -1875,7 +1877,21 @@ export default class RoomScreen extends React.Component {
               borderWidth: 2,
               borderColor: "#E2E2E2",
             }}
-          />
+          />) :
+          (
+                          <View style={{ justifyContent: "center", alignItems: "center",              width: 50,
+              height: 50,
+              borderRadius: 50,
+              borderWidth: 2,
+              overflow: 'visible',
+              borderColor: "#E2E2E2" }}>
+                <Fontisto
+                  name="smiley"
+                  size={30}
+                  color="gray"
+                />
+              </View>
+          )}
           <Text style={{ fontSize: 20 }} adjustsFontSizeToFit={true} numberOfLines={1}>
             {" "}
             {this.state.chattingUser}
@@ -2915,7 +2931,7 @@ onLoadingEarlier = async () => {
                     </div>`;
 
                         const saveOptions = {
-                          recipients: ["maskndafi@gmail.com"],
+                          recipients: ["diningdollarexchange@gmail.com"],
                           subject: "DDE - Reporting an Issue",
                           body: body,
                           isHtml: true,

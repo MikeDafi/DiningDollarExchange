@@ -30,6 +30,7 @@ export default class ProfileScreen extends React.Component {
   state = {
     infoDialogIndex: 0,
     imageUri:"",
+    tempUri:"",
     changedUrl: false,
     generalCategory: [],
     accountCategory: [],
@@ -79,7 +80,7 @@ export default class ProfileScreen extends React.Component {
         quality: 1,
       });
       if (!result.cancelled) {
-        this.setState({ imageUri: result.uri, changedUrl: true });
+        this.setState({ tempUri:this.state.imageUri,imageUri: result.uri, changedUrl: true });
       }
 
       //1 console.log(result);
@@ -91,7 +92,7 @@ export default class ProfileScreen extends React.Component {
   async componentDidMount() {
     var email = firebase.auth().currentUser.email;
     const start = email.indexOf("@");
-    const end = email.indexOf(".com");
+    const end = email.indexOf(".edu");
     var domain = email.substring(start + 1, end);
     const realDomain = email.substring(start, end);
     email = email.substring(0, end);
@@ -143,7 +144,7 @@ export default class ProfileScreen extends React.Component {
         sellerNotification: true,
         scheduled: true,
         reminders: 0,
-        ranges:0,
+        ranges:15,
       },
     };
 
@@ -190,10 +191,10 @@ export default class ProfileScreen extends React.Component {
             );
           }
           const notifications = snapshot.val().notifications;
-          notificationCategory.buyer = notifications.buyer;
-          notificationCategory.seller = notifications.seller;
-          notificationCategory.newMessages = notifications.newMessages;
-          notificationCategory.notifications = notifications.notifications;
+          notificationCategory.buyer = (notifications || {}).buyer || {};
+          notificationCategory.seller = (notifications || {}).seller || {};
+          notificationCategory.newMessages = (notifications || {}).newMessages || {};
+          notificationCategory.notifications = (notifications || {}).notifications || {};
           this.setState({
             accountCategory,
             notificationCategory,
@@ -260,7 +261,7 @@ export default class ProfileScreen extends React.Component {
         }}
       >
         <TouchableOpacity
-          onPress={() =>
+          onPress={() =>{
             this.setState({
               generalCategory: this.state.beforeChanges[
                 this.state.generalCategoryIndex
@@ -272,7 +273,10 @@ export default class ProfileScreen extends React.Component {
                 this.state.notificationCategoryIndex
               ],
             })
-          }
+            if(this.state.tempUri != "" && this.state.tempUri != this.state.imageUri){
+              this.setState({imageUri:this.state.tempUri,tempUri:""})
+            }
+          }}
         >
           <Text style={{ color: "white", fontSize: 18 }}>Cancel</Text>
         </TouchableOpacity>
@@ -288,7 +292,7 @@ export default class ProfileScreen extends React.Component {
     var user = firebase.auth().currentUser;
     var email = firebase.auth().currentUser.email;
     const start = email.indexOf("@");
-    const end = email.indexOf(".com");
+    const end = email.indexOf(".edu");
     var domain = email.substring(start + 1, end);
     const realDomain = email.substring(start, end);
     email = email.substring(0, end);
@@ -315,13 +319,29 @@ export default class ProfileScreen extends React.Component {
       })
 
     if (this.state.changedUrl) {
-      //1 console.log("changed url")
-      this.uriToBlob(this.state.imageUri).then((blob) => {
-        //1 console.log("this.state.imageUri ", this.state.imageUri)
-        this.uploadToFirebase(blob)
-      }).catch(() => {
-        this.setState({savedSuccessfully:false})
-      })
+      if(this.state.imageUri != ""){
+        //1 console.log("changed url")
+        this.uriToBlob(this.state.imageUri).then((blob) => {
+          //1 console.log("this.state.imageUri ", this.state.imageUri)
+          this.uploadToFirebase(blob)
+        }).catch(() => {
+          this.setState({savedSuccessfully:false})
+        })
+      }else{
+      var imageRef = firebase
+        .storage()
+        .ref(`/profilePics/${realDomain}/${email}/profilePic.jpg`)
+      // Delete the file
+      imageRef
+        .delete()
+        .then(function () {})
+        .catch(function (error) {
+          //1 console.log("OH no, delete image dosn't work");
+        });
+      firebase
+        .database()
+        .ref("users/" + realDomain + "/" + email).update({profileImageUrl: null})
+      }
     }
 
     user.updateProfile({
@@ -366,7 +386,7 @@ export default class ProfileScreen extends React.Component {
       var storageRef = firebase.storage().ref();
       const user = firebase.auth().currentUser;
       const start = user.email.indexOf("@");
-      const end = user.email.indexOf(".com");
+      const end = user.email.indexOf(".edu");
       const domain = user.email.substring(start, end);
       const email = user.email.substring(0, end);
       storageRef
@@ -431,7 +451,10 @@ export default class ProfileScreen extends React.Component {
         </View> */}
         <View style={{justifyContent:"space-around",width:windowWidth,marginHorizontal:20,flexDirection:"row"}}>
           <TouchableOpacity
-            onPress={() =>
+            onPress={() =>{
+                        if(this.state.tempUri != "" && this.state.tempUri != this.state.imageUri){
+              this.setState({imageUri:this.state.tempUri,tempUri:""})
+            }
               this.setState({
                 changedUrl: false,
                 generalCategory: this.state.beforeChanges[
@@ -444,7 +467,7 @@ export default class ProfileScreen extends React.Component {
                   this.state.notificationCategoryIndex
                 ],
               })
-            }
+            }}
           >
             <Text style={{ color: "white", fontSize: 18 }}>Cancel</Text>
           </TouchableOpacity>
@@ -477,6 +500,11 @@ export default class ProfileScreen extends React.Component {
               </View>
             )}
           </TouchableOpacity>
+          <View style={{position:"absolute",bottom:0,left:-10}}>
+            <TouchableOpacity onPress={() => this.setState({changedUrl:true,tempUri:this.state.imageUri,imageUri:""})}>
+                      <FontAwesome name="trash-o" size={40} color="red" />
+                      </TouchableOpacity>
+                      </View>
           </View>
           <TouchableOpacity onPress={() => {this.setState({savedSuccessfully : undefined,showDialog:true});this.saveToFirebase()}}>
             <Text style={{ color: "white", fontSize: 18 }}>Save</Text>
@@ -485,12 +513,12 @@ export default class ProfileScreen extends React.Component {
 
         <RatingUser
           starSize={45}
-          starCount={this.state.rating}
+          starCount={this.state.rating || 0}
           disabled={true}
           selected={(rating) => this.onStarRatingPress(rating)}
         />
         <Text style={{ fontSize: 15, color: "white" }}>
-          {this.state.rating.toString().substring(0,4)}
+          {(this.state.rating || "").toString().substring(0,4)}
         </Text>
       </View>
     );
@@ -1274,7 +1302,7 @@ export default class ProfileScreen extends React.Component {
                       }
                     containerStyle={{ height: 40, width: windowWidth - 230 }}
                       onChangeItem={(item) =>
-                        this.setEditMode(1, 3, "ranges", this.convertToNumber(item))
+                        this.setEditMode(2, "seller", "ranges", this.convertToNumber(item))
                       }
                     />
                   </Animated.View>
@@ -1289,7 +1317,7 @@ export default class ProfileScreen extends React.Component {
   signOutHelper = () => {
     const user = firebase.auth().currentUser;
     const start = user.email.indexOf("@");
-    const end = user.email.indexOf(".com");
+    const end = user.email.indexOf(".edu");
     const domain = user.email.substring(start, end);
     const realEmail = user.email.substring(0, end);
     this.setLoading(true);

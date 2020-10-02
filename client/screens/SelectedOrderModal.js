@@ -9,8 +9,10 @@ import {
   MaterialIcons,
   Entypo,
   AntDesign,
+  Ionicons,
 } from "@expo/vector-icons";
 import RatingUser from "./RatingUser";
+import { Notifications } from "expo";
 import Dialog, {
   DialogFooter,
   DialogButton,
@@ -61,9 +63,16 @@ export default class SelectedOrderModal extends React.Component {
     possibleProfitVisible: false,
     carouselHeight: 0,
     cancelHighlight: false,
+    deleteHighlight:false,
+    reminderHighlight:false,
+    addSavedOrderHighlight:false,
+    goToChatHighlight:false,
     modalOn: false,
     imageIndex: 0,
     showImageViewer: false,
+    deleteVisible:false,
+    goToChatVisible:false,
+    addedToSavedOrder:(this.props.navigation.state.params.pendingOrderInfo || {}).addedToSavedOrder || false,
   };
 
   timestamp = () => {
@@ -75,7 +84,7 @@ export default class SelectedOrderModal extends React.Component {
     this.orderRef().once("value", async (snapshot) => {
       const order = snapshot.val();
       const user = firebase.auth().currentUser;
-      const end = (user || {}).email.indexOf(".com");
+      const end = (user || {}).email.indexOf(".edu");
       const email = (user || {}).email.substring(0, end);
       const timestamp = this.state.timestamp.toString(10).substring(0, 13);
       const stillExists = parseInt(timestamp) - new Date().getTime() + 60000;
@@ -226,10 +235,34 @@ export default class SelectedOrderModal extends React.Component {
     });
   };
 
+  deleteOrderModal = () => {
+        const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".edu");
+    const domain = (user || {}).email.substring(start, end);
+    const realEmail = (user || {}).email.substring(0, end);
+    const scheduledIds = (this.props.navigation.state.params.pendingOrderInfo || {}).scheduledIds ? (this.props.navigation.state.params.pendingOrderInfo || {}).scheduledIds : []
+    for (var i = 0; i < scheduledIds.length; i++) {
+      Notifications.cancelScheduledNotificationAsync(scheduledIds[i].id);
+    }
+    firebase
+      .database()
+      .ref("orders/" + domain + "/currentOrders")
+      .update({
+        [[this.props.navigation.state.params.orderNumber]]: null,
+      });
+    firebase
+      .database()
+      .ref("users/" + domain + "/" + realEmail + "/pendingOrders")
+      .update({
+        [[this.props.navigation.state.params.orderNumber]]: null,
+      });
+  }
+
   sendAcceptanceNotification = (email) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     var name = "";
@@ -275,7 +308,7 @@ export default class SelectedOrderModal extends React.Component {
   addToReminders = () => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     const scheduledIds = [];
@@ -568,6 +601,8 @@ export default class SelectedOrderModal extends React.Component {
                       otherChattersProfileImages[[otherChatterEmail]].uri,
                   });
                 }
+              }else{
+                                this.setState({profileImage: Math.floor(Math.random() * 4)})
               }
             })
         );
@@ -746,6 +781,10 @@ export default class SelectedOrderModal extends React.Component {
     // }
   };
 
+    generateRandomString = () => {
+    return Math.random().toString().substr(2, 20);
+  };
+
   tryingToAccept = (modalWidth) => (
     <>
       <TouchableWithoutFeedback
@@ -801,6 +840,413 @@ export default class SelectedOrderModal extends React.Component {
     </>
   );
 
+    deleteDialog = () => {
+    return (
+      <View
+        style={{
+          position: "absolute",
+          width: windowWidth,
+          height: windowHeight,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "rgba(0,0,0,0.8)",
+        }}
+      >
+        <View
+          style={{
+            width: 250,
+            height: 200,
+            flexDirection: "column",
+            justifyContent: "space-between",
+            backgroundColor: "white",
+            borderRadius: 20,
+          }}
+        >
+          <View
+            style={{
+              height: 30,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>Delete Order</Text>
+          </View>
+          <View
+            style={{
+              alignItems: "center",
+              marginHorizontal: 10,
+              justifyContent: "center",
+              height: 100,
+              flexDirection: "col",
+            }}
+          >
+            <Text style={{ fontSize: 17,textAlign:"center" }}>
+              {((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != "in-progress" || (this.props.navigation.state.params.pendingOrderInfo || {}).orderIdle == true)
+                ? "Confirm Deleting this Pending Order"
+                : "The order is in-progress, wait until "}
+              {!((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != "in-progress" || (this.props.navigation.state.params.pendingOrderInfo || {}).orderIdle == true) &&
+              <>
+              <Text style={{ fontWeight: "500" }}>
+                {(this.props.navigation.state.params.pendingOrderInfo || {}).possibleTime.time +
+                  (this.props.navigation.state.params.pendingOrderInfo || {}).possibleTime.amOrPm +
+                  " " +
+                  (this.props.navigation.state.params.pendingOrderInfo || {}).possibleTime.date}
+              </Text>
+              <Text> to delete</Text>
+              </>}
+            </Text>
+          </View>
+          {!((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != "in-progress" || (this.props.navigation.state.params.pendingOrderInfo || {}).orderIdle == true) ? (
+            <TouchableOpacity
+              onPress={() => this.setState({ deleteVisible: false })}
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderTopWidth: 0.2,
+                  height: 50,
+                  borderColor: "gray",
+                }}
+              >
+                <Text>Dismiss</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ flexDirection: "row" }}>
+              <TouchableOpacity
+                onPress={() => {
+                  this.setState({ deleteVisible: false });
+                }}
+              >
+                <View
+                  style={{
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderTopWidth: 0.5,
+                    borderRightWidth: 0.3,
+                    height: 50,
+                    width: 125,
+                    borderColor: "gray",
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>Cancel</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  this.setState({ deleteVisible: true });
+                  this.deleteOrderModal()
+                            this._close(this.state.animatedWidth);
+          this._close(this.state.animatedHeight);
+          this.props.navigation.goBack();
+                }}
+              >
+                <View
+                  style={{
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderTopWidth: 0.5,
+                    borderLeftWidth: 0.3,
+                    width: 125,
+                    height: 50,
+                    borderColor: "gray",
+                  }}
+                >
+                  <Text style={{ fontSize: 20, color: "red" }}>Delete</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+  goToChatDialog = () => {
+    return (
+      <View
+        style={{
+          position: "absolute",
+          width: windowWidth,
+          height: windowHeight,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "rgba(0,0,0,0.8)",
+        }}
+      >
+        <View
+          style={{
+            width: 250,
+            height: 200,
+            flexDirection: "column",
+            justifyContent: "space-between",
+            backgroundColor: "white",
+            borderRadius: 20,
+          }}
+        >
+          <View
+            style={{
+              height: 30,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>Go to Chat Error</Text>
+          </View>
+          <View
+            style={{
+              alignItems: "center",
+              marginHorizontal: 10,
+              justifyContent: "center",
+              height: 100,
+              flexDirection: "col",
+            }}
+          >
+            <Text style={{ fontSize: 17,textAlign:"center" }}>
+              When an order is searching or expired, there is no chat to go to. A seller must have accepted the order first.
+              
+            </Text>
+          </View>
+            <TouchableOpacity
+              onPress={() => this.setState({ goToChatVisible: false })}
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderTopWidth: 0.2,
+                  height: 50,
+                  borderColor: "gray",
+                }}
+              >
+                <Text>Dismiss</Text>
+              </View>
+            </TouchableOpacity>
+
+        </View>
+      </View>
+    );
+  };
+
+  fromPendingOrders = (modalWidth) => (
+    <>
+      <View style={{flexDirection:"col"}}>
+      <View style={{flexDirection:"row"}}>
+      <TouchableWithoutFeedback
+        onPressIn={() => this.setState({ deleteHighlight: true })}
+        onPressOut={() => this.setState({ deleteHighlight: false })}
+        onPress={() => {
+          this.setState({ deleteVisible:true });
+          // this._close(this.state.animatedWidth);
+          // this._close(this.state.animatedHeight);
+          // this.props.navigation.goBack();
+        }}
+      >
+        <View
+          
+          style={{
+            height:50,
+            width:modalWidth/2,
+                        borderBottomWidth:2,
+            borderRightWidth:2,
+            backgroundColor: this.state.deleteHighlight ? "rgba(200,10,13,0.5)" : "rgba(253,112,112,0.5)",
+            justifyContent: "center",
+            borderColor: "black",
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              textDecorationLine: "underline",
+              color: "#FD7070",
+            }}
+          >
+            Delete
+          </Text>
+        </View>
+      </TouchableWithoutFeedback>
+            <TouchableWithoutFeedback
+        onPressIn={() => this.setState({ goToChatHighlight: true })}
+        onPressOut={() => this.setState({ goToChatHighlight: false })}
+        onPress={() => {
+
+          // this.props.navigation.goBack();
+          if((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != "expired" && (this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != "searching"){
+                        this.setState({ modalOn: false });
+          this._close(this.state.animatedWidth);
+          this._close(this.state.animatedHeight);
+              const user = firebase.auth().currentUser;
+              const start = (user || {}).email.indexOf("@");
+              const end = (user || {}).email.indexOf(".edu");
+              const email = (user || {}).email.substring(0, end);
+              const domain = (user || {}).email.substring(start, end);
+              const otherChatterEmail =
+                (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.substring(0, email.length) == email
+                  ? (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.substring(
+                      email.length,
+                      (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.length
+                    )
+                  : (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.substring(0, email.length);
+              firebase
+                .database()
+                .ref("users/" + domain + "/" + otherChatterEmail)
+                .once("value", (snapshot) => {
+                  this.props.navigation.navigate("Room", {
+                    thread: (this.props.navigation.state.params.pendingOrderInfo || {}).chatId,
+                    chattingUser: snapshot.val().name,
+                    otherChatterEmail: otherChatterEmail,
+                  });
+                });
+          }else{
+            this.setState({goToChatVisible:true})
+          }
+        }}
+      >
+        <View
+          style={{
+            height:50,
+            width:modalWidth/2,
+                        borderBottomWidth:2,
+            borderLeftWidth:2,
+            backgroundColor: this.state.goToChatHighlight ? "rgba(13,112,193,1)" :  "rgba(16,120,250,0.5)",
+            justifyContent: "center",
+            borderColor: "black",
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              textDecorationLine: "underline",
+              color: "blue",
+            }}
+          >
+            Go to Chat
+          </Text>
+        </View>
+      </TouchableWithoutFeedback>
+      </View>
+            <View style={{flexDirection:"row"}}>
+      <TouchableWithoutFeedback
+        onPressIn={() => this.setState({ addSavedOrderHighlight: true })}
+        onPressOut={() => this.setState({ addSavedOrderHighlight: false })}
+        onPress={() => {
+                      const user = firebase.auth().currentUser;
+            const start = (user || {}).email.indexOf("@");
+            const end = (user || {}).email.indexOf(".edu");
+            const domain = (user || {}).email.substring(start, end);
+            const realEmail = (user || {}).email.substring(0, end);
+          if(!this.state.addedToSavedOrder){
+            this.setState({addedToSavedOrder:true})
+            firebase
+              .database()
+              .ref(
+                "orders/" + domain + "/currentOrders/" + this.props.navigation.state.params.orderNumber
+              )
+              .once("value", (snapshot) => {
+                firebase
+                  .database()
+                  .ref("users/" + domain + "/" + realEmail + "/savedOrders/")
+                  .update({
+                    [[this.generateRandomString()]]: {
+                      images: snapshot.val().imageNames,
+                      range: snapshot.val().rangeSelected,
+                      timePreference: snapshot.val().timeSelected,
+                      title: "",
+                      thumbnail: snapshot.val().imageNames[0],
+                    },
+                  });
+                firebase
+                  .database()
+                  .ref(
+                    "users/" +
+                      domain +
+                      "/" +
+                      realEmail +
+                      "/pendingOrders/" +
+                      this.props.navigation.state.params.orderNumber
+                  )
+                  .update({
+                    addedToSavedOrder: true,
+                  });
+              });
+            }
+        }}
+      >
+        <View
+          style={{
+            height:49,
+            width:modalWidth/2,
+            borderBottomLeftRadius:20,
+            borderTopWidth:2,
+            borderRightWidth:2,
+            backgroundColor: this.state.addSavedOrderHighlight ? "rgba(210,180,12,1)" : "rgba(255,219,12,0.3)",
+            justifyContent: "center",
+            borderColor: "black",
+            flexDirection:"row",
+            alignItems: "center",
+          }}
+        >
+          <View style={{width:modalWidth/3,padding:7}}>
+          <Text
+            style={{
+              fontSize: 20,
+              textDecorationLine: "underline",
+              color: "#FFDB0C",
+              textAlign:"center",
+            }}
+            adjustsFontSizeToFit={true}
+            numberOfLines={2}
+          >
+            Add to Saved Orders
+          </Text>
+          </View>
+          <View style={{justifyContent:"center",alignItems:"center",width:modalWidth/6,height:45,marginTop:-5,borderLeftWidth:1,borderColor:"gray"}}>
+             {this.state.addedToSavedOrder ? <AntDesign name="check" size={50} color="green" /> : <Ionicons name="md-add" size={50} color="black" />}
+          </View>
+        </View>
+
+      </TouchableWithoutFeedback>
+            <TouchableWithoutFeedback
+        onPressIn={() => this.setState({ reminderHighlight: true })}
+        onPressOut={() => this.setState({ reminderHighlight: false })}
+        onPress={() => {
+          this.setState({ modalOn: false });
+          this._close(this.state.animatedWidth);
+          this._close(this.state.animatedHeight);
+          this.props.navigation.goBack();
+        }}
+      >
+        <View
+          style={{
+            height:50,
+            width:modalWidth/2,
+            borderBottomRightRadius:20,
+            borderTopWidth:2,
+            borderLeftWidth:2,
+            backgroundColor: this.state.reminderHighlight ? "rgba(60,60,60,1)" : "rgba(0,0,0,0.1)",
+            justifyContent: "center",
+            borderColor: "black",
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              textDecorationLine: "underline",
+              color: "black",
+            }}
+          >
+            Reminders
+          </Text>
+        </View>
+      </TouchableWithoutFeedback>
+      </View>
+      </View>
+    </>
+  );
+
   _start = (widthVariable, value, time) => {
     //1 console.log("oooooooooo");
     Animated.timing(widthVariable, {
@@ -823,7 +1269,7 @@ export default class SelectedOrderModal extends React.Component {
     const AM = orderDate.getHours() < 12 ? true : false;
     const hour =
       orderDate.getHours() <= 12
-        ? orderDate.getHours()
+        ? (orderDate.getHours() == 0 ? 12 : orderDate.getHours())
         : orderDate.getHours() - 12;
     const minute = "0" + orderDate.getMinutes();
     const time = hour + ":" + minute.substr(-2);
@@ -837,7 +1283,7 @@ export default class SelectedOrderModal extends React.Component {
 
   acceptedOrderError = () => {
     const user = firebase.auth().currentUser;
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const email = (user || {}).email.substring(0, end);
     return (
       <View
@@ -1043,11 +1489,10 @@ export default class SelectedOrderModal extends React.Component {
             }}
             onModalWillShow={() => {
               this._start(this.state.animatedWidth, windowWidth - 50, 400);
-              this._start(this.state.animatedHeight, windowHeight - 200, 600);
+              this._start(this.state.animatedHeight,windowHeight * 0.8, 600);
               this._start(
                 this.state.carouselAnimatedHeight,
-                windowHeight -
-                  200 -
+                (windowHeight * 0.8) -
                   firstRowHeight -
                   secondRowHeight -
                   thirdRowHeight,
@@ -1102,8 +1547,19 @@ export default class SelectedOrderModal extends React.Component {
                           justifyContent: "center",
                         }}
                       >
-                        {this.state.profileImage != "" ? (
-                          <Image
+
+                        {this.state.profileImage == 0 ? (
+                            <Fontisto name="slightly-smile" size={38} color="black" />
+                          ) : (this.state.profileImage == 1 ? (
+                          <FontAwesome5 name="smile-beam" size={38} color="black"/>
+                          ): 
+                          (this.state.profileImage == 2 ? (
+                             <FontAwesome5 name="smile-wink" size={38} color="black"/>
+                          ) :  
+                          (this.state.profileImage == 3 ? (
+                            <Fontisto name="smiley" size={38} color="black" />
+                          ) : (
+                            <Image
                             source={{ url: this.state.profileImage }}
                             style={{
                               borderRadius: firstRowHeight - firstRowPadding,
@@ -1115,9 +1571,8 @@ export default class SelectedOrderModal extends React.Component {
                               justifyContent: "center",
                             }}
                           />
-                        ) : (
-                          <FontAwesome name="user" size={50} color="black" />
-                        )}
+                        ))))}
+                        
                       </View>
                     </Col>
                     <Col
@@ -1151,6 +1606,8 @@ export default class SelectedOrderModal extends React.Component {
                       style={{ alignItems: "center", justifyContent: "center" }}
                     >
                       <Text
+                      adjustsFontSizeToFit={true}
+                      numberOfLines={1}
                         style={{
                           fontSize: 27,
                           fontWeight: "600",
@@ -1340,13 +1797,25 @@ export default class SelectedOrderModal extends React.Component {
                   </Row>
                   <Row
                     style={{
-                      height: thirdRowHeight,
+                      height: (this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus == undefined ? thirdRowHeight : 100,
                       borderTopWidth: 2,
                       borderBottomLeftRadius: 20,
                       borderBottomRightRadius: 20,
                     }}
                   >
-                    {this.tryingToAccept(modalWidth)}
+                    {((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != undefined) ?
+                    this.fromPendingOrders(modalWidth)
+                    : 
+                    // ((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus == "in-progress" ?
+                    // (this.props.navigation.state.params.orderIdle ? 
+                    //                     this.expiredOrSearching(modalWidth)
+                    // :
+                    //                     this.expiredOrSearching(modalWidth)
+                    //  )
+                    // : ((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus == "completed" ? 
+                    // null
+                    this.tryingToAccept(modalWidth)
+                    }
                   </Row>
                 </Grid>
               )}
@@ -1371,6 +1840,8 @@ export default class SelectedOrderModal extends React.Component {
             </Animated.View>
 
             {this.state.possibleProfitVisible && this.possibleProfit()}
+            {this.state.deleteVisible && this.deleteDialog()}
+            {this.state.goToChatVisible && this.goToChatDialog()}
           </Modal>
         ) : (
           this.model()

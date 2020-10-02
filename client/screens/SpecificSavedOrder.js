@@ -205,7 +205,7 @@ export default class SpecificSavedOrder extends React.Component {
       const orderDate = new Date(parseInt(timestamp));
 
       const AM = orderDate.getHours() < 12 ? true : false;
-      const hour =orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
+        const hour = orderDate.getHours() <= 12 ? (orderDate.getHours() == 0 ? 12 : orderDate.getHours())  : orderDate.getHours() - 12
       const minute = "0" + orderDate.getMinutes();
       const time = hour + ":" + minute.substr(-2);
       // const date = orderDate.getDay() + '/' + (orderDate.getMonth() + 1)
@@ -551,7 +551,7 @@ export default class SpecificSavedOrder extends React.Component {
     const firstRowPadding = 8;
     const secondRowHeight = (windowHeight - 100) / 10;
     const modalWidth = windowWidth - 50;
-    const modalHeight = windowHeight - 200;
+    const modalHeight = windowHeight * 0.8;
     const left = (windowWidth - modalWidth) / 2;
     const top = (windowHeight - modalHeight) / 2;
     const itemsCount = 50;
@@ -624,7 +624,10 @@ export default class SpecificSavedOrder extends React.Component {
                               size={40}
                               color="black"
                             />
-                            <Text>Thumbnail</Text>
+                            <Text 
+                              adjustsFontSizeToFit={true}
+                              numberOfLines={1}
+                            >Thumbnail</Text>
                           </>
                         )}
                       </View>

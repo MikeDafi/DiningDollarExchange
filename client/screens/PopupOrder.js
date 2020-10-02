@@ -44,6 +44,19 @@ import ImageViewer from "react-native-image-zoom-viewer";
 //     appId: "1:529283379449:web:aaea13bb1526e3b182b228"
 //   };
 //  admin.initializeApp(firebaseConfig);
+const ranges = {
+  8: [1,5],
+  4:[5,10],
+  2: [10,15],
+  1:[15,100]
+}
+
+const rangesStrings = {
+  8: "1 to 5",
+  4: "5 to 10",
+  2: "10 to 15",
+  1 : "15+"
+}
 
 export default class PopupOrder extends React.Component {
   state = {
@@ -121,7 +134,7 @@ export default class PopupOrder extends React.Component {
     const amOrPm = date.getHours() >= 12 ? "PM" : "AM";
     const hour =
       date.getHours() == 0
-        ? 0
+        ? 12
         : date.getHours() > 12
         ? date.getHours() % 12
         : date.getHours();
@@ -144,7 +157,7 @@ export default class PopupOrder extends React.Component {
       body:
         "Earn " +
         (this.state.rangeSelected == ""
-          ? Math.ceil(parseInt(this.state.priceInputted) * 0.8)
+          ? Math.ceil(parseFloat(this.state.priceInputted) * 0.8)
           : this.state.rangeSelected),
       data: {
         data: {
@@ -171,19 +184,23 @@ export default class PopupOrder extends React.Component {
     //1 console.log("orderNumber", orderNumber);
     const thisReference = this;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const thisUserEmail = (user || {}).email.substring(0, end); //so we don't send notification to self
     firebase
       .database()
       .ref("users/" + domain + "/")
-      .once("value", function (domainAccounts) {
+      .once("value",  (domainAccounts) => {
+        const price = parseFloat(this.state.priceInputted)
         const repeatTokens = {};
         domainAccounts.forEach((user) => {
           var userInfo = user.val();
+
           if (
             user.key != thisUserEmail &&
             !repeatTokens[[userInfo.expoToken]]
+            && userInfo.notifications.seller.sellerNotification &&
+            this.isInRange(userInfo.notifications.seller.ranges,price)
           ) {
             repeatTokens[[userInfo.expoToken]] = true;
             //1 console.log("found notification");
@@ -195,6 +212,37 @@ export default class PopupOrder extends React.Component {
         });
       });
   };
+
+  isInRange = (number,price) => {
+
+    if(this.state.rangeSelected == ""){
+      var binary = 8;
+      while (binary >= 1) {
+        if (number >= binary) {
+          number -= binary;
+
+          if(Math.ceil(price) >= ranges[[binary]][0] && Math.floor(price) <= ranges[[binary]][1]){
+            return true
+          }
+        }
+        binary = binary / 2;
+      }
+      return false
+    }else{
+        var binary = 8
+            while (binary >= 1) {
+        if (number >= binary) {
+          number -= binary;
+          if(rangesStrings[[binary]] == this.state.rangeSelected){
+            return true
+          }
+        }
+        binary = binary / 2;
+      }
+      return false
+    }
+
+  }
 
   uriToBlob = async (text) => {
     return new Promise((resolve, reject) => {
@@ -220,7 +268,7 @@ export default class PopupOrder extends React.Component {
     //1 console.log("in upload");
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     
@@ -286,7 +334,7 @@ export default class PopupOrder extends React.Component {
     //1 console.log("imageUris", this.state.imageUris);
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     const orders = firebase.database().ref("orders/" + domain);
@@ -623,7 +671,7 @@ export default class PopupOrder extends React.Component {
         this.onDateChange(this.getDateTime(this.props.timestamp));
         // this.setState({dateTimeStamp : "",date:"",invalidTime:false})
       } else {
-        this.onDateChange(this.getDateTime(new Date().getTime() + 60000));
+        this.onDateChange(this.getDateTime(new Date().getTime() + 300000));
       }
       this.setState({
         rendered: true,
@@ -841,10 +889,10 @@ export default class PopupOrder extends React.Component {
                                 priceInputted: "",
                                 rangeError: "Price is not a Number",
                               });
-                            } else if (parseInt(this.state.priceInputted) < 1) {
+                            } else if (parseFloat(this.state.priceInputted) < 1) {
                               this.setState({ rangeError: "Price too Small" });
                             } else if (
-                              parseInt(this.state.priceInputted) > 100
+                              parseFloat(this.state.priceInputted) > 100
                             ) {
                               this.setState({ rangeError: "Price is too Big" });
                             } else {
@@ -858,9 +906,9 @@ export default class PopupOrder extends React.Component {
                           autoCapitalize="none"
                           onSubmitEditing={Keyboard.dismiss}
                           onChangeText={(field) => {
-                            if (parseInt(field) < 1) {
+                            if (parseFloat(field) < 1) {
                               this.setState({ priceInputted: "1" });
-                            } else if (parseInt(field) > 100) {
+                            } else if (parseFloat(field) > 100) {
                               this.setState({ priceInputted: "100" });
                             } else {
                               this.setState({ priceInputted: field });

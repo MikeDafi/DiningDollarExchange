@@ -7,7 +7,7 @@
     "owner":"mike0264",
     "orientation": "portrait",
     "icon": "./client/assets/AppIconSquare1.png",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "backgroundColor":"#AAAAAA",
     "platforms": [
       "ios",
@@ -21,7 +21,7 @@
     "ios": {
       "bundleIdentifier": "com.michaelaskndafi.DDE",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "To upload Grubhub Screenshots, DDE needs access to Photo Library",
+        "NSPhotoLibraryUsageDescription": "To upload Triton2Go Screenshots, DDE needs access to Photo Library",
         "NSCameraUsageDescription" : "To take photos of any immediate viewing order, DDE needs access to Camera"
       }
     }

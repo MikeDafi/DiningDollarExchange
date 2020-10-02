@@ -1,16 +1,41 @@
 import React from "react";
-import { View, Text, StyleSheet, Dimensions,TouchableOpacity,TouchableWithoutFeedback } from "react-native";
+import { View, Text, StyleSheet, Dimensions,TouchableOpacity,TouchableWithoutFeedback,Animated } from "react-native";
 import * as firebase from "firebase";
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
 import { FontAwesome5, Ionicons,Entypo } from "@expo/vector-icons";
+import * as Permissions from "expo-permissions"
+
 export default class QuickOrder extends React.Component {
 
   state={
     isClickedBuyNow : false,
+    warningHeight: new Animated.Value(0),
+    notificationsOff:false,
+    showWarning: this.props.showWarning || false,
   }
   componentDidMount(){
-    console.log("jo")
+    const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".edu");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
+    setTimeout(() => {
+          firebase.database().ref("users/" + domain +"/" + email).on("value",async snapshot => {
+      const result = this.state.showWarning && (snapshot.val().expoToken == undefined || snapshot.val().expoToken == "" || snapshot.val().expoToken == null)
+      if(result){
+        this.setState({notificationsOff:true})
+        this._start(this.state.warningHeight,45)
+      }else{
+            const {status} = await Permissions.getAsync(Permissions.CAMERA_ROLL)
+            if(this.state.showWarning && status != "granted"){
+              this.setState({notificationsOff:false})
+              this._start(this.state.warningHeight,45)
+            }
+      }
+
+    })
+    }, 3000);
   }
 
 
@@ -63,9 +88,18 @@ export default class QuickOrder extends React.Component {
     );
   };
 
+      _start = (variable,result) => {
+    // //1 console.log("oooooooooo");
+    Animated.timing(variable, {
+      toValue: result,
+      duration: 200,
+    }).start();
+  };
+
   render() {
     return (
-<View style={styles.header}>
+<View style={{height:80}}>
+          <View style={styles.header}>
           <TouchableOpacity
             onPress={() => {
               try{
@@ -86,6 +120,27 @@ export default class QuickOrder extends React.Component {
           >
             {this.nextButton()}
           </TouchableOpacity>
+          </View>
+          <Animated.View style={{height:this.state.warningHeight,backgroundColor:"#FFF358",flexDirection:"row",borderBottomLeftRadius:20,borderBottomRightRadius:20}}>
+            <Animated.View style={{width:(windowWidth/2) - 50,paddingLeft:4,height:this.state.warningHeight,justifyContent:"center",alignItems:"center"}}>
+              <Text 
+                          adjustsFontSizeToFit={true}
+            numberOfLines={2}>
+              {this.state.notificationsOff ? 
+              "*Notifications Off*" :
+              "*Photo Access Off*"}
+            </Text>
+            </Animated.View>
+                        <Animated.View style={{width:(windowWidth/2) - 50,height:this.state.warningHeight,justifyContent:"center",alignItems:"center",position:"absolute",right:0}}>
+              <Text 
+              style={{fontSize:17,textAlign:"center"}}
+                          adjustsFontSizeToFit={true}
+            numberOfLines={2}>
+              Go to Apple Settings
+            </Text>
+            </Animated.View>
+          </Animated.View>
+          
           <TouchableWithoutFeedback
 
             onPressIn={() => this.setState({isClickedBuyNow:true})}
@@ -98,7 +153,7 @@ export default class QuickOrder extends React.Component {
                         style={{
               position: "absolute",
               left: windowWidth / 2 - 62,
-              marginTop: 40,
+              marginTop:5,
               width: 120,
               height: 120,
               borderRadius: 120,

@@ -59,7 +59,7 @@ export default class TutorialScreen extends React.Component {
         }}
       >
         <Text style={{ fontSize: 25, fontWeight: "700", textAlign: "center" }}>
-          Put the Grubhub Images, Price, and Date
+          Put the Triton2Go Order Images, Price, and Date
         </Text>
       </View>
       <View style={styles.image}>
@@ -358,7 +358,7 @@ export default class TutorialScreen extends React.Component {
           adjustsFontSizeToFit={true}
           numberOfLines={2}
         >
-          Prepare Their Order on Grubhub. Then, Confirm Order with Buyer
+          Prepare Their Order on Triton2Go. Then, Confirm Order with Buyer
         </Text>
         <Text
           style={{
@@ -432,7 +432,7 @@ export default class TutorialScreen extends React.Component {
           adjustsFontSizeToFit={true}
           numberOfLines={1}
         >
-          Send Proof of Purchased Grubhub Order
+          Send Proof of Purchased Triton2Go Order
         </Text>
         <Text
           style={{ fontSize: 24, fontWeight: "700", textAlign: "center" }}
@@ -491,7 +491,7 @@ export default class TutorialScreen extends React.Component {
             of any price on
           </Text>
           <Image
-            source={require("../assets/grubhub.png")}
+            source={require("../assets/Triton2Go.png")}
             style={{
               resizeMode: "contain",
               height: windowWidth / 2 - 70,

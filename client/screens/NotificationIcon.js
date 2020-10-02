@@ -12,7 +12,7 @@ export default class NotificationIcon extends React.Component{
     componentDidMount(){
             const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
         firebase.database().ref("users/" + domain + "/" + email + "/chats/").on("value",snapshot => {

@@ -25,7 +25,7 @@ export default class SellerHomeScreen extends React.Component {
     getTime = (timestamp) => {
         const orderDate = new Date(timestamp)
         const AM = orderDate.getHours() < 12 ? true : false
-        const hour = orderDate.getHours() <= 12 ? orderDate.getHours() : orderDate.getHours() - 12
+        const hour = orderDate.getHours() <= 12 ? (orderDate.getHours() == 0 ? 12 : orderDate.getHours())  : orderDate.getHours() - 12
         const minute =  "0" + orderDate.getMinutes()
         return hour + ":" + minute.substr(-2) + (AM ? "am" : "pm")
     }
@@ -42,7 +42,7 @@ export default class SellerHomeScreen extends React.Component {
     componentDidMount(){
         const user = firebase.auth().currentUser;
         const start = (user || {}).email.indexOf("@");
-        const end = (user || {}).email.indexOf(".com");
+        const end = (user || {}).email.indexOf(".edu");
         const domain = (user || {}).email.substring(start, end);
         firebase.database().ref("orders/"+domain +"/currentOrders").on("value", async (orderSnapshot) =>{
             var oldOrders = this.state.orders

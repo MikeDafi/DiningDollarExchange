@@ -41,7 +41,7 @@ export default class HomeScreen extends React.Component {
 
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
     const token = await UserPermissions.getDeviceToken()
@@ -58,7 +58,7 @@ export default class HomeScreen extends React.Component {
       });
 
     firebase.database().ref('users/' + domain +'/' + realEmail).update({
-      expoToken : token,
+      expoToken : token == undefined ? null : token,
       active : true,
       // page: 0,
       // isBuyer:true,
@@ -98,7 +98,7 @@ export default class HomeScreen extends React.Component {
       var storageRef = firebase.storage().ref();
       let uid = (firebase.auth().currentUser || {}).uid;
       const start = this.state.email.indexOf("@");
-      const end = this.state.email.indexOf(".com");
+      const end = this.state.email.indexOf(".edu");
       const domain = this.state.email.substring(start, end);
       storageRef
         .child(`${path}.jpg`)
@@ -116,16 +116,40 @@ export default class HomeScreen extends React.Component {
   };
 
   _handleNotification = (notification) => {
+                  const user = firebase.auth().currentUser;
+              const start = (user || {}).email.indexOf("@");
+              const end = (user || {}).email.indexOf(".edu");
+              const email = (user || {}).email.substring(0, end);
+              const domain = (user || {}).email.substring(start, end);
     //1 console.log("-------------------------------------");
     if(notification.data.pendingOrders){
                   firebase
               .database()
               .ref("users/" + domain + "/" + realEmail + "/pendingOrders").once("value",(snapshot) => {
-                if(snapshot.val()[[notification.data.orderNumber]]["status"] == "in-progress"){
+                if(snapshot.val()[[notification.data.orderNumber]] != undefined && 
+                (snapshot.val()[[notification.data.orderNumber]]["status"] == "in-progress" || snapshot.val()[[notification.data.orderNumber]]["status"] == "completed")){
+              const chatId = snapshot.val()[[notification.data.orderNumber]]["chatId"]
 
-                }else{
-      this.props.navigation.navigate("PendingOrders")
-                }
+              const otherChatterEmail =
+                chatId.substring(0, email.length) == email
+                  ? chatId.substring(
+                      email.length,
+                      chatId.length
+                    )
+                  : chatId.substring(0, email.length);
+              firebase
+                .database()
+                .ref("users/" + domain + "/" + otherChatterEmail)
+                .once("value", (otherSnapshot) => {
+                  this.props.navigation.navigate("Room", {
+                    thread: chatId,
+                    chattingUser: otherSnapshot.val().name,
+                    otherChatterEmail: otherChatterEmail,
+                  });
+                });
+                  }else{
+                    this.props.navigation.navigate("PendingOrders")
+                  }
               })
     }else if(notification.data.data.thread != undefined){
       this.props.navigation.navigate("Room", {
@@ -134,9 +158,15 @@ export default class HomeScreen extends React.Component {
         otherChatterEmail: notification.data.data.otherChatterEmail,
       })
     }else{
+      firebase.database().ref("orders/" + domain + "/currentOrders/").once("value",snapshot => {
+        if(snapshot.val()[[notification.data.data.orderNumber]] == undefined){
+          alert("The Order No Longer Exists")
+        }else{
       this.props.navigation.navigate("SelectedOrderModal",{
         BuyerUid : notification.data.data.BuyerUid,
         orderNumber  : notification.data.data.orderNumber,
+      })
+        }
       })
     }
     // //1 console.log("in notification", notification.data.data.orderNumber);
@@ -305,7 +335,7 @@ export default class HomeScreen extends React.Component {
   setPage = (index) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ page: index });
@@ -357,7 +387,7 @@ infoModal = () =>{
                 <View style={{marginTop:5}}>
                 <Text style={{fontSize:17}}>As Seller, You pay for the Buyer's meal. Buyer pays you 80% back. Better than 50% by UCSD's rate.</Text>
                 <Text style={{fontSize:13}}>1. Accept an order in Seller Home Screen</Text>
-                <Text style={{fontSize:13}}>2. Prepare to buy Order on Grubhub then Confirm Order Price with Buyer in Messages.</Text>
+                <Text style={{fontSize:13}}>2. Prepare to buy Order on Triton2Go then Confirm Order Price with Buyer in Messages.</Text>
                 <Text style={{fontSize:13}}>3. Wait for Buyer to Pay you, then purchase Meal</Text>
                 </View>
               }
@@ -399,6 +429,7 @@ infoModal = () =>{
     return (
       <View style={styles.container}>
         <QuickOrder
+          showWarning={true}
           _swiper={this._swiper}
           blackBackground={true}
           setPage={this.setPage}

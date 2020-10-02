@@ -72,15 +72,13 @@ export default class LoginScreen extends React.Component {
           );
           const user = firebase.auth().currentUser;
           const start = (user || {}).email.indexOf("@");
-          const end = (user || {}).email.indexOf(".com");
+          const end = (user || {}).email.indexOf(".edu");
           const domain = (user || {}).email.substring(start, end);
-          console.log("domain ", domain);
-          console.log("expoToken", token);
           firebase
             .database()
             .ref("users/" + domain + "/" + this.state.email.substring(0, end))
             .update({
-              expoToken: token,
+              expoToken: token == undefined ? null : token,
               active: true,
               // page: 0,
               // isBuyer:true,

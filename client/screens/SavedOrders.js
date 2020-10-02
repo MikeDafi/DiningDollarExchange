@@ -66,7 +66,7 @@ export default class SavedOrders extends React.Component {
   async componentDidMount() {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     let savedOrders = await AsyncStorage.getItem("savedOrders");
@@ -246,7 +246,7 @@ export default class SavedOrders extends React.Component {
     //1 console.log("index ", index);
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     var newSavedOrders = this.state.newSavedOrders;
@@ -318,7 +318,7 @@ export default class SavedOrders extends React.Component {
     const thisOrder = this.state.newSavedOrders[[index]];
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 
@@ -446,7 +446,7 @@ export default class SavedOrders extends React.Component {
     this.setState({loading : true})
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 

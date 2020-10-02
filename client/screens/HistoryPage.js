@@ -12,7 +12,7 @@ import {
   AsyncStorage,
   TextInput,
 } from "react-native";
-import { Ionicons, FontAwesome5, FontAwesome,AntDesign } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, Fontisto,AntDesign } from "@expo/vector-icons";
 import { List, Divider } from "react-native-paper";
 import firebase from "../../config";
 import Loading from "./LoadingScreen";
@@ -43,7 +43,7 @@ export default class MessageScreen extends React.Component {
   setPage = (index) => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     this.setState({ page: index });
@@ -61,7 +61,7 @@ export default class MessageScreen extends React.Component {
   ref = () => {
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     return firebase
@@ -168,7 +168,7 @@ infoModal = () =>{
                 <View style={{marginTop:5}}>
                 <Text style={{fontSize:17}}>As Seller, You pay for the Buyer's meal. Buyer pays you 80% back. Better than 50% by UCSD's rate.</Text>
                 <Text style={{fontSize:13}}>1. Accept an order in Seller Home Screen</Text>
-                <Text style={{fontSize:13}}>2. Prepare to buy Order on Grubhub then Confirm Order Price with Buyer in Messages.</Text>
+                <Text style={{fontSize:13}}>2. Prepare to buy Order on Triton2Go then Confirm Order Price with Buyer in Messages.</Text>
                 <Text style={{fontSize:13}}>3. Wait for Buyer to Pay you, then purchase Meal</Text>
                 </View>
               }
@@ -197,7 +197,7 @@ infoModal = () =>{
     const buyer = isBuyer ? "buyer" : "seller";
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 
@@ -260,6 +260,9 @@ infoModal = () =>{
                   //1 console.log(historyOrders[[otherChatterEmail]])
                   threadss[realCount].avatar = historyOrders[[otherChatterEmail]].uri
                 }
+              }else{
+                threadss[realCount].avatar = Math.floor(Math.random() * 4)
+
               }
             })
           );
@@ -391,7 +394,7 @@ infoModal = () =>{
     this.keepUpdatedList(false);
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const realEmail = (user || {}).email.substring(0, end);
 
@@ -477,7 +480,7 @@ infoModal = () =>{
   setRating = (buyer,key,index,rating) => {
         const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
-    const end = (user || {}).email.indexOf(".com");
+    const end = (user || {}).email.indexOf(".edu");
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
     const thread = buyer ? this.state.threadsBuyer : this.state.threadsSeller
@@ -551,6 +554,7 @@ infoModal = () =>{
     return (
       <View style={styles.container}>
         <QuickOrder
+          showWarning={true}
           _swiper={this._swiper}
           blackBackground={false}
           setPage={this.setPage}
@@ -699,18 +703,22 @@ infoModal = () =>{
                             height:80 }}
                         >
                           <View style={[styles.avatar]}>
-                            {item.avatar ? (
-                              <Image
-                                source={{ url: item.avatar }}
-                                style={styles.avatar}
-                              />
-                            ) : (
-                              <FontAwesome
-                                name="user"
-                                size={50}
-                                color="black"
-                              />
-                            )}
+                          {item.avatar == 0 ? (
+                            <Fontisto name="slightly-smile" size={38} color="black" />
+                          ) : (item.avatar == 1 ? (
+                          <FontAwesome5 name="smile-beam" size={38} color="black"/>
+                          ): 
+                          (item.avatar == 2 ? (
+                             <FontAwesome5 name="smile-wink" size={38} color="black"/>
+                          ) :  
+                          (item.avatar == 3 ? (
+                            <Fontisto name="smiley" size={38} color="black" />
+                          ) : (
+                            <Image
+                              source={{ url: item.avatar }}
+                              style={styles.avatar}
+                            />
+                          ))))}
                           </View>
                             <Text numberOfLines={1} style={{fontSize:13}}>{item.name}</Text>
                         </View>
@@ -868,18 +876,22 @@ infoModal = () =>{
                             height:80 }}
                         >
                           <View style={[styles.avatar]}>
-                            {item.avatar ? (
-                              <Image
-                                source={{ url: item.avatar }}
-                                style={styles.avatar}
-                              />
-                            ) : (
-                              <FontAwesome
-                                name="user"
-                                size={50}
-                                color="black"
-                              />
-                            )}
+                          {item.avatar == 0 ? (
+                            <Fontisto name="slightly-smile" size={38} color="black" />
+                          ) : (item.avatar == 1 ? (
+                          <FontAwesome5 name="smile-beam" size={38} color="black"/>
+                          ): 
+                          (item.avatar == 2 ? (
+                             <FontAwesome5 name="smile-wink" size={38} color="black"/>
+                          ) :  
+                          (item.avatar == 3 ? (
+                            <Fontisto name="smiley" size={38} color="black" />
+                          ) : (
+                            <Image
+                              source={{ url: item.avatar }}
+                              style={styles.avatar}
+                            />
+                          ))))}
                           </View>
                             <Text numberOfLines={1} style={{fontSize:13}}>{item.name}</Text>
                         </View>
