@@ -663,7 +663,7 @@ export default class PopupOrder extends React.Component {
       });
     }
 
-    if (this.props.popupVisible && !this.state.rendered) {
+    if (this.props.popupVisible && !this.state.rendered && !this.state.loading) {
       console.log("this.props.timestamp", this.props.timestamp);
       //1 console.log("this.props.timestamp ", this.props.timestamp)
       //1 console.log("getDAteTime ",this.getDateTime(this.props.timestamp))

@@ -730,7 +730,7 @@ export default class PendingOrders extends React.Component {
                 attemptToDelete: true,
                 possibleTime: this.formatTime(data.item.originalTime + 3600000),
                 rowMap,
-                deletionScheduledIds: data.item.scheduledIds,
+                deletionScheduledIds: data.item.scheduledIds || [],
                 deletionKey: data.item.key,
                 deletionOrderNumber: data.item.orderNumber,
               });
