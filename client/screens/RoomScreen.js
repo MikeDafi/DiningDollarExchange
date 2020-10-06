@@ -2039,10 +2039,36 @@ export default class RoomScreen extends React.Component {
         }
         //1 console.log("had to download")
       } else if (message.image.startsWith("https")) {
-        message.image =
+        try {
+                const { exists } = await FileSystem.getInfoAsync(
+                  allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri,
+                  {}
+                );
+                //1 console.log("exists ", exists);
+                if (exists) {
+                          message.image =
           allChats[[this.state.isBuyer]][[this.state.thread]][
             [message._id]
           ].uri;
+                } else {
+                                    this.deleteUri(allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri)
+                  //if we have a uri to a file that doesn't exist
+          const uri = await this.downloadUrl(message.image, message._id);
+          doesExist = false;
+          allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {
+            uri,
+          };
+          message.image = uri;
+                }
+              } catch (e) {
+                this.deleteUri(allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]].uri)
+          const uri = await this.downloadUrl(message.image, message._id);
+          doesExist = false;
+          allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]] = {
+            uri,
+          };
+          message.image = uri;
+              }
       }
       // //1 console.log("thisMessage ",allChats[[this.state.isBuyer]][[this.state.thread]][[message._id]])
       const promises = [];

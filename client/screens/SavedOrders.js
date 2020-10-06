@@ -49,13 +49,13 @@ export default class SavedOrders extends React.Component {
   };
 
   togglePopupVisibility = (value) => {
-    console.log("in toggle",value)
+    console.log("in toggle", value);
     this.setState({ popupVisible: value });
   };
 
-  toggleOrderIndex = ( value) => {
-     this.setState({orderIndex : value})
-  }
+  toggleOrderIndex = (value) => {
+    this.setState({ orderIndex: value });
+  };
 
   exitSelectedOrderModal = () => {
     this._close(this.state.animatedWidth, 0, 200);
@@ -97,6 +97,7 @@ export default class SavedOrders extends React.Component {
           thisOrder.key = keys[key];
           thisOrder.timestamp = element.timePreference;
           thisOrder.lastUsed = this.displayTime(element.lastUsed);
+
           //1 console.log("element.thumbnail ", element.thumbnail);
           //1 console.log("from component didm mount ", savedOrders);
           ////1 console.log("savedOrders[[actualKey]].thumbnail",savedOrders[[actualKey]].thumbnail)
@@ -110,11 +111,37 @@ export default class SavedOrders extends React.Component {
               savedOrders[[actualKey]].thumbnail.uri &&
               savedOrders[[actualKey]].thumbnail.url == element.thumbnail
             ) {
-              //1 console.log("exists savedOrders ");
-
-              thisOrder.thumbnail.uri = savedOrders[[actualKey]].thumbnail.uri;
+              console.log("exists savedOrders ");
+              try {
+                const { exists } = await FileSystem.getInfoAsync(
+                  savedOrders[[actualKey]].thumbnail.uri
+                );
+                if (!exists) {
+                  this.deleteUri(savedOrders[[actualKey]].thumbnail.uri);
+                  //in case we have a uri to a file that doesn't exist
+                  promises.push(
+                    (thisOrder.thumbnail.uri = await this.downloadUrl(
+                      element.thumbnail,
+                      actualKey,
+                      "thumbnail"
+                    ))
+                  );
+                } else {
+                  thisOrder.thumbnail.uri =
+                    savedOrders[[actualKey]].thumbnail.uri;
+                }
+              } catch (e) {
+                this.deleteUri(savedOrders[[actualKey]].thumbnail.uri);
+                promises.push(
+                  (thisOrder.thumbnail.uri = await this.downloadUrl(
+                    element.thumbnail,
+                    actualKey,
+                    "thumbnail"
+                  ))
+                );
+              }
             } else {
-              //1 console.log("element.thumbnail ", element.thumbnail);
+              console.log("element.thumbnail ", element.thumbnail);
               this.deleteUri(savedOrders[[actualKey]].thumbnail.uri);
               // if(element.thumbnail != ""){
               if (element.thumbnail && element.thumbnail.length > 1) {
@@ -173,16 +200,29 @@ export default class SavedOrders extends React.Component {
             //1   savedOrders[[actualKey]]
             //1 );
             if (existsImages && savedOrders[[actualKey]].images[[images[i]]]) {
-              const { exists } = await FileSystem.getInfoAsync(
-                savedOrders[[actualKey]].images[[images[i]]],
-                {}
-              );
-              //1 console.log("exists ", exists);
-              if (exists) {
-                thisOrder.images[[images[i]]] =
-                  savedOrders[[actualKey]].images[[images[i]]];
-              } else {
-                //if we have a uri to a file that doesn't exist
+              try {
+                const { exists } = await FileSystem.getInfoAsync(
+                  savedOrders[[actualKey]].images[[images[i]]],
+                  {}
+                );
+                //1 console.log("exists ", exists);
+                if (exists) {
+                  thisOrder.images[[images[i]]] =
+                    savedOrders[[actualKey]].images[[images[i]]];
+                } else {
+                  this.deleteUri(savedOrders[[actualKey]].images[[images[i]]])
+                  //if we have a uri to a file that doesn't exist
+                  const endIndex = images[i].indexOf(".jpg");
+                  promises.push(
+                    (thisOrder.images[[images[i]]] = await this.downloadUrl(
+                      images[i],
+                      actualKey,
+                      images[i].substring(endIndex - 16, endIndex)
+                    ))
+                  );
+                }
+              } catch (e) {
+                this.deleteUri(savedOrders[[actualKey]].images[[images[i]]])
                 const endIndex = images[i].indexOf(".jpg");
                 promises.push(
                   (thisOrder.images[[images[i]]] = await this.downloadUrl(
@@ -443,7 +483,7 @@ export default class SavedOrders extends React.Component {
   };
 
   addSavedOrder = async (newOrderObject, imageUris) => {
-    this.setState({loading : true})
+    this.setState({ loading: true });
     const user = firebase.auth().currentUser;
     const start = (user || {}).email.indexOf("@");
     const end = (user || {}).email.indexOf(".edu");
@@ -532,7 +572,7 @@ export default class SavedOrders extends React.Component {
       });
     });
     //1 console.log("done");
-    this.setState({loading : false})
+    this.setState({ loading: false });
     // savedOrders[[key]] = newOrderObject
     //     firebase
     // .database()
@@ -690,7 +730,7 @@ export default class SavedOrders extends React.Component {
     Animated.timing(variableToChange, {
       toValue: value,
       duration: duration,
-      useNativeDriver:false,
+      useNativeDriver: false,
     }).start();
   };
 
@@ -698,7 +738,7 @@ export default class SavedOrders extends React.Component {
     Animated.timing(variableToChange, {
       toValue: value,
       duration: duration,
-      useNativeDriver:false,
+      useNativeDriver: false,
     }).start();
   };
 
@@ -725,15 +765,17 @@ export default class SavedOrders extends React.Component {
             <AntDesign name="arrowleft" size={30} color="black" />
           </TouchableOpacity>
           <Text style={{ fontSize: 20 }}>Saved Orders</Text>
-          <TouchableOpacity                             onPress={() =>
-                              this.setState({
-                                indexModal: 0,
-                                modalOn: true,
-                                newOrder: true,
-                              })
-                            }>
-<AntDesign name="pluscircle" size={27} color="black" />
-</TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              this.setState({
+                indexModal: 0,
+                modalOn: true,
+                newOrder: true,
+              })
+            }
+          >
+            <AntDesign name="pluscircle" size={27} color="black" />
+          </TouchableOpacity>
         </View>
         <ScrollView>
           <Grid style={{ width: windowWidth }}>
@@ -757,7 +799,7 @@ export default class SavedOrders extends React.Component {
                         newOrder: true,
                       })
                     }
-                    style={{alignItems:"center",justifyContent:"center"}}
+                    style={{ alignItems: "center", justifyContent: "center" }}
                   >
                     <Ionicons name="md-add" size={100} color="black" />
                     <View style={{ marginTop: -15 }}>
@@ -820,7 +862,10 @@ export default class SavedOrders extends React.Component {
                                 newOrder: true,
                               })
                             }
-                            style={{alignItems:"center",justifyContent:"center"}}
+                            style={{
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
                           >
                             <Ionicons name="md-add" size={100} color="black" />
                             <View style={{ marginTop: -15 }}>
@@ -839,14 +884,21 @@ export default class SavedOrders extends React.Component {
                         }
                         style={styles.itemContainer}
                       >
-                        {console.log(this.state.newSavedOrders[[index]].thumbnail)}
+                        {console.log(
+                          this.state.newSavedOrders[[index]].thumbnail
+                        )}
                         <ImageBackground
                           source={
-                            (this.state.newSavedOrders[[index]].thumbnail
-                              .url == undefined || this.state.newSavedOrders[[index]].thumbnail
-                              .url == "")  ?require("../assets/AppIconSquare1.png"): {uri : this.state.newSavedOrders[[index]].thumbnail
-                              .uri
-                          }}
+                            this.state.newSavedOrders[[index]].thumbnail.url ==
+                              undefined ||
+                            this.state.newSavedOrders[[index]].thumbnail.url ==
+                              ""
+                              ? require("../assets/AppIconSquare1.png")
+                              : {
+                                  uri: this.state.newSavedOrders[[index]]
+                                    .thumbnail.uri,
+                                }
+                          }
                           imageStyle={{ borderRadius: 45 }}
                           style={{
                             height: cardHeight - 10,
@@ -981,153 +1033,177 @@ export default class SavedOrders extends React.Component {
               );
             })}
           </Grid>
-                  {this.state.loading && 
-                <View style={{position:"absolute",backgroundColor:"rgba(177,177,177,0.5)",width:windowWidth,height:windowHeight,justifyContent: "center", alignItems: "center" }}>
-          <Text>Loading...</Text>
-          <ActivityIndicator size="large"></ActivityIndicator>
-        </View>
-        }
+          {this.state.loading && (
+            <View
+              style={{
+                position: "absolute",
+                backgroundColor: "rgba(177,177,177,0.5)",
+                width: windowWidth,
+                height: windowHeight,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text>Loading...</Text>
+              <ActivityIndicator size="large"></ActivityIndicator>
+            </View>
+          )}
         </ScrollView>
         <PopupOrder
           navigation={this.props.navigation}
           popupVisible={this.state.popupVisible}
           fromSavedOrder={true}
           togglePopupVisibility={this.togglePopupVisibility}
-          timestamp={this.formatTimeStampForToday(this.state.newSavedOrders[[this.state.orderIndex]] ?
-            this.state.newSavedOrders[[this.state.orderIndex]].timestamp : 0
+          timestamp={this.formatTimeStampForToday(
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? this.state.newSavedOrders[[this.state.orderIndex]].timestamp
+              : 0
           )}
-          imageNames={Object.values(this.state.newSavedOrders[[this.state.orderIndex]] ? 
-            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+          imageNames={Object.values(
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? this.state.newSavedOrders[[this.state.orderIndex]].images
+              : {}
           ).map((x, i) => i)}
           imageUris={Object.values(
-            this.state.newSavedOrders[[this.state.orderIndex]] ?
-            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? this.state.newSavedOrders[[this.state.orderIndex]].images
+              : {}
           )}
           priceInputted={
-            this.state.newSavedOrders[[this.state.orderIndex]] ? (
-            isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
-              ? ""
-              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+                ? ""
+                : this.state.newSavedOrders[[this.state.orderIndex]].range
+              : ""
           }
           rangeSelected={
-            this.state.newSavedOrders[[this.state.orderIndex]] ? (
-            !isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
-              ? ""
-              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? !isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+                ? ""
+                : this.state.newSavedOrders[[this.state.orderIndex]].range
+              : ""
           }
         />
-        {!this.state.popupVisible && 
-        <Modal
-          testID={"modal"}
-          coverScreen={true}
-          hasBackdrop={true}
-          isVisible={this.state.modalOn}
-          animationInTiming={0.00000000000001}
-          hideModalContentWhileAnimating={true}
-          style={{
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onModalWillShow={() => {
-            this._start(this.state.animatedWidth, windowWidth, 300);
-            this._start(this.state.animatedHeight, windowHeight, 300);
-          }}
-          onModalWillHide={() => {
-            this._close(this.state.animatedWidth, 0, 200);
-            this._close(this.state.animatedHeight, 0, 200);
-          }}
-          onBackdropPress={() => {
-            this.setState({ modalOn: false });
-            this._close(this.state.animatedWidth, 0, 200);
-            this._close(this.state.animatedHeight, 0, 200);
-            // this.props.togglePopupVisibility(false)
-          }}
-        >
-          <Animated.View
+        {!this.state.popupVisible && (
+          <Modal
+            testID={"modal"}
+            coverScreen={true}
+            hasBackdrop={true}
+            isVisible={this.state.modalOn}
+            animationInTiming={0.00000000000001}
+            hideModalContentWhileAnimating={true}
             style={{
-              height: this.state.animatedHeight,
-              width: windowWidth,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onModalWillShow={() => {
+              this._start(this.state.animatedWidth, windowWidth, 300);
+              this._start(this.state.animatedHeight, windowHeight, 300);
+            }}
+            onModalWillHide={() => {
+              this._close(this.state.animatedWidth, 0, 200);
+              this._close(this.state.animatedHeight, 0, 200);
+            }}
+            onBackdropPress={() => {
+              this.setState({ modalOn: false });
+              this._close(this.state.animatedWidth, 0, 200);
+              this._close(this.state.animatedHeight, 0, 200);
+              // this.props.togglePopupVisibility(false)
             }}
           >
-            {this.state.newOrder ? (
-              <SpecificSavedOrder
-                newOrder={true}
-                exitSelectedOrderModal={this.exitSelectedOrderModal}
-                addSavedOrder={this.addSavedOrder}
-              />
-            ) : (
-              <Swiper
-                ref={(swiper) => {
-                  this._swiper = swiper;
-                }}
-                bounce
-                loop={false}
-                showsButtons={this.state.showsButtons}
-                onIndexChanged={this.setPage}
-                style={{
-                  overflow: "visible",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-                nextButton={
-                  <Text style={{ fontSize: 75, color: "#007aff" }}>›</Text>
-                }
-                prevButton={
-                  <Text style={{ fontSize: 75, color: "#007aff" }}>‹</Text>
-                }
-              >
-                {this.state.newSavedOrders.map((element, index) => {
-                  //1 console.log("element.thumbnail", element.thumbnail);
-                  return (
-                    <View>
-                      <SpecificSavedOrder
-                        rangeSelected={element.range || "N/A"}
-                        elementKey={element.key}
-                        index={index}
-                        togglePopupVisibility={this.togglePopupVisibility}
-                        toggleOrderIndex={this.toggleOrderIndex}
-                        toggleShowSwiperButtons={this.toggleShowSwiperButtons}
-                        exitSelectedOrderModal={this.exitSelectedOrderModal}
-                        timestamp={element.timestamp}
-                        imageUrls={element.images}
-                        orderTitle={element.title}
-                        updateOrderFirebase={this.updateOrderFirebase}
-                        deleteSavedOrder={this.deleteSavedOrder}
-                        thumbnail={element.thumbnail.uri}
-                      />
-                    </View>
-                  );
-                })}
-              </Swiper>
-            )}
-          </Animated.View>
-        </Modal>}
+            <Animated.View
+              style={{
+                height: this.state.animatedHeight,
+                width: windowWidth,
+              }}
+            >
+              {this.state.newOrder ? (
+                <SpecificSavedOrder
+                  newOrder={true}
+                  exitSelectedOrderModal={this.exitSelectedOrderModal}
+                  addSavedOrder={this.addSavedOrder}
+                />
+              ) : (
+                <Swiper
+                  ref={(swiper) => {
+                    this._swiper = swiper;
+                  }}
+                  bounce
+                  loop={false}
+                  showsButtons={this.state.showsButtons}
+                  onIndexChanged={this.setPage}
+                  style={{
+                    overflow: "visible",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                  nextButton={
+                    <Text style={{ fontSize: 75, color: "#007aff" }}>›</Text>
+                  }
+                  prevButton={
+                    <Text style={{ fontSize: 75, color: "#007aff" }}>‹</Text>
+                  }
+                >
+                  {this.state.newSavedOrders.map((element, index) => {
+                    //1 console.log("element.thumbnail", element.thumbnail);
+                    return (
+                      <View>
+                        <SpecificSavedOrder
+                          rangeSelected={element.range || "N/A"}
+                          elementKey={element.key}
+                          index={index}
+                          togglePopupVisibility={this.togglePopupVisibility}
+                          toggleOrderIndex={this.toggleOrderIndex}
+                          toggleShowSwiperButtons={this.toggleShowSwiperButtons}
+                          exitSelectedOrderModal={this.exitSelectedOrderModal}
+                          timestamp={element.timestamp}
+                          imageUrls={element.images}
+                          orderTitle={element.title}
+                          updateOrderFirebase={this.updateOrderFirebase}
+                          deleteSavedOrder={this.deleteSavedOrder}
+                          thumbnail={element.thumbnail.uri}
+                        />
+                      </View>
+                    );
+                  })}
+                </Swiper>
+              )}
+            </Animated.View>
+          </Modal>
+        )}
         <PopupOrder
           navigation={this.props.navigation}
           popupVisible={this.state.popupVisible}
           fromSavedOrder={true}
           togglePopupVisibility={this.togglePopupVisibility}
-          timestamp={this.formatTimeStampForToday(this.state.newSavedOrders[[this.state.orderIndex]] ?
-            this.state.newSavedOrders[[this.state.orderIndex]].timestamp : 0
+          timestamp={this.formatTimeStampForToday(
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? this.state.newSavedOrders[[this.state.orderIndex]].timestamp
+              : 0
           )}
-          imageNames={Object.values(this.state.newSavedOrders[[this.state.orderIndex]] ? 
-            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+          imageNames={Object.values(
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? this.state.newSavedOrders[[this.state.orderIndex]].images
+              : {}
           ).map((x, i) => i)}
           imageUris={Object.values(
-            this.state.newSavedOrders[[this.state.orderIndex]] ?
-            this.state.newSavedOrders[[this.state.orderIndex]].images : {}
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? this.state.newSavedOrders[[this.state.orderIndex]].images
+              : {}
           )}
           priceInputted={
-            this.state.newSavedOrders[[this.state.orderIndex]] ? (
-            isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
-              ? ""
-              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+                ? ""
+                : this.state.newSavedOrders[[this.state.orderIndex]].range
+              : ""
           }
           rangeSelected={
-            this.state.newSavedOrders[[this.state.orderIndex]] ? (
-            !isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
-              ? ""
-              : this.state.newSavedOrders[[this.state.orderIndex]].range) : ""
+            this.state.newSavedOrders[[this.state.orderIndex]]
+              ? !isNaN(this.state.newSavedOrders[[this.state.orderIndex]].range)
+                ? ""
+                : this.state.newSavedOrders[[this.state.orderIndex]].range
+              : ""
           }
         />
       </View>

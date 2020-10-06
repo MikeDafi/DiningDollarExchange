@@ -6,6 +6,8 @@ import Loading from "./LoadingScreen";
 import LottieView from "lottie-react-native";
 import {
   FontAwesome,
+  FontAwesome5,
+  Fontisto,
   MaterialIcons,
   Entypo,
   AntDesign,
@@ -45,6 +47,7 @@ const windowHeight = Dimensions.get("window").height;
 
 export default class SelectedOrderModal extends React.Component {
   state = {
+    orderNull:false,
     carouselAnimatedHeight: new Animated.Value(0),
     animatedWidth: new Animated.Value(0),
     animatedHeight: new Animated.Value(0),
@@ -511,7 +514,10 @@ export default class SelectedOrderModal extends React.Component {
       ////1 console.log("snapshot","orders/"+domain + "/currentOrders/" + notification.data.data.orderNumber)
       const order = snapshot.val();
       //1 console.log("order", order);
-
+        if(order == null){
+          this.setState({orderNull:true,acceptedOrderVisible:false})
+          return;
+        }
         const name = "";
         // const profileImagePath =
         //   "profilePics/" + domain + "/" + order.buyer + "/profilePic.jpg";
@@ -570,7 +576,6 @@ export default class SelectedOrderModal extends React.Component {
                       otherChattersProfileImages[[otherChatterEmail]].uri
                     );
                   }
-                  try {
                     const uri = await this.downloadUrl(
                       snapshot.val().profileImageUrl,
                       otherChatterEmail,
@@ -591,15 +596,68 @@ export default class SelectedOrderModal extends React.Component {
                       "otherChattersProfileImages",
                       JSON.stringify(otherChattersProfileImages)
                     );
-                  } catch (e) {
-                    //1 console.log(e);
-                  }
+
                 } else {
-                  //1 console.log("already defined");
+              try {
+                console.log("afd")
+                console.log("viewed ",                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri)
+                const { exists } = await FileSystem.getInfoAsync(
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri,
+                  {}
+                );
+                if(exists){
                   this.setState({
                     profileImage:
                       otherChattersProfileImages[[otherChatterEmail]].uri,
                   });
+                }else{
+                    const uri = await this.downloadUrl(
+                      snapshot.val().profileImageUrl,
+                      otherChatterEmail,
+                      "otherChatterEmail"
+                    );
+                    const newProfileObject = {
+                      uri,
+                      url: snapshot.val().profileImageUrl,
+                    };
+                    otherChattersProfileImages[
+                      [otherChatterEmail]
+                    ] = newProfileObject;
+                    this.setState({
+                      profileImage:
+                        otherChattersProfileImages[[otherChatterEmail]].uri,
+                    });
+                    AsyncStorage.setItem(
+                      "otherChattersProfileImages",
+                      JSON.stringify(otherChattersProfileImages)
+                    );
+                }
+                }catch(e){
+                    const uri = await this.downloadUrl(
+                      snapshot.val().profileImageUrl,
+                      otherChatterEmail,
+                      "otherChatterEmail"
+                    );
+                    const newProfileObject = {
+                      uri,
+                      url: snapshot.val().profileImageUrl,
+                    };
+                    otherChattersProfileImages[
+                      [otherChatterEmail]
+                    ] = newProfileObject;
+                    this.setState({
+                      profileImage:
+                        otherChattersProfileImages[[otherChatterEmail]].uri,
+                    });
+                    AsyncStorage.setItem(
+                      "otherChattersProfileImages",
+                      JSON.stringify(otherChattersProfileImages)
+                    );
+                }
                 }
               }else{
                                 this.setState({profileImage: Math.floor(Math.random() * 4)})
@@ -625,7 +683,7 @@ export default class SelectedOrderModal extends React.Component {
         }
 
         var allImagesExist = true;
-        ((order || {}).imageNames || []).map((name) => {
+        ((order || {}).imageNames || []).map( (name) => {
           if (
             !viewedOrders[[this.props.navigation.state.params.orderNumber]][
               [name]
@@ -640,7 +698,7 @@ export default class SelectedOrderModal extends React.Component {
         //1 );
         const imageUrls = this.state.imageUrls;
         if (!allImagesExist) {
-          ((order || {}).imageNames || []).map((url) => {
+          ((order || {}).imageNames || []).map(async (url) => {
             const name = url.substring(url.length - 20, url.length);
             //   console.log("name" ,name)
             //   console.log("this.props.navigation.state.params.orderNumber ",this.props.navigation.state.params.orderNumber)
@@ -653,6 +711,7 @@ export default class SelectedOrderModal extends React.Component {
                 [name]
               ].uri
             ) {
+
               console.log("url ", url);
               promises.push(
                 new Promise(async (resolve, reject) => {
@@ -679,6 +738,19 @@ export default class SelectedOrderModal extends React.Component {
 
               // })
             } else {
+              try {
+                console.log("afd")
+                console.log("viewed ",                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri)
+                const { exists } = await FileSystem.getInfoAsync(
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri,
+                  {}
+                );
+               console.log("exists ", exists);
+                if (exists) {
               imageUrls.push({
                 url:
                   viewedOrders[
@@ -686,6 +758,66 @@ export default class SelectedOrderModal extends React.Component {
                   ][[name]].uri,
                 actualUrl: url,
               });
+                } else {
+                  //if we have a uri to a file that doesn't exist
+              promises.push(
+                new Promise(async (resolve, reject) => {
+                                    this.deleteUri(viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri)
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]] = {};
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri = await this.downloadUrl(
+                    url,
+                    name,
+                    "viewedOrders"
+                  );
+                  console.log("vi ",viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri)
+                  imageUrls.push({
+                    url:
+                      viewedOrders[
+                        [this.props.navigation.state.params.orderNumber]
+                      ][[name]].uri,
+                    actualUrl: url,
+                  });
+                  resolve();
+                })
+              );
+                }
+              } catch (e) {
+                
+              promises.push(
+                new Promise(async (resolve, reject) => {
+                  this.deleteUri(viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri)
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]] = {};
+                  viewedOrders[
+                    [this.props.navigation.state.params.orderNumber]
+                  ][[name]].uri = await this.downloadUrl(
+                    url,
+                    name,
+                    "viewedOrders"
+                  );
+
+                  imageUrls.push({
+                    url:
+                      viewedOrders[
+                        [this.props.navigation.state.params.orderNumber]
+                      ][[name]].uri,
+                    actualUrl: url,
+                  });
+                  resolve();
+                })
+              );
+            }
             }
           });
           await Promise.all(promises);
@@ -707,6 +839,13 @@ export default class SelectedOrderModal extends React.Component {
         //1 console.log("setitems");
     });
   }
+    deleteUri = async (path) => {
+    try {
+      await FileSystem.deleteAsync(path, {});
+    } catch (e) {
+      //1 console.log("ERROR deleting profile image in profile screen");
+    }
+  };
 
   downloadUrl = async (url, name, path) => {
     console.log("download ", url);
@@ -1073,9 +1212,10 @@ export default class SelectedOrderModal extends React.Component {
 
           // this.props.navigation.goBack();
           if((this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != "expired" && (this.props.navigation.state.params.pendingOrderInfo || {}).orderStatus != "searching"){
-                        this.setState({ modalOn: false });
+          this.setState({ modalOn: false });
           this._close(this.state.animatedWidth);
           this._close(this.state.animatedHeight);
+          this.props.navigation.goBack();
               const user = firebase.auth().currentUser;
               const start = (user || {}).email.indexOf("@");
               const end = (user || {}).email.indexOf(".edu");
@@ -1327,7 +1467,9 @@ export default class SelectedOrderModal extends React.Component {
               {email == this.state.buyerEmail
                 ? "You can't accept your own order."
                 : this.state.timeStillAvailable
-                ? "Someone Has Already Accepted the Order."
+                ? "Someone Has Already Accepted the Order." 
+                : this.state.orderNull 
+                ? "The order no longer exists. Sorry!"
                 : "You were too late!"}
             </Text>
           </View>
