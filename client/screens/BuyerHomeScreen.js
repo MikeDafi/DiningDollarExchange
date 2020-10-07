@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import * as firebase from "firebase";
-import {  FontAwesome,Entypo } from "@expo/vector-icons";
+import {  FontAwesome,FontAwesome5,Fontisto,Entypo } from "@expo/vector-icons";
 import { FlatGrid } from "react-native-super-grid";
 import AwesomeButton from "react-native-really-awesome-button";
 import LottieView from "lottie-react-native";
@@ -152,6 +152,8 @@ export default class BuyerHomeScreen extends React.Component {
                   reviewAccount.imageUri =
                     otherChattersProfileImages[[otherChatterEmail]].uri;
                 }
+              }else{
+                reviewAccount.imageUri = Math.floor(Math.random() * 4)
               }
               this.setState({reviewAccount})
             });
@@ -256,11 +258,23 @@ export default class BuyerHomeScreen extends React.Component {
             selected={(rating) => this.onStarRatingPress(rating)}
           />
           <View style={styles.avatarPlaceholder}>
+                                    {this.state.reviewAccount.imageUri == 0 ? (
+                            <Fontisto name="slightly-smile" size={50} color="black" />
+                          ) : (this.state.reviewAccount.imageUri == 1 ? (
+                          <FontAwesome5 name="smile-beam" size={50} color="black"/>
+                          ): 
+                          (this.state.reviewAccount.imageUri == 2 ? (
+                             <FontAwesome5 name="smile-wink" size={50} color="black"/>
+                          ) :  
+                          (this.state.reviewAccount.imageUri == 3 ? (
+                            <Fontisto name="smiley" size={50} color="black" />
+                          ) : (
               <Image
                 source={{ uri: this.state.reviewAccount.imageUri }}
                 threshold={0}
                 style={styles.avatar}
               />
+                          ))))}
             {/* <Image source={{uri : this.state.avatar}} style={styles.avatar}/>                        */}
           </View>
            <View style={{height:(cardHeightRoom - 30 - (cardWidth/5 ) - 70)/2}}>

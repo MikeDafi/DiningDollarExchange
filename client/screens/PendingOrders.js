@@ -682,13 +682,15 @@ export default class PendingOrders extends React.Component {
               const end = (user || {}).email.indexOf(".edu");
               const email = (user || {}).email.substring(0, end);
               const domain = (user || {}).email.substring(start, end);
+              const otherChatterEmailLength = data.item.chatId.length -email.length
+                     
               const otherChatterEmail =
                 data.item.chatId.substring(0, email.length) == email
                   ? data.item.chatId.substring(
                       email.length,
                       data.item.chatId.length
                     )
-                  : data.item.chatId.substring(0, email.length);
+                  : data.item.chatId.substring(0, otherChatterEmailLength);
               firebase
                 .database()
                 .ref("users/" + domain + "/" + otherChatterEmail)

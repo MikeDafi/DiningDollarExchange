@@ -129,14 +129,14 @@ export default class HomeScreen extends React.Component {
                 if(snapshot.val()[[notification.data.orderNumber]] != undefined && 
                 (snapshot.val()[[notification.data.orderNumber]]["status"] == "in-progress" || snapshot.val()[[notification.data.orderNumber]]["status"] == "completed")){
               const chatId = snapshot.val()[[notification.data.orderNumber]]["chatId"]
-
+              const otherChatterEmailLength = chatId.length - email.length
               const otherChatterEmail =
                 chatId.substring(0, email.length) == email
                   ? chatId.substring(
                       email.length,
                       chatId.length
                     )
-                  : chatId.substring(0, email.length);
+                  : chatId.substring(0, otherChatterEmailLength);
               firebase
                 .database()
                 .ref("users/" + domain + "/" + otherChatterEmail)

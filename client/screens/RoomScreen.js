@@ -1925,16 +1925,17 @@ export default class RoomScreen extends React.Component {
   };
 
   renderDelivered = () => {
-    if (this.state.read && this.state.hasSentMessage) {
-      return (
-        <View style={{ alignItems: "flex-end", marginRight: 5 }}>
-          <Text style={{ fontSize: 10, color: "gray" }}>
-            <Text style={{ fontWeight: "bold" }}>Read</Text>{" "}
-            {this.state.readTime}
-          </Text>
-        </View>
-      );
-    } else if (this.state.delivered && this.state.hasSentMessage) {
+    // if (this.state.read && this.state.hasSentMessage) {
+    //   return (
+    //     <View style={{ alignItems: "flex-end", marginRight: 5 }}>
+    //       <Text style={{ fontSize: 10, color: "gray" }}>
+    //         <Text style={{ fontWeight: "bold" }}>Read</Text>{" "}
+    //         {this.state.readTime}
+    //       </Text>
+    //     </View>
+    //   );
+    // } else 
+    if (this.state.delivered && this.state.hasSentMessage) {
       return (
         <View style={{ alignItems: "flex-end", marginRight: 5 }}>
           <Text style={{ fontSize: 10, color: "gray" }}>

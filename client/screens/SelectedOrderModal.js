@@ -1221,13 +1221,16 @@ export default class SelectedOrderModal extends React.Component {
               const end = (user || {}).email.indexOf(".edu");
               const email = (user || {}).email.substring(0, end);
               const domain = (user || {}).email.substring(start, end);
+              const otherChatterEmailLength = (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.length - email.length
+              console.log("this.props.navigation.state.params.pendingOrderInfo || {}).chatId ",(this.props.navigation.state.params.pendingOrderInfo || {}).chatId)
               const otherChatterEmail =
                 (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.substring(0, email.length) == email
                   ? (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.substring(
                       email.length,
                       (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.length
                     )
-                  : (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.substring(0, email.length);
+                  : (this.props.navigation.state.params.pendingOrderInfo || {}).chatId.substring(0, otherChatterEmailLength);
+              console.log("otherChatterEmail ",otherChatterEmail)
               firebase
                 .database()
                 .ref("users/" + domain + "/" + otherChatterEmail)
