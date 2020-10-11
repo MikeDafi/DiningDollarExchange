@@ -60,8 +60,7 @@ export default class BuyerHomeScreen extends React.Component {
           const daysLeftToReview = this.daysLeftToReview(
             thread[[historyOrders[i]]].timestamp
           );
-          //1 console.log("daysLeft ",daysLeftToReview)
-          //1 console.log("rating ",  thread[[historyOrders[i]]].rating)
+
           if (daysLeftToReview == null || thread[[historyOrders[i]]].rating != undefined) {
             break;
           } else {
@@ -69,7 +68,8 @@ export default class BuyerHomeScreen extends React.Component {
             reviewAccount = {
               chatId:  thread[[historyOrders[i]]].chatId,
               daysLeftToReview,
-              key : historyOrders[i]
+              key : historyOrders[i],
+              isBuyer : buyer == 0 ? true : false,
             };
           }
         }
@@ -308,6 +308,16 @@ export default class BuyerHomeScreen extends React.Component {
     );
   };
 
+  ref = () => {
+    const user = firebase.auth().currentUser;
+    const start = (user || {}).email.indexOf("@");
+    const end = (user || {}).email.indexOf(".edu");
+    const domain = (user || {}).email.substring(start, end);
+    const email = (user || {}).email.substring(0, end);
+    return firebase
+      .database()
+      .ref("/users/" + domain + "/" + email + "/historyOrders");
+  };
 
   setRating = () => {
         const user = firebase.auth().currentUser;
@@ -316,24 +326,29 @@ export default class BuyerHomeScreen extends React.Component {
     const domain = (user || {}).email.substring(start, end);
     const email = (user || {}).email.substring(0, end);
 
-      this.ref().child(buyer ? "buyer" : "seller").child(this.state.reviewAccount.key).update({rating : this.state.reviewAccount.starRating})
+      this.ref().child(this.state.reviewAccount.isBuyer ? "buyer" : "seller").child(this.state.reviewAccount.key).update({rating : this.state.reviewAccount.starRating})
       firebase.database().ref("users/" + domain + "/" + this.state.reviewAccount.otherChatterEmail).once("value",snapshot => {
         var ratingFraction = snapshot.val().ratingFraction || ""
         var numerator = 0,denominator = 0;
+        console.log("ratingFraction " + ratingFraction)
         if(ratingFraction != ""){
+          console.log("adsfads")
         const slash = ratingFraction.indexOf("/")
         numerator = ratingFraction.substring(0,slash)
         denominator = ratingFraction.substring(slash + 1,ratingFraction.length)
-        numerator = parseInt(numerator)
-        denominator = parseInt(denominator)
+        numerator = parseFloat(numerator)
+        denominator = parseFloat(denominator)
         }
-        numerator += this.state.reviewAccount.rating
+        numerator += this.state.reviewAccount.starRating
         denominator += 5
+        console.log("numerator " + numerator)
         const newRating = (numerator / denominator) * 5
+        console.log("new Rating " + newRating)
         firebase.database().ref("users/" + domain + "/" + this.state.reviewAccount.otherChatterEmail).update({
           ratingFraction : numerator + "/" + denominator,
           starRating : newRating
         })
+        this.setState({reviewAccount:{}})
       })
         
   }

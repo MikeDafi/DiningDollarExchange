@@ -3339,15 +3339,15 @@ onLoadingEarlier = async () => {
                                 : 380
                               : this.state.yourPaymentOptionsLength == 2
                               ? this.state.confirmOrderImageUris.length > 0
-                                ? 480
-                                : 440
+                                ? 500
+                                : 450
                               : this.state.yourPaymentOptionsLength == 3
                               ? this.state.confirmOrderImageUris.length > 0
-                                ? 520
+                                ? 530
                                 : 480
                               : this.state.confirmOrderImageUris.length > 0
-                              ? 565
-                              : 515
+                              ? 580
+                              : 530
                           );
                         }}
                         onClose={() => {
@@ -3530,9 +3530,23 @@ onLoadingEarlier = async () => {
                               alignItems: "center",
                               marginRight: 5,
                             }}
-                            onPress={() =>
+                            onPress={() => {
                               this.setState({ confirmOrderImageUris: [] })
-                            }
+                              this._payment(
+                              this.state.confirmModalHeight,
+                              this.state.yourPaymentOptionsLength == 0 ?
+                                  this.state.openedDropdown ? 
+                                  420
+                                  : 380
+                              : this.state.yourPaymentOptionsLength == 2
+                                ? this.state.openedDropdown ?
+                                450
+                                : 430
+                              : this.state.yourPaymentOptionsLength == 3
+                                ? 480
+                              : 300
+                            );
+                            }}
                           >
                             <MaterialCommunityIcons
                               name="cancel"
