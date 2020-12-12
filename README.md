@@ -1,7 +1,8 @@
 # Dining Dollar Exchange
 <img src="https://www.linkpicture.com/q/Cover_1.png" style="width: 650px; max-width: 100%; height: auto" title="Click to enlarge picture" />
-**If a student doesn’t spend all of their of Dining Dollars(DD), UCSD forcibly withdraws the DD’s. The hoops a UCSD student goes through to avoid withdrawal:
-Students are only allowed to sell DD in Spring Quarter**
+
+**If a student doesn’t spend all of their of Dining Dollars(DD), UCSD forcibly withdraws the DD’s. The hoops a UCSD student goes through to avoid withdrawal:**
+- Students are only allowed to sell DD in Spring Quarter
 - Students lose their DD end of Fall Quarter of following year
 - Students must independently find another student to sell to
 - Students sell at a 2:1 ratio, losing 50% of their money
